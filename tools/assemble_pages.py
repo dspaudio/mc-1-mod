@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import wave
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -58,7 +59,11 @@ def main() -> None:
     downloads = site / "downloads"
     audio = site / "audio"
     downloads.mkdir(exist_ok=True)
-    audio.mkdir(exist_ok=True)
+    if audio.exists():
+        shutil.rmtree(audio)
+    audio.mkdir()
+    canonical = ROOT / "build/canonical-audio"
+    canonical.mkdir(exist_ok=True)
     files = []
     for name in names:
         source = firmware / name
@@ -75,6 +80,8 @@ def main() -> None:
         auditions = json.loads((folder / "auditions.json").read_text())
         assert auditions["render_complete"] and not auditions["subjective_listening_approved"]
         assert auditions["schema_version"] == 3
+        assert not auditions["mechanical_failures"]
+        assert not auditions["target_test_performed"] and not auditions["device_test_performed"]
         for mode in ("full", "dry-diagnostic"):
             presets = [item for item in auditions["files"]
                        if item["kind"] == "preset" and item["render_mode"] == mode]
@@ -85,13 +92,38 @@ def main() -> None:
         songs = [item for item in auditions["files"] if item["kind"] == "song"]
         assert [(item["demo_id"], item["bpm"], item["song_bars"]) for item in songs] == [(2, 128, 24), (3, 144, 32)]
         assert all(item["song_mode"] and not item["song_loop"] and item["score"] for item in songs)
+        shutil.copy2(folder / "auditions.json", canonical / "auditions.json")
         for item in auditions["files"]:
             source = folder / "audio" / item["file"]
             assert item["mechanical_status"] == "PASS" and not item["loop_seam_review_count"]
             assert not item["clipped_samples"] and item["ended_tails"]
             assert digest(source) == item["sha256"] and source.stat().st_size == item["bytes"]
-            shutil.copy2(source, audio / item["file"])
+            with wave.open(str(source), "rb") as wav:
+                assert wav.getcomptype() == "NONE"
+                assert wav.getnframes() == item["frames"]
+                assert wav.getframerate() == item["sample_rate"]
+                assert wav.getnchannels() == item["channels"] == 2
+                assert wav.getsampwidth() * 8 == item["bits_per_sample"] == 16
+            item["canonical_wav"] = {key: item[key] for key in (
+                "file", "sha256", "bytes", "frames", "sample_rate", "channels", "bits_per_sample")}
+            shutil.copy2(source, canonical / item["file"])
+            item["file"] = Path(item["file"]).with_suffix(".mp3").name
+            destination = audio / item["file"]
+            subprocess.run(["lame", "--silent", "--noreplaygain", "-V", "2",
+                            str(source), str(destination)],
+                           cwd=ROOT, check=True)
+            item["sha256"] = digest(destination)
+            item["bytes"] = destination.stat().st_size
             item["path"] = "audio/" + item["file"]
+            if item["paired_file"]:
+                item["paired_file"] = Path(item["paired_file"]).with_suffix(".mp3").name
+    assert target["source_input_sha256"] == target_fingerprint(), "Target inputs changed during rendering."
+    assert info["source_input_sha256"] == build_web.source_input_sha256(ROOT), "WASM inputs changed during rendering."
+    auditions["schema_version"] = 4
+    auditions["native_schema_version"] = 3
+    auditions["measurement_basis"] = "canonical_wav"
+    auditions["delivery"] = {"format": "mp3", "encoder": "LAME", "vbr_quality": 2,
+                             "lossy": True, "sample_exact": False}
     auditions["target_source_input_sha256"] = target["source_input_sha256"]
     auditions["wasm_source_input_sha256"] = info["source_input_sha256"]
     (site / "auditions.json").write_text(json.dumps(auditions, ensure_ascii=False, indent=2) + "\n")

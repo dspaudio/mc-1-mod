@@ -91,7 +91,7 @@ static void ramp_and_end(void) {
     assert(!mc_parameter_set(&a,0,MC_PARAM_SOURCE_MASK,HY_ALL));render(&a,128);
     assert(a.voice[0].pcm_pos==pos&&a.voice[0].hybrid.ended_mask&HY_PCM);
     assert(audible(whole,128)&&active(&a)==1);
-    setup(&a,MC_PRESET_PULSE_DRIVE,HY_VA);
+    setup(&a,MC_PRESET_PULSE_ARP,HY_VA);
     mc_note(&a,0,60,127,0,0);render(&a,4096);
     assert(a.voice[0].hybrid.ended_mask&HY_FM);
     assert(!a.voice[0].phase);
@@ -208,6 +208,42 @@ static void partition(void) {
         mc_off(&a,2,63);mc_off(&b,2,63);compare_partition(1024,sizes[n]);
     }
 }
+static void piano_attack_first(void) {
+    const unsigned notes[]={48,60,72,84},velocities[]={32,80,127};
+    for(unsigned id=MC_PRESET_STAGE_PIANO;id<=MC_PRESET_CLEAR_EP;id++)
+        for(unsigned n=0;n<4;n++)for(unsigned velocity=0;velocity<3;velocity++)
+            for(unsigned mask=3;mask<=HY_ALL;mask+=2) {
+                if(mask&~hy_profile(id)->available_mask)continue;
+                mc_init(&a);mc_preset(&a,0,id);
+                memset(a.project.fx_send,0,sizeof a.project.fx_send);
+                memset(a.project.analog,0,sizeof a.project.analog);
+                a.project.patch[0].source_mask=(uint8_t)mask;
+                /* Include Warm Tines' editable PCM mixture, muted by default. */
+                b=a;b.project.patch[0].source_mask=HY_PCM;
+                mc_note(&a,0,notes[n],velocities[velocity],0,0);
+                mc_note(&b,0,notes[n],velocities[velocity],0,0);
+                mc_render(&a,whole,512);mc_render(&b,split,512);
+                assert(audible(split,128));
+                assert(!memcmp(whole,split,128*2*sizeof *whole));
+                assert(memcmp(whole+256,split+256,384*2*sizeof *whole));
+                uint32_t phase=mc_frequency[notes[n]]*512u;
+                if(mask&HY_FM)assert(a.voice[0].phase==phase);
+                if(mask&HY_VA)assert(a.voice[0].phase2==phase);
+                /* A zero PCM mix must remain identical to source-mask editing. */
+                mc_init(&a);mc_preset(&a,0,id);
+                memset(a.project.fx_send,0,sizeof a.project.fx_send);
+                memset(a.project.analog,0,sizeof a.project.analog);
+                a.project.patch[0].source_mask=(uint8_t)mask;
+                a.project.patch[0].pcm_mix=0;
+                b=a;b.project.patch[0].source_mask=(uint8_t)(mask&~HY_PCM);
+                mc_note(&a,0,notes[n],velocities[velocity],0,0);
+                mc_note(&b,0,notes[n],velocities[velocity],0,0);
+                mc_render(&a,whole,512);mc_render(&b,split,512);
+                assert(audible(whole,128));
+                assert(!memcmp(whole,split,512*2*sizeof *whole));
+            }
+    puts("PASS hybrid piano: audible PCM leads FM/VA, body follows with continuous phase; PCM-muted edits unchanged");
+}
 static void source_math(void) {
     /* 최종 필터/EG 밖의 실제 kernel을 정수 오라클과 대조한다. */
     for(unsigned mask=1;mask<=HY_ALL;mask++) {
@@ -216,7 +252,7 @@ static void source_math(void) {
         v.patch.source_mask=(uint8_t)mask;v.patch.wave=MC_WAVE_SINE;
         v.patch.pcm_mix=17;v.patch.fm_mix=63;v.patch.va_mix=111;v.note=60;v.velocity=127;
         hy_source_init(&v);v.hybrid.fm_index=0;
-        v.phase=v.phase2=0x40000000u;v.pcm_pos=32u<<16;
+        v.phase=v.phase2=0x40000000u;v.pcm_pos=32u<<16;v.age=256;
         const McPcmMip *pcm=&hy_pcm_zone(v.hybrid.pcm_zone)->mip[0];
         McVoiceRender r={.profile=hy_profile(v.patch.profile),.pcm=pcm,.cache=&cache,
             .increment=mc_frequency[60],.pcm_step=100,
@@ -474,6 +510,7 @@ static void long_partitions(void) {
     puts("PASS hybrid: 10-second PCM/full-state partitions 1/3/16/17/127/128/255/irregular, morph boundaries/masks/bend/release");
 }
 int main(void) {
+    piano_attack_first();
     trigger_oracles();fm_oracles();finite_fm_oracle();colour_oracles();preset_sends();
     long_partitions();
     sources();ramp_and_end();gates_and_steals();parameters_and_snapshot();pitch();partition();source_math();modern_body();

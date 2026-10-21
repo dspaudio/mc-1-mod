@@ -10,7 +10,8 @@
 
 The nine zones are modern synthetic hybrid sources, not imitations of acoustic
 recordings and not derived from any external bank, sample or rendered preset.
-Every family is assembled from four deterministic layers:
+Most families use the four deterministic layers below. The ensemble hit instead
+uses a common harmonic grid with separate brass-strike and string-body decays:
 
   * a morphing partial bed: each partial owns an onset, bloom, strike and decay
     trajectory and a second spectral weight, so the whole spectrum travels from an
@@ -38,9 +39,11 @@ import hashlib
 import json
 import math
 import struct
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
+from pathlib import Path
 from typing import Final, TypedDict
 
 RATE: Final = 16000
@@ -300,7 +303,7 @@ def finger_body(f0: float, _cycles: int) -> Voicing:
     bursts = (Burst(0.52, 900.0, 2.5, 55.0, 0x101),
               Burst(0.34, 3600.0, 1.4, 215.0, 0x102, delay=0.0065),
               Burst(0.16, 6200.0, 0.9, 320.0, 0x103, delay=0.0170))
-    return Voicing(tuple(partials), 0.46, rings, bursts, morph_tau=0.016, sweep_bin=1)
+    return Voicing(tuple(partials), 1.0, rings, bursts, morph_tau=0.016, sweep_bin=1)
 
 
 def hybrid_keys(f0: float, zone: int) -> Voicing:
@@ -308,7 +311,7 @@ def hybrid_keys(f0: float, zone: int) -> Voicing:
     tilt, disp, base, stretch, index = (
         (0.72, 0.17, 4.0, 0.00022, 5.4),
         (0.82, 0.21, 5.4, 0.00030, 4.6),
-        (0.94, 0.26, 7.2, 0.00042, 3.6))[zone]
+        (0.60, 0.26, 7.2, 0.00042, 3.6))[zone]
     scale = (1.0, 1.22, 1.5)[zone]
     attack_bank = ((470.0 * scale, 390.0, 1.00), (1500.0 * scale, 720.0, 0.62),
                    (3100.0 * scale, 1250.0, 0.55), (5200.0 * scale, 1700.0, 0.26))
@@ -397,7 +400,7 @@ def muted_pick(f0: float, _cycles: int) -> Voicing:
               Burst(0.36, 900.0, 2.4, 150.0, 0x302),
               Burst(0.24, 5600.0, 0.8, 70.0, 0x303, delay=0.0035),
               Burst(0.13, 6600.0, 0.9, 190.0, 0x304, delay=0.0095))
-    return Voicing(tuple(partials), 1.05, rings, bursts, morph_tau=0.030)
+    return Voicing(tuple(partials), 2.2, rings, bursts, morph_tau=0.030)
 
 
 NYLON_BRIGHT: Final = ((620.0, 430.0, 1.00), (1800.0, 920.0, 0.52),
@@ -433,48 +436,37 @@ def nylon_pluck(f0: float, _cycles: int) -> Voicing:
     return Voicing(tuple(partials), 0.36, rings, bursts, morph_tau=0.21)
 
 
-HIT_METAL: Final = ((1500.0, 900.0, 1.00), (3900.0, 1500.0, 0.70), (6200.0, 1600.0, 0.35))
-HIT_BODY: Final = ((240.0, 220.0, 1.20), (1050.0, 650.0, 0.55), (2600.0, 1100.0, 0.20))
+HIT_BRASS: Final = ((720.0, 460.0, 0.85), (1500.0, 650.0, 1.10),
+                    (2850.0, 950.0, 0.65))
+HIT_STRINGS: Final = ((1100.0, 750.0, 0.60), (3100.0, 1300.0, 0.85),
+                      (4900.0, 1400.0, 0.25))
 
 
 def tonal_hit(f0: float, _cycles: int) -> Voicing:
-    """Family 4 - industrial impact: inharmonic cluster collapsing onto a body."""
-    cluster = (1.41, 1.97, 2.53, 3.11, 3.74, 4.37, 5.09, 5.81, 6.63, 7.52,
-               8.47, 9.60, 10.90, 12.30, 14.10, 16.30, 18.90, 21.60, 24.80)
-    partials = [Partial(ratio=1.0, amp=1.0, onset=0.0012, rise=0.0035, decay=7.5,
-                        strike=0.35, strike_decay=60.0, tail=0.10, tail_decay=2.4),
-                Partial(ratio=2.0, amp=0.46, phase=TAU * unit(0x5000, 2), onset=0.0010,
-                        decay=11.0, strike=0.22, strike_decay=90.0, tail=0.05, tail_decay=3.2),
-                Partial(ratio=3.0, amp=0.26, phase=TAU * unit(0x5000, 3), onset=0.0010,
-                        decay=15.0, strike=0.18, strike_decay=120.0),
-                Partial(ratio=1.5, amp=0.38, phase=0.0, onset=0.0015, decay=13.0,
-                        glide=0.95, glide_rate=90.0),
-                Partial(ratio=11.0, amp=0.30, phase=0.0, onset=0.0008, decay=42.0,
-                        glide=0.55, glide_rate=175.0)]
-    for index, ratio in enumerate(cluster):
-        if f0 * ratio >= RATE * 0.44:
+    """Family 4 - one phase-coherent brass/string ensemble chordless impact."""
+    partials = []
+    for harmonic in range(1, 48):
+        hz = f0 * harmonic
+        if hz >= RATE * 0.44:
             break
-        hz = f0 * ratio
+        # Octave reinforcement shares the same harmonic grid, never a detuned
+        # duplicate. Brass speaks first; the bow-like bed blooms over 5 ms.
+        brass = harmonic ** -0.78 * resonance(hz, HIT_BRASS, 0.22)
+        strings = harmonic ** -0.95 * resonance(hz, HIT_STRINGS, 0.18)
+        octave = 1.20 if harmonic % 2 == 0 else 1.0
+        body = octave * (0.65 * brass + 0.85 * strings)
+        if harmonic == 1:
+            body = 1.45
         partials.append(Partial(
-            ratio=ratio,
-            amp=0.62 * ratio ** -0.40 * resonance(hz, HIT_METAL, 0.30),
-            amp2=0.62 * ratio ** -0.95 * resonance(hz, HIT_BODY, 0.12),
-            phase=TAU * unit(0x5100, index),
-            onset=0.0008 + 0.00022 * index,
-            rise=0.0010 + 0.012 * math.exp(-((index - 4.0) / 3.0) ** 2),
-            decay=7.0 + 1.1 * index,
-            strike=0.46 * ratio ** -0.40, strike_decay=55.0 + 9.0 * index,
-            tail=0.03 * ratio ** -0.9, tail_decay=5.0,
-            am_depth=0.06, am_hz=5.3 + 2.1 * (index % 4), am_phase=TAU * unit(0x5200, index)))
-    rings = (Ring(0.55, 2200.0, 260.0),
-             Ring(0.30, 6100.0, 540.0, delay=0.0025),
-             Ring(0.20, 980.0, 150.0, delay=0.0090))
-    bursts = (Burst(1.00, 1400.0, 1.3, 42.0, 0x501),
-              Burst(0.62, 420.0, 1.8, 26.0, 0x502),
-              Burst(0.70, 4800.0, 0.9, 120.0, 0x503, delay=0.0015),
-              Burst(0.40, 6400.0, 1.1, 160.0, 0x504, delay=0.0030),
-              Burst(0.22, 2900.0, 1.6, 95.0, 0x505, delay=0.0115))
-    return Voicing(tuple(partials), 0.95, rings, bursts, morph_tau=0.14)
+            ratio=float(harmonic), amp=body,
+            phase=TAU * unit(0x5410, harmonic),
+            onset=0.003, rise=0.005,
+            decay=10.0 + 0.50 * harmonic,
+            strike=0.65 * brass * octave,
+            strike_decay=32.0 + 1.1 * harmonic))
+    bursts = (Burst(1.0, 1250.0, 0.65, 105.0, 0x541),
+              Burst(0.5, 3200.0, 0.70, 145.0, 0x542, delay=0.001))
+    return Voicing(tuple(partials), 0.055, bursts=bursts)
 
 
 STRING_CLOSE: Final = ((1150.0, 820.0, 0.62), (3000.0, 1550.0, 0.30))
@@ -581,9 +573,10 @@ ZONES: Final = (
     Zone("Nylon Pluck", 3, 60, 5600, False,
          "Warm hybrid pluck: bright comb attack settling into a warm formant body, "
          "with a staged sheen that fades before the body.", nylon_pluck),
-    Zone("Tonal Hit", 4, 60, 4000, False,
-         "Industrial impact: inharmonic metal cluster collapsing onto a low body, "
-         "two settling chirps and a five-stage impact.", tonal_hit),
+    Zone("Ensemble Hit", 4, 60, 4800, False,
+         "Short brass/string ensemble impact: common harmonic fundamental, "
+         "octave reinforcement, fast brass strike and blooming string body; "
+         "no detuned unisons, inharmonic rings or pitch chirps.", tonal_hit),
     Zone("String Texture", 5, 60, 6400, True,
          "Granular ensemble bed: staggered swell that opens its formants, a "
          "coherent grid-locked bow sweep and a 64-bin looped air bed.", string_texture),
@@ -1131,4 +1124,17 @@ def generate() -> Bundle:
 
 
 if __name__ == "__main__":
-    print(json.dumps(generate(), ensure_ascii=False))
+    if sys.argv[1:] not in ([], ["--check"]):
+        raise SystemExit("Usage: gen_pcm.py [--check]")
+    bundle = generate()
+    if sys.argv[1:]:
+        root = Path(__file__).resolve().parents[1]
+        mismatches = [name for name, text in bundle["files"].items()
+                      if (root / name).read_text() != text]
+        if json.loads((root / "data/pcm-manifest.json").read_text()) != bundle["manifest"]:
+            mismatches.append("data/pcm-manifest.json")
+        if mismatches:
+            raise SystemExit("PCM_REPRO_FAIL: " + ", ".join(mismatches))
+        print(f"PCM_REPRO_PASS: {len(bundle['files'])} headers and manifest")
+    else:
+        print(json.dumps(bundle, ensure_ascii=False))

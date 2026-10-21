@@ -233,9 +233,93 @@ static void transitions(void) {
     }
     puts("TRANSITIONS: bend -8192/0/8191, mono glide, FM/VA shared phase and PCM actual tuning");
 }
+static void reviewed_roles(void) {
+    const unsigned notes[]={36,43,48};
+    const double floor_ratio[8]={0.0008,0.18,0.025,0.004,0.025,0.025,0.07,0.08};
+    const double floor_rms[8]={400,60,150,175,275,240,115,160};
+    for(unsigned id=0;id<8;id++)for(unsigned ni=0;ni<3;ni++) {
+        unsigned note=notes[ni];
+        capture(id,mc_presets[id].source_mask,note,mixed,0,0);
+        double hz=(double)mc_frequency[note]*MC_RATE/4294967296.0;
+        for(unsigned window=0;window<2;window++) {
+            unsigned start=MC_RATE*(window?600u:150u)/1000u;
+            double low=0,mid=0;
+            for(unsigned h=1;h*hz<=1600;h++) {
+                double a=harmonic(mixed,start,Q_WINDOW,h*hz);
+                if(h*hz<200)low+=a*a;else mid+=a*a;
+            }
+            double rms=sqrt(energy(mixed,start,Q_WINDOW));
+            double fundamental=harmonic(mixed,start,Q_WINDOW,hz);
+            printf("ROLE_BASS id=%u note=%u start_ms=%u rms=%.6f mid_low=%.9f mid=%.6f fundamental=%.6f\n",
+                id,note,window?600:150,rms,mid/(low+1e-30),sqrt(mid),fundamental);
+            CHECK(mid/(low+1e-30)>floor_ratio[id],id,note,"sustained_midrange_not_empty");
+            CHECK(rms>floor_rms[id]&&fundamental>60,id,note,"bass_body_and_fundamental");
+            if(id==5)CHECK(brightness(mixed,start,hz)>0.15,id,note,"finger_sustained_harmonic_body");
+        }
+    }
+    for(unsigned id=16;id<=17;id++) {
+        capture(id,mc_presets[id].source_mask,60,mixed,0,0);
+        double early=sqrt(energy(mixed,0,MC_RATE/200));
+        double body=sqrt(energy(mixed,MC_RATE/5,MC_RATE/10));
+        printf("ROLE_START id=%u early5=%.6f body200=%.6f late1000=%.6f\n",
+            id,early,body,sqrt(energy(mixed,MC_RATE,MC_RATE/10)));
+        CHECK(early<body*0.2&&body>120,id,60,"smooth_start_strong_body");
+    }
+    const unsigned pads[]={24,26,27,30};
+    for(unsigned p=0;p<4;p++) {
+        unsigned id=pads[p];
+        setup(id,mc_presets[id].source_mask,0);
+        mc_note(&q,0,48,100,0,0);mc_note(&q,0,52,100,0,0);mc_note(&q,0,55,100,0,0);
+        for(unsigned i=0;i<Q_FRAMES;i++) {
+            int16_t out[2];mc_render(&q,out,1);mixed[i]=out[0];
+        }
+        double early=sqrt(energy(mixed,0,MC_RATE/200));
+        double body=sqrt(energy(mixed,MC_RATE,MC_RATE/5));
+        double late=sqrt(energy(mixed,3*MC_RATE,MC_RATE/5));
+        double colour1=brightness(mixed,MC_RATE,(double)mc_frequency[48]*MC_RATE/4294967296.0);
+        double colour3=brightness(mixed,3*MC_RATE,(double)mc_frequency[48]*MC_RATE/4294967296.0);
+        mc_off(&q,0,48);mc_off(&q,0,52);mc_off(&q,0,55);
+        for(unsigned i=0;i<MC_RATE;i++) {
+            int16_t out[2];mc_render(&q,out,1);isolated[i]=out[0];
+        }
+        double release=sqrt(energy(isolated,0,MC_RATE/20));
+        double end=sqrt(energy(isolated,MC_RATE*9/10,MC_RATE/10));
+        printf("ROLE_DRY_CHORD id=%u early5=%.6f body1000=%.6f late3000=%.6f release50=%.6f end900=%.6f colour1=%.6f colour3=%.6f\n",
+            id,early,body,late,release,end,colour1,colour3);
+        CHECK(early<body*0.1&&body>150&&late>150&&late>body*0.75,
+            id,48,"dry_pad_smooth_onset_full_held_chord");
+        CHECK(release>body*0.4&&end<1,id,48,"dry_pad_release_not_cut_or_reverb");
+        CHECK(!(mc_presets[id].source_mask&HY_PCM),id,48,"no_default_bowed_or_vowel_PCM");
+        if(id==30)CHECK(fabs(colour1-colour3)>0.005,id,48,"intrinsic_sweep_colour_motion");
+    }
+    capture(27,mc_presets[27].source_mask,60,mixed,0,0);
+    double glass_hz=(double)mc_frequency[60]*MC_RATE/4294967296.0;
+    CHECK(brightness(mixed,MC_RATE,glass_hz)<0.03,27,60,"clear_glass_not_metallic");
+    capture(28,mc_presets[28].source_mask,60,mixed,0,0);
+    double early=sqrt(energy(mixed,0,MC_RATE/1000));
+    double pop=sqrt(energy(mixed,MC_RATE/100,MC_RATE/25));
+    double tail=sqrt(energy(mixed,MC_RATE*3/10,MC_RATE/10));
+    double hz=(double)mc_frequency[60]*MC_RATE/4294967296.0;
+    double upper=0,lower=0;
+    for(unsigned h=1;h<=16;h++) {
+        double a=harmonic(mixed,MC_RATE/100,4096,h*hz);
+        if(h>=6)upper+=a*a;else lower+=a*a;
+    }
+    printf("ROLE_POP id=28 early1=%.6f pop10=%.6f tail300=%.6f upper_lower=%.6f\n",
+        early,pop,tail,upper/(lower+1e-30));
+    CHECK(early<pop*0.2&&pop>75&&tail<1,28,60,"rounded_compact_pop");
+    CHECK(upper/(lower+1e-30)<0.06,28,60,"pop_not_metal_ring");
+    capture(28,mc_presets[28].source_mask,74,mixed,0,0);
+    hz=(double)mc_frequency[74]*MC_RATE/4294967296.0;
+    double fundamental=harmonic(mixed,MC_RATE/20,2048,hz);
+    double third=harmonic(mixed,MC_RATE/20,2048,3*hz);
+    double fifth=harmonic(mixed,MC_RATE/20,2048,5*hz);
+    CHECK(fundamental>50&&third<fundamental*0.22&&fifth<fundamental*0.10,
+        28,74,"foreground_pop_has_round_filtered_body");
+}
 int main(void) {
     setvbuf(stdout,NULL,_IONBF,0);
-    contribution();loops();sustained();harmonic_reference();transitions();
+    contribution();loops();sustained();harmonic_reference();transitions();reviewed_roles();
     printf("MECHANICAL_%s failures=%u\n",failures?"FAIL":"PASS",failures);
     puts("QUALITY_UNRUN: 수치는 승인 기준이 아니다. AM/시간별 배음 비교는 추가 A/B 검토가 필요하다.");
     puts("UNRUN: 실제 청취, alias 전대역 판정, WASM 실행, 타깃, 장치");

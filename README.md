@@ -14,7 +14,7 @@ The full shared-core host regression suite and LLVM ASan/UBSan checks passed, al
 
 Dedicated Pages artifacts are assembled in `build/site/`.
 
-- `index.html`: two fast hiphop/techno dance songs, playback and WAV downloads for all 32 sounds and 8 drum kits, 54 per-source comparisons, demos, and maximum-load renders.
+- `index.html`: two fast hiphop/techno dance songs, playback and MP3 downloads for all 32 sounds and 8 drum kits, per-source comparisons, demos, and maximum-load renders.
 - `emulator.html`: a panel using the actual C screen and AudioWorklet audio.
 - `install.html`: FWSC downloads with verified bytes, SHA-256, and input hashes. There is no browser-based device installation feature.
 
@@ -33,7 +33,7 @@ CLANG=/opt/homebrew/opt/llvm/bin/clang python3 tools/build_web.py
 python3 tools/verify_web.py
 ```
 
-`render` creates `build/demo.wav`. `auditions` creates 98 WAV files and `auditions.json`, containing exact events, settings, and hashes, inside the specified OUT. The hiphop and techno songs play the actual C SONG sequencer to completion, including FX tails. Existing listening materials are protected against accidental overwrites; use a new OUT when regenerating them. No automatic loudness normalization is applied.
+`render` creates `build/demo.wav`. `auditions` creates 140 WAV files and `auditions.json`, containing exact events, settings, and hashes, inside the specified OUT. The hiphop and techno songs play the actual C SONG sequencer to completion, including FX tails. Existing listening materials are protected against accidental overwrites; use a new OUT when regenerating them. No automatic loudness normalization is applied.
 
 ```sh
 make sanitize CC="/opt/homebrew/opt/llvm/bin/clang --no-default-config --target=arm64-apple-macosx15.0.0 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.1.sdk"
@@ -60,11 +60,11 @@ Outputs are `build/mc-1.app.bin`, `build/mc-1-EXPERIMENTAL.fwsc`, `build/target-
 python3 tools/assemble_pages.py --firmware-dir artifacts/firmware
 ```
 
-The assembler renders fresh auditions from the current C core and checks 32 preset IDs, 8 kit IDs, per-file SHA-256, and mechanical check results. These commands do not access or flash a device.
+The assembler renders fresh auditions from the current C core and checks 32 preset IDs, 8 kit IDs, per-file SHA-256, and mechanical check results. Pages assembly requires the direct LAME encoder; MP3 verification also requires FFmpeg/ffprobe. Previews use VBR quality 2 with ReplayGain disabled, without gain changes or normalization. Only MP3 files enter `build/site/audio`; lossless WAVs and the original schema 3 manifest remain in ignored `build/canonical-audio/` for exact native/WASM PCM checks. Public schema 4 hashes and sizes describe MP3 bytes; `canonical_wav` records the local lossless provenance, and render measurements refer to that WAV, not decoded MP3. These commands do not access or flash a device.
 
 ## Storage and controls
 
-Storage uses `MCHY` v9, payload identity `MOD1`, patch schema 1, and bank revision 1. Data from other packs is not automatically converted. A foreign bank or read failure locks SAVE without erasing existing data. The web version saves under a dedicated IndexedDB identity and restores it on reconnect.
+Storage uses `MCHY` v9, payload identity `MOD1`, patch schema 1, and bank revision 3. Revision-1/2 data and other packs are not automatically converted. A foreign bank or read failure locks SAVE without erasing existing data. The web version saves under a dedicated IndexedDB identity and restores it on reconnect.
 
 From HOME, press GLO seven times to reach MIX. Knobs 1–4 control PCM/FM/VA gain and the source mask, skipping unavailable sources. MIDI Program Change 0–31 selects presets; CC 16/17/18/19 selects PCM/FM/VA/MASK. See the emulator instructions and [integration decisions](docs/INTEGRATION_DECISIONS.md) for detailed controls.
 
@@ -72,10 +72,10 @@ From HOME, press GLO seven times to reach MIX. Knobs 1–4 control PCM/FM/VA gai
 
 Both songs are original arrangements with fast dance beats, using the actual SONG sequencer, drums, and FX from the same C core.
 
-- `HIPHOP POCKET`: club hiphop at 128 BPM, 24 bars. WAV: `audio/hiphop-pocket.wav`.
-- `TECHNO DRIVE`: techno at 144 BPM, 32 bars. WAV: `audio/techno-drive.wav`.
+- `HIPHOP POCKET`: club hiphop at 128 BPM, 24 bars. MP3: `audio/hiphop-pocket.mp3`.
+- `TECHNO DRIVE`: techno at 144 BPM, 32 bars. MP3: `audio/techno-drive.mp3`.
 
-While stopped, press GLO three times to open DEMO LIBRARY, select with KNOB1, turn KNOB4 clockwise to load, then press PLAY. NIGHT CIRCUIT and NEON SPIRAL are also retained. Play or download the complete WAVs from the first audio group on the landing page.
+While stopped, press GLO three times to open DEMO LIBRARY, select with KNOB1, turn KNOB4 clockwise to load, then press PLAY. NIGHT CIRCUIT and NEON SPIRAL are also retained. Play or download the complete MP3 previews from the first audio group on the landing page.
 
 ## Provenance and verification boundaries
 

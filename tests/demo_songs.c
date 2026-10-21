@@ -60,18 +60,24 @@ static void midi(void) {
     }
     puts("PASS all four demo MIDI loads: programs, pending notes, ARP, sustain, overflow, Stop and channel cleanup");
 }
-/* Explicit demo loads use the shared palette and each role's preset sends; no song-specific edits. */
+/* SONG sends are explicit mix edits; the four effect processors remain shared. */
 static void fx_contract(unsigned demo) {
     static const uint8_t drum_sends[MC_FX_BANKS]={12,0,6,0};
+    static const uint8_t song_sends[2][MC_PARTS][MC_FX_BANKS]={
+        {{2,0,0,0},{8,3,4,6},{8,0,4,4},{2,0,0,0}},
+        {{4,0,8,4},{8,4,0,4},{10,0,4,4},{2,0,0,0}}};
     mc_init(&e);mc_demo_load(&e,demo);
     assert(!memcmp(e.project.fx_bus_type,mc_factory_fx_types,sizeof e.project.fx_bus_type));
     for(unsigned part=0;part<3;part++) {
         unsigned live=0;
-        assert(!memcmp(e.project.fx_send[part],mc_preset_fx_send[e.project.preset[part]],MC_FX_BANKS));
+        const uint8_t *expected=demo>=MC_DEMO_HIPHOP? song_sends[demo-MC_DEMO_HIPHOP][part]:
+            mc_preset_fx_send[e.project.preset[part]];
+        assert(!memcmp(e.project.fx_send[part],expected,MC_FX_BANKS));
         for(unsigned bank=0;bank<MC_FX_BANKS;bank++)live+=e.project.fx_send[part][bank];
         assert(live);
     }
-    assert(!memcmp(e.project.fx_send[3],drum_sends,sizeof drum_sends));
+    assert(!memcmp(e.project.fx_send[3],demo>=MC_DEMO_HIPHOP?
+        song_sends[demo-MC_DEMO_HIPHOP][3]:drum_sends,sizeof drum_sends));
 }
 /* Full-tone and zero-send renders of the same loaded song must differ; sends are cleared after load. */
 static void wet_dry(unsigned demo) {
@@ -92,8 +98,40 @@ static void wet_dry(unsigned demo) {
     printf("PASS %s wet-vs-dry: dry_abs=%llu wet_minus_dry_abs=%llu\n",mc_demo_names[demo],
         (unsigned long long)energy,(unsigned long long)diff);
 }
+static uint64_t mix_energy(unsigned demo,unsigned mode) {
+    mc_init(&e);mc_demo_load(&e,demo);
+    e.mute=(uint8_t)(mode==0?8:mode==1?14:mode==2?13:7);
+    if(mode==3)for(unsigned p=0;p<MC_PATTERNS;p++)for(unsigned s=0;s<MC_STEPS;s++)
+        e.project.step[p][3][s].drums&=1u;
+    unsigned bar_frames=(MC_RATE*240u+e.project.bpm-1u)/e.project.bpm;
+    unsigned frames=(MC_RATE*240u*8u+e.project.bpm-1u)/e.project.bpm;
+    uint64_t energy=0;
+    mc_start(&e);
+    for(unsigned offset=0;offset<frames;) {
+        int16_t audio[256];
+        unsigned count=frames-offset>128?128:frames-offset;
+        mc_render(&e,audio,count);
+        for(unsigned i=0;i<count;i++)if(offset+i>=bar_frames)
+            for(unsigned c=0;c<2;c++) {
+                int64_t value=audio[2*i+c];energy+=(uint64_t)(value*value);
+            }
+        drain();offset+=count;
+    }
+    assert(energy&&!e.clips&&!e.limiter_hits&&!e.steals);
+    return energy;
+}
+/* Compare the same seven drum-bearing bars at the shipped master and effect sends. */
+static void mix_balance(unsigned demo) {
+    uint64_t melody=mix_energy(demo,0),bass=mix_energy(demo,1);
+    uint64_t lead=mix_energy(demo,2),kick=mix_energy(demo,3);
+    assert(melody>=kick&&bass*25>=kick*16);
+    if(demo==MC_DEMO_HIPHOP)assert(lead*25>=kick*16&&lead*64>=bass*9);
+    printf("PASS %s mix energy: melody=%llu bass=%llu lead=%llu kick=%llu\n",
+        mc_demo_names[demo],(unsigned long long)melody,(unsigned long long)bass,
+        (unsigned long long)lead,(unsigned long long)kick);
+}
 static void song(unsigned demo) {
-    static const uint8_t presets[2][3]={{2,29,17},{1,18,7}};
+    static const uint8_t presets[2][3]={{2,28,14},{1,18,17}};
     unsigned techno=demo==MC_DEMO_TECHNO,bars=techno?32u:24u;
     mc_init(&e);mc_demo_load(&e,demo);
     assert(!e.playing&&!e.project.demo&&e.project.song_mode&&!e.project.song_loop);
@@ -120,14 +158,16 @@ static void song(unsigned demo) {
     }
     for(unsigned t=0;t<4;t++)assert(parts[t]);
     assert(accents&&slides&&e.project.patch[0].mode==MC_MONO);
-    assert(e.project.step[0][3][0].drums&1);
-    assert(e.project.step[0][3][0].velocity>=110&&e.project.drum_level[0]==120);
+    for(unsigned step=0;step<MC_STEPS;step++)assert(!e.project.step[0][3][step].drums);
+    assert(e.project.step[1][3][0].drums&1);
+    assert(e.project.step[1][3][0].velocity>=110&&e.project.drum_level[0]==(techno?88:92));
     if(!techno) {
-        assert(e.project.step[0][0][0].note[0]==36&&e.project.step[0][0][0].velocity==112);
-        assert(e.project.step[0][1][1].note[0]==67&&e.project.step[0][1][1].velocity==101);
+        assert(e.project.step[0][0][0].note[0]==43&&e.project.step[0][0][0].velocity==118);
+        assert(e.project.step[0][1][1].note[0]==67&&e.project.step[0][1][1].velocity==108);
         assert(!e.project.automation_count);
     } else {
-        assert(e.project.step[0][0][1].note[0]==43&&e.project.step[0][0][1].velocity==108);
+        assert(e.project.step[0][0][0].note[0]==60&&e.project.step[0][0][0].velocity==112);
+        assert(e.project.step[0][0][1].note[0]==55&&(e.project.step[0][0][1].flags&MC_SLIDE));
         assert(e.project.automation_count==112);
         unsigned cutoff_changes=0,resonance_changes=0;
         for(unsigned i=0;i<e.project.automation_count;i++) {
@@ -187,6 +227,7 @@ int main(void) {
     for(unsigned demo=0;demo<MC_DEMOS;demo++)fx_contract(demo);
     puts("PASS demo FX: candidate palette and role sends set after the final preset in all four loads");
     wet_dry(MC_DEMO_HIPHOP);wet_dry(MC_DEMO_TECHNO);
+    mix_balance(MC_DEMO_HIPHOP);mix_balance(MC_DEMO_TECHNO);
     song(MC_DEMO_HIPHOP);song(MC_DEMO_TECHNO);
     puts("demo-songs: PASS");
 }

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const manifest=JSON.parse(fs.readFileSync('build/site/auditions.json','utf8'));
+assert.equal(manifest.schema_version,4);
+assert(manifest.files.every(item=>/^[\w.-]+\.mp3$/.test(item.file)));
 class Element {
     constructor(tag) { this.tagName=tag;this.children=[];this.paused=true; }
     append(...nodes) { this.children.push(...nodes); }
@@ -42,6 +44,7 @@ assert.deepEqual(walk(primaryPresets).filter(node=>node instanceof Audio).map(au
     manifest.files.filter(item=>item.kind==='preset'&&item.render_mode==='full').map(item=>'./audio/'+encodeURIComponent(item.file)+'?v='+item.sha256).sort());
 const diagnostics=gallery.children.find(node=>node.tagName==='details');
 assert(diagnostics);
+assert.notEqual(diagnostics.open,true);
 assert.equal(walk(diagnostics).filter(node=>node instanceof Audio).length,manifest.files.filter(item=>item.diagnostic).length);
 assert.deepEqual(audios.map(audio=>audio.src).sort(),manifest.files.map(item=>'./audio/'+encodeURIComponent(item.file)+'?v='+item.sha256).sort());
 assert(audios.every(audio=>audio.controls&&audio.preload==='none'));

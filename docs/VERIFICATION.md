@@ -2,6 +2,72 @@
 
 2026-10-21. This record covers local builds and web verification. The firmware was not installed/flashed on an FM-1, and the new image's boot, analog output, CPU1 timing, and real-time deadlines were not measured. Sound quality also remains unapproved by listening.
 
+## Revision 3 candidate: current local evidence
+
+The following results supersede the earlier candidate figures below. Listening
+approval and physical-device verification remain pending.
+
+- `make -j2 OUT=build/song-rewrite-joined CC=/usr/bin/cc test` passed.
+  The same complete suite passed under LLVM 23 ASan/UBSan using
+  `--no-default-config`, the installed macOS 15.1 SDK and deployment target 15.0.
+  Apple's ASan initialization failure and LLVM's nonexistent default SDK were
+  resolved by using that explicit toolchain configuration, not by suppressing
+  diagnostics. A separate GCC/Linux attempt stopped at an existing conversion
+  warning in `tests/panel_leds.c:78`; it is not counted as a passing run.
+- The PCM generator now implements a real `--check`, also run by `test-pcm-bank`.
+  The historical CLI ignored this argument and its committed arrays disagreed
+  with its recipes. All nine zones and the manifest now reproduce exactly.
+  Three recipe coefficients restore unchanged spectral-evolution/band-coverage
+  tests; family 4 is the new 300 ms ensemble hit. PCM payload is 196,852 bytes,
+  with 198,004 resident descriptor/data bytes against the 229,376-byte budget.
+- Piano-mixture tests require the first 128 output frames to equal PCM-only,
+  with FM/VA clocks continuous underneath the subsequent 128-frame body ramp.
+  Dry held-chord and bass-body tests cover the reviewed pads and sustained roles.
+  Pulse Arp uses the supplied Popcorn recording's lead timbre as its reference,
+  not its melody or an automatic arpeggio. Spectral analysis informed its lower
+  resonant filter; no direct listening equivalence is claimed.
+- Both rewritten songs complete without clipping, limiting or melody steals.
+  Same-master solo-render energy comparisons protect the foreground bass/lead
+  against kick dominance. The drumless intro is excluded from that comparison.
+  Native/WASM comparison covers every sample of 2,513,700 hip-hop frames and
+  2,881,200 techno frames, including 12-second tails.
+- `verify_web.py`, gallery/install/cache checks, actual FWSC OTA/loader checks,
+  VA regeneration and bank-1/2 foreign-save protection passed. Serial/parallel
+  rendering matches 5,118,823 frames and the full 113,208-byte engine state.
+- Public schema 4 contains 140 MP3 previews; schema 3 canonical WAVs remain
+  local. Every MP3 and canonical WAV passed SHA/byte checks, and all 140 MP3s
+  decoded to the exact canonical frame counts. Delivery is lossy, never
+  sample-identical: 578,656,960 WAV bytes became 30,974,983 MP3 bytes (94.647%
+  smaller). Direct LAME `--noreplaygain -V 2` avoids an FFmpeg 9.0.2 padding-tag
+  error exposed by the unchanged exact-duration assertion.
+- Actual WebKit captures at 1440 and 390 CSS pixels show the gallery, downloads
+  and preserved FM-1 faceplate. Both songs loaded and advanced playback; desktop
+  and portrait emulator POWER ON reached `audio ready` with the actual 240x240
+  C canvas. These are browser checks, not physical iPhone or FM-1 tests.
+
+| Current artifact/resource | Result |
+|---|---:|
+| app / FWSC | 322,408 / 610,089 bytes |
+| globals / policy limit | 55,708 / 65,536 bytes |
+| pool / policy limit | 304,184 / 335,872 bytes |
+| McPatch / McVoice / McSynthJob | 15 / 140 / 1,264 bytes |
+| WASM | 346,342 bytes |
+
+Current app SHA-256:
+`29afc4cd3e892bcb826b8ac8d07542b712131cbc05a6e50f910ee76d13b32a54`
+
+Current FWSC SHA-256:
+`c8327cb169f2721f820886c3ac744e42dacc69c2c366196de475ba8442d944de`
+
+Current target-input SHA-256:
+`4c42048040bb42a54a8f5bb47c79441b2edf706befcd3780e2a5da4087dc115a`
+
+## Earlier candidate history
+
+The remaining sections record earlier builds and browser passes. Their counts,
+hashes, ABI sizes, WAV delivery and publication status are historical, not claims
+about revision 3.
+
 ## Checks Performed
 
 `make -j2 OUT=build/dance-release test` passed all registered host tests with exit code 0 after the dance songs were added. Coverage includes 32 presets, UI/MIDI/storage, 64 patterns/SONG/ARP, 6 drums/four FX, loops/shared pitch/gain transitions, and dual-core fallback. The dual-core test, including four demos, matched the serial path for 3,795,820 PCM frames and the entire 113,048-byte engine state. This is a host parallel-contract check, not evidence of FM-1 CPU1 execution.

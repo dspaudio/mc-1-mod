@@ -86,7 +86,7 @@ $(addprefix $(OUT)/test-,$(INFRA_TESTS)): TEST_CFLAGS += -Wno-unused-function
 $(addprefix $(OUT)/test-,$(INFRA_TESTS)): | $(OUT)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_CFLAGS) $< $(LDFLAGS) -o $@
 
-$(addprefix test-,$(TESTS)): test-%: $(OUT)/test-%
+$(addprefix test-,$(filter-out pcm-bank,$(TESTS))): test-%: $(OUT)/test-%
 	$(OUT)/test-$*
 test: $(addprefix test-,$(TESTS))
 test-primitives: $(addprefix test-,$(PRIMITIVE_TESTS))
@@ -94,6 +94,9 @@ test-infrastructure: $(addprefix test-,$(INFRA_TESTS))
 test-fx: test-effects-modes
 test-va-tables:
 	$(PYTHON) tools/gen_va.py --check
+test-pcm-bank: $(OUT)/test-pcm-bank
+	$(OUT)/test-pcm-bank
+	$(PYTHON) tools/gen_pcm.py --check
 $(OUT)/test-ota: tests/ota_test.c firmware/update/ota.c | $(OUT)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $< $(LDFLAGS) -o $@
 $(OUT)/ldr-test: tests/ldr_test.c firmware/loader/ldr_core.c firmware/update/ota.c | $(OUT)

@@ -19,6 +19,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install MP3 preview encoder
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg lame
+          lame --version
       - name: Shared core regression tests
         run: make -j2 test
       - name: WASM and native adapter parity

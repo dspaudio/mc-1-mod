@@ -78,7 +78,7 @@ static void reject(unsigned n) {
 static void wire_tests(void) {
     assert(mc_encode(&original,71,encoded,sizeof encoded)==MC_RECORD_BYTES);
     assert(!memcmp(encoded,"MCHY",4)&&encoded[4]==9&&!encoded[5]);
-    assert(!memcmp(encoded+20,"MOD1\1\0\2\0",8));
+    assert(!memcmp(encoded+20,"MOD1\1\0\3\0",8));
     assert(!memcmp(encoded+20,mc_pack_id,8));
     assert((encoded[6]|(unsigned)encoded[7]<<8)==35134);
     memcpy(other,encoded,sizeof other);
@@ -194,12 +194,12 @@ static void bank_state(unsigned bank,int state) {
     if(state==MC_STORE_UNSUPPORTED) {p[20]^=1;checksums(p);}
 }
 static void status_tests(void) {
-    /* CRC-valid revision-1 banks remain foreign, not migrated or erased. */
-    for(unsigned foreign=1;foreign<4;foreign++) {
+    /* CRC-valid earlier banks remain foreign, not migrated or erased. */
+    for(unsigned revision=1;revision<MC_BANK_REVISION;revision++)for(unsigned foreign=1;foreign<4;foreign++) {
         reset_io();bank_state(0,MC_STORE_CURRENT);bank_state(1,MC_STORE_CURRENT);
         for(unsigned bank=0;bank<2;bank++)if(foreign&(1u<<bank)) {
             uint8_t *record=flash+((bank?MC_STORE_B:MC_STORE_A)-BASE);
-            record[26]=1;record[27]=0;checksums(record);
+            record[26]=(uint8_t)revision;record[27]=0;checksums(record);
             uint32_t sequence=999;
             assert(mc_record_valid(record,MC_RECORD_BYTES,&sequence)==-3&&sequence==999);
             before=loaded;

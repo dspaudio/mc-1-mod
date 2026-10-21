@@ -9,10 +9,10 @@
 int main(void) {
     static const uint8_t masks[32]={
         6,4,6,6,6,7,4,6,7,5,6,7,5,7,6,6,
-        6,6,4,7,6,4,6,6,5,5,5,7,6,7,5,7};
+        6,6,4,1,6,4,6,6,4,5,4,6,6,7,4,7};
     static const uint8_t families[32]={
         255,255,255,255,0,0,255,255,1,1,1,1,2,3,255,255,
-        255,255,255,4,255,255,255,255,5,5,6,6,255,2,5,6};
+        255,255,255,4,255,255,255,255,5,5,255,6,255,2,5,6};
     static const char *const groups[8]={
         "BASS CORE","BASS SEQ","PIANO EP","PLUCK MALLET",
         "COMP STAB","LEAD","PAD TEXTURE","MOTION"};
@@ -28,7 +28,8 @@ int main(void) {
     for(unsigned id=0;id<MC_PRESETS;id++) {
         const McPatch *p=&mc_presets[id];
         const McHybridProfile *r=&mc_hybrid_profiles[id];
-        unsigned available=masks[id]|((id==4||id==10)?HY_PCM:0);
+        unsigned available=masks[id]|((id==4||id==10||id==24||id==27||id==30)?HY_PCM:0)|
+            (id==19?(HY_FM|HY_VA):0);
         assert(p->profile==id&&p->source_mask==masks[id]);
         assert(r->available_mask==available&&r->pcm_family==families[id]);
         assert(available&&!(available&~HY_ALL));
@@ -81,7 +82,7 @@ int main(void) {
         singles+=(masks[id]&(masks[id]-1u))==0;
         triples+=masks[id]==HY_ALL;
     }
-    assert(singles==4&&triples==8&&used==127);
+    assert(singles==8&&triples==6&&used==127);
     for(unsigned z=0;z<MC_PCM_ZONES;z++) {
         const McPcmZone *zone=&mc_pcm_zones[z];
         static const uint8_t roots[MC_PCM_ZONES]={36,48,60,72,60,60,60,60,60};
@@ -98,7 +99,8 @@ int main(void) {
     }
     /* Structural role intent; these assertions cannot approve listening. */
     assert(mc_presets[0].wave==MC_WAVE_SINE&&mc_presets[1].glide>0);
-    assert(mc_presets[2].wave==MC_WAVE_SQUARE&&mc_hybrid_profiles[2].fm_duration_ms<=80);
+    assert(mc_presets[2].wave==MC_WAVE_SQUARE&&!mc_hybrid_profiles[2].fm_duration_ms);
+    assert(mc_hybrid_profiles[2].fm_body_q15>0);
     assert(mc_presets[6].source_mask==HY_VA);
     assert(mc_presets[0].fm_mix>0&&mc_hybrid_profiles[0].fm_body_q15>0);
     assert(mc_presets[5].source_mask==HY_ALL&&mc_hybrid_profiles[5].fm_body_q15>0);
@@ -113,7 +115,10 @@ int main(void) {
     assert(mc_presets[22].glide>0&&mc_presets[23].fm_mix>mc_presets[23].va_mix);
     assert(mc_presets[24].va_mix>mc_presets[24].pcm_mix);
     assert(mc_presets[25].pcm_mix>mc_presets[25].va_mix);
-    assert(mc_presets[26].wave==MC_WAVE_SINE&&mc_presets[27].fm_mix>mc_presets[27].pcm_mix);
+    assert(MC_PRESET_HOLLOW_PAD==26&&mc_presets[26].wave==MC_WAVE_SQUARE);
+    assert(mc_presets[27].fm_mix>mc_presets[27].pcm_mix);
+    for(unsigned id=24;id<=30;id++)if(id!=25&&id!=28&&id!=29)
+        assert(!(mc_presets[id].source_mask&HY_PCM));
     assert(mc_presets[28].sustain==0&&mc_presets[29].sustain==0);
     assert(mc_presets[28].source_mask==(HY_FM|HY_VA)&&mc_presets[29].source_mask==HY_ALL);
     assert(mc_hybrid_profiles[28].fm_duration_ms&&mc_hybrid_profiles[29].fm_duration_ms);

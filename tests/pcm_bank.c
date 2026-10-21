@@ -95,6 +95,52 @@ static unsigned live_bands(const int16_t *data, unsigned start, unsigned count,
     return live;
 }
 
+static uint64_t hit_energy(const int16_t *data, unsigned start, unsigned count) {
+    uint64_t energy = 0;
+    for (unsigned n = start; n < start + count; n++)
+        energy += (uint64_t)((int64_t)data[n] * data[n]);
+    return energy;
+}
+
+static void ensemble_hit(void) {
+    /* Given the dedicated family-4 one-shot, measure its actual stored body. */
+    const McPcmZone *zone = &mc_pcm_zones[6];
+    const McPcmMip *base = &zone->mip[0];
+    assert(zone->family == 4u && zone->root == 60u);
+    assert(base->length == 4800u);
+    for (unsigned m = 0; m < zone->levels; m++)
+        assert(zone->mip[m].loop_start == 0u && zone->mip[m].loop_end == 0u);
+    double f0 = (double)zone->tuning_hz_q16 / 65536.0;
+    double harmonic = 0.0, between = 0.0, upper = 0.0;
+    /* When probing after the collective onset, all sections share one grid. */
+    set_window(1280u, 1);
+    for (unsigned h = 1; (double)h * f0 < TOP_HZ; h++) {
+        double power = tone(base->data, 320u, 1280u, (double)h * f0);
+        harmonic += power;
+        if (h >= 4u) upper += power;
+        between += tone(base->data, 320u, 1280u, ((double)h + 0.5) * f0);
+    }
+    /* Then reject the old inharmonic clang and an overly thin tonal pluck. */
+    assert(harmonic > between * 50.0);
+    assert(upper > harmonic * 0.12);
+    unsigned peak_block = 0;
+    uint64_t peak = 0;
+    for (unsigned n = 0; n < 1280u; n += 80u) {
+        uint64_t energy = hit_energy(base->data, n, 80u);
+        if (energy > peak) { peak = energy; peak_block = n; }
+    }
+    assert(peak_block <= 320u);
+    uint64_t attack = hit_energy(base->data, 80u, 320u);
+    uint64_t body = hit_energy(base->data, 640u, 960u);
+    uint64_t tail = hit_energy(base->data, 3840u, 960u);
+    assert(body * 10u > attack * 3u);
+    assert(tail * 50u < body);
+    printf("ENSEMBLE_HIT_PASS harmonic/interstitial=%.1f upper=%.3f "
+           "peak-block=%.1fms body/attack=%.3f tail/body=%.5f\n",
+           harmonic / between, upper / harmonic, (double)peak_block / 16.0,
+           (double)body / (double)attack / 3.0, (double)tail / (double)body);
+}
+
 int main(void) {
     unsigned bytes = 0, payload = 0, families[MC_PCM_FAMILIES] = {0};
     for (unsigned z = 0; z < MC_PCM_ZONES; z++) {
@@ -217,6 +263,7 @@ int main(void) {
     bytes += (unsigned)sizeof(mc_pcm_zones);
     assert(payload == MC_PCM_PAYLOAD);
     assert(bytes <= 224u * 1024u);
+    ensemble_hit();
     printf("PCM_BANK_PASS zones=%u families=%u payload=%u bytes=%u budget=%u\n",
            MC_PCM_ZONES, MC_PCM_FAMILIES, payload, bytes, 224u * 1024u);
     return 0;

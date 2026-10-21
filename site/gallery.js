@@ -36,15 +36,15 @@
       item.available_source_flags != null && `Available sources ${sourceLabel(item.available_source_flags)}`,
       item.seconds != null && `${item.seconds} sec`,
       item.diagnostic && (item.render_mode === "dry-diagnostic" ? "Dry diagnostic" : "Source-only diagnostic"),
-      item.peak_pcm16 != null && `peak ${item.peak_pcm16}`,
-      item.rms_pcm16 != null && `RMS ${Number(item.rms_pcm16).toFixed(1)}`,
+      item.peak_pcm16 != null && `Local WAV peak ${item.peak_pcm16}`,
+      item.rms_pcm16 != null && `Local WAV RMS ${Number(item.rms_pcm16).toFixed(1)}`,
       item.quality_status && (item.quality_status === "UNAPPROVED_CANDIDATE" ? "Listening not approved" : "Quality review required"),
       item.ended_tails != null && (item.ended_tails ? "Tail ended cleanly" : "Tail still active")
     ].filter(Boolean);
     meta.textContent = details.join(" · ");
     row.append(meta);
 
-    if (typeof item.file !== "string" || !/^[\w.-]+\.wav$/i.test(item.file) || item.file === "." || item.file === "..") {
+    if (typeof item.file !== "string" || !/^[\w.-]+\.mp3$/i.test(item.file) || item.file === "." || item.file === "..") {
       const invalid = document.createElement("p");
       invalid.className = "small";
       invalid.textContent = "This audio file entry is invalid.";
@@ -62,7 +62,7 @@
     download.className = "text-link";
     download.href = url;
     download.download = item.file;
-    download.textContent = "Download WAV";
+    download.textContent = "Download MP3";
     row.append(download);
     return row;
   }
@@ -121,7 +121,7 @@
     })
     .then((manifest) => {
       if (!manifest || !Array.isArray(manifest.files)) throw new Error("The manifest has no files array.");
-      if (manifest.schema_version !== 3) throw new Error("Unsupported audio manifest schema.");
+      if (manifest.schema_version !== 4) throw new Error("Unsupported audio manifest schema.");
       const primary = manifest.files.filter((item) => !item.diagnostic);
       const presets = primary.filter((item) => item.kind === "preset" && item.render_mode === "full");
       if (presets.length !== 32 || new Set(presets.map((item) => item.preset_id)).size !== 32

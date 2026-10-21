@@ -146,8 +146,13 @@ int32_t hy_source_sample(McVoice *v,McVoiceRender *r) {
     }
     int32_t sample=0;
     if(h->gain[0]&&!(h->ended_mask&HY_PCM))sample+=pcm(v,r)*h->gain[0];
-    if(h->gain[1]&&!(h->ended_mask&HY_FM))sample+=fm(v,r)*h->gain[1];
-    if(h->gain[2])sample+=va(v,r)*h->gain[2];
+    int32_t body=0;
+    if(h->gain[1]&&!(h->ended_mask&HY_FM))body+=fm(v,r)*h->gain[1];
+    if(h->gain[2])body+=va(v,r)*h->gain[2];
+    /* Piano PCM owns the first 128 frames (2.9 ms); introduce its body over
+     * the next source ramp. Keep oscillator/decay clocks running underneath. */
+    if(r->profile->pcm_family==1&&h->gain[0]&&v->age<256u)
+        body=body*(int32_t)(v->age>128u?v->age-128u:0u)/128;
     h->va_colour=(uint32_t)((int64_t)h->va_colour+h->va_colour_step);
-    return sample/381;
+    return (sample+body)/381;
 }
