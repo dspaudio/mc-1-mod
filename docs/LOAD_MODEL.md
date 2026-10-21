@@ -1,122 +1,122 @@
-# 역사 장치 보정 조건부 부하 모델
+# Conditional Load Model Calibrated to Historical Hardware
 
-`tools/load_model.py`는 **과거 이미지 실측 기반 조건부 예측**을 생성한다.
-새 hybrid 펌웨어의 실측, MCU 적합 판정, deadline 보증이 아니다.
-외부 패키지 없이 Python 3.10 이상으로 실행한다.
+`tools/load_model.py` generates **conditional predictions based on measurements of a historical image**.
+These are not measurements of the new hybrid firmware, an MCU suitability verdict, or a deadline guarantee.
+Run with Python 3.10 or later, without external packages.
 
 ```sh
 python3 tools/load_model.py
 ```
 
-저장소 경로는 스크립트 위치에서 구한다. 원본 입력은 형제 저장소
-`../mc-1/mcfm-1`에서 읽는다. 장치, 네트워크, git, 컴파일러를 호출하지 않는다.
-유일한 출력은 `build/load/model.json`과 `build/load/model.md`다.
-입력/앵커/중첩 검사가 실패하면 exit 1이며 보고서를 새로 쓰지 않는다.
-이 경우 기존 출력이 남아 있다면 실패한 실행의 결과로 취급하면 안 된다.
-성공은 exit 0과 `PASS raw/manual/drift/overlap` 출력으로 확인한다.
+The repository path is derived from the script's location. Original inputs are read from the sibling repository
+`../mc-1/mcfm-1`. The script does not invoke devices, the network, git, or a compiler.
+Its only outputs are `build/load/model.json` and `build/load/model.md`.
+If an input/anchor/overlap check fails, it exits 1 without rewriting the reports.
+Any existing outputs left in that case must not be treated as results of the failed run.
+Success is confirmed by exit 0 and the output `PASS raw/manual/drift/overlap`.
 
-## 근거와 출처
+## Evidence and Provenance
 
-필수 입력은 다음과 같다. 실행할 때 실제 읽은 파일 내용의 SHA-256을 JSON
-`binding.input_sha256`에 기록한다. 시간이나 mtime을 넣지 않으므로 같은 입력은 같은
-출력을 생성한다. 모델 코드와 이 문서의 해시도 포함한다.
+The required inputs follow. The SHA-256 of the actual file contents read during execution is recorded in JSON
+`binding.input_sha256`. No time or mtime is included, so identical inputs produce identical
+outputs. Hashes of the model code and this document are also included.
 
 - `data/baseline-mc1-1.2.0.json`
-- 현재 `src/engine.c`, `src/parallel.h`, `src/mcfm.h`, `src/hybrid.c`,
+- Current `src/engine.c`, `src/parallel.h`, `src/mcfm.h`, `src/hybrid.c`,
   `src/hybrid_profiles.h`, `firmware/perf_fixture.h`
-- 원본 `docs/la-pcm-hardware.json`, `firmware/perf_probe.h`, `firmware/stage_probe.h`,
+- Original `docs/la-pcm-hardware.json`, `firmware/perf_probe.h`, `firmware/stage_probe.h`,
   `firmware/hal/fm1_time.h`, `firmware/app.c`, `tools/perf_capture.py`,
   `src/parallel.h`, `firmware/perf_fixture.h`
 
-역사 출처는 commit `10a2240d7f3c63e3ed551774a8e17fb24ed002b8`,
+Historical provenance is commit `10a2240d7f3c63e3ed551774a8e17fb24ed002b8`,
 app SHA-256 `9ebcd27952284c2298f4f8f51ac490b3f49cf012aa64ab15fe899d344ef51256`,
-source-input SHA-256 `54122b1698f1880d7b5895890e65ab7d87c57276dcbcc6f0747fd1f955081556`다.
-이는 원본 문서의 provenance와 복제 raw의 일치 확인이다. 역사 app 바이너리나
-그 source snapshot을 독립 재해시한 것은 아니다.
+and source-input SHA-256 `54122b1698f1880d7b5895890e65ab7d87c57276dcbcc6f0747fd1f955081556`.
+This verifies agreement between the original document's provenance and the copied raw data. It does not independently
+rehash the historical app binary or its source snapshot.
 
-초기 설계 검토가 지적한 보증성 표현과 IRQ 상한 추론을 계승하지 않는다.
-실행 시에는 버전 관리에서 제외된 과거 `build/` 설계 보고서에 의존하지 않고,
-추적되는 raw 데이터와 원본을 직접 비교하고 고정된 수치 앵커를 검사한다.
+The model does not carry forward the guarantee-like wording and inferred IRQ upper bound identified in the initial design review.
+At runtime, it does not depend on historical `build/` design reports excluded from version control;
+it directly compares tracked raw data with the originals and checks fixed numeric anchors.
 
-## 관측과 디코딩
+## Observations and Decoding
 
-11개 캡처 각각 perf words 42개, stage words 42개를 원본과 정확 대조한다.
-perf schema 1, stage schema 5, 동일 session, 8,192 blocks, 1,048,576 frames,
-TIMER4 설정, 오류 카운터와 CPU1 READY/guard/stack 상태를 검사한다.
-warm-up 1,024 blocks는 측정 블록 수에 포함하지 않는다.
+For each of 11 captures, all 42 perf words and 42 stage words are compared exactly against the originals.
+Checks cover perf schema 1, stage schema 5, the same session, 8,192 blocks, 1,048,576 frames,
+TIMER4 settings, error counters, and CPU1 READY/guard/stack state.
+The 1,024 warm-up blocks are not included in the measured block count.
 
 - `u64(lo,hi) = lo | (hi << 32)`
 - render mean = `u64(w[5],w[6])/8192`
 - audio mean = `u64(w[8],w[9])/8192`
 - TIMER5 mean = `u64(w[14],w[15])/8192`
 - stage k mean = `u64(s[4+3k],s[5+3k])/8192`, maximum = `s[6+3k]`
-- stage 순서: synth, route, rd1, cf1, wait, transfer, output, rd2, cf2,
+- stage order: synth, route, rd1, cf1, wait, transfer, output, rd2, cf2,
   non_render, stage_audio
 
-드리프트는 원본 STABLE_PAIRS `(29,30),(31,32),(33,34),(35,36),(39,40)`로
-검출한다. 제외 인덱스 **1/9/10**을 내장 검사로 고정한다. 이 캡처는 관측 섹션에는
-남지만 적합/비교에는 들어가지 않는다.
+Drift is detected using the original STABLE_PAIRS `(29,30),(31,32),(33,34),(35,36),(39,40)`.
+Excluded indices **1/9/10** are fixed by a built-in check. These captures remain in the observations section
+but do not enter fitting/comparison.
 
-**5/6/7만** workload와 raw `24..40` 전체 tuple이 같은 clean 3회 반복군이다.
-0은 같은 NIGHT CIRCUIT이지만 TIMER4 CON 전체 값이 다르므로 합치지 않는다.
-0/2/3/4/8은 단일점이다. acid0/1/2 차이로 소스별 기울기를 학습하지 않는다.
-release JSON에는 원래 settings 문자열이 없어 그 필드까지 독립 검증하지 못한다.
-현재 후보 측정군도 없으므로 matched candidate 비교 PASS를 만들지 않는다.
+**Only 5/6/7** form a clean 3-repeat group with identical workloads and complete raw `24..40` tuples.
+Capture 0 is also NIGHT CIRCUIT, but its full TIMER4 CON value differs, so it is not combined with them.
+0/2/3/4/8 are single points. Differences among acid0/1/2 are not used to learn per-source slopes.
+The release JSON lacks the original settings strings, so those fields cannot be independently verified.
+There is also no current candidate measurement group, so no matched-candidate comparison PASS is produced.
 
-TIMER4의 **명목 24 MHz는 MCU CPU 클럭이 아니다. CPU Hz는 null**이다.
-LRCLK를 측정한 것도 아니다. 경계는 둘로 나눈다.
+TIMER4's **nominal 24 MHz is not the MCU CPU clock. CPU Hz is null**.
+LRCLK was not measured either. Two boundaries are distinguished.
 
-| 항목 | tick |
+| Item | Ticks |
 |---|---:|
-| ISR 정수 deadline: `(128*1000000//44100)*24` | 69,648 |
-| 물리 블록 간격 계산: `24000000*128/44100` | 69,659.86394557822 |
-| 역사 관측 audio worst | 69,184 |
-| 관측 정수 경계 여유 | 464 |
+| Integer ISR deadline: `(128*1000000//44100)*24` | 69,648 |
+| Calculated physical block interval: `24000000*128/44100` | 69,659.86394557822 |
+| Historical observed audio worst | 69,184 |
+| Observed margin to the integer boundary | 464 |
 
-idx5 정확 앵커는 elapsed `570398577`, render sum `357413655`, audio sum
-`364584342`, audio max `69184`, interval max `69879`다.
-`69184/24 = 2882.6666666667us`, 여유 `464/24 = 19.3333333333us`다.
-idx5의 첫 9 stage maximum 합 `84686`은 서로 다른 블록 maxima를 더하면 틀린다는
-**검사 반례일 뿐** 예측에 사용하지 않는다. `stage_audio`와 perf audio의 계측
-범위 차이도 분해된 CPU 비용으로 해석하지 않는다.
+The exact idx5 anchors are elapsed `570398577`, render sum `357413655`, audio sum
+`364584342`, audio max `69184`, and interval max `69879`.
+`69184/24 = 2882.6666666667us`; margin `464/24 = 19.3333333333us`.
+The sum `84686` of idx5's first 9 stage maxima is **only a check counterexample**
+showing why adding maxima from different blocks is wrong; it is not used for prediction.
+The difference in instrumentation scope between `stage_audio` and perf audio is not interpreted as decomposed CPU cost either.
 
-`interval_max - elapsed/8192`는 관측 간격 초과 proxy다. `elapsed/8192` 자체도
-순수 진입 간격 평균과 동일하지 않다. 약 487 ticks를 IRQ 진입 지연의 bound로
-쓰거나 464 ticks에서 빼지 않는다.
+`interval_max - elapsed/8192` is an observed interval-excess proxy. `elapsed/8192` itself
+is not identical to a pure mean entry interval. Do not use approximately 487 ticks as a bound on IRQ entry delay
+or subtract it from the 464 ticks.
 
-## 실행 가능한 가상 timeline
+## Executable Hypothetical Timeline
 
-`mc_render_ex`는 2개 slice 슬롯을 번갈아 사용한다. 이 모델은 128 frames를
-**8×16 frames**, local melodic5 / worker melodic3 / drums6 / FX4로 구성한다.
-CPU0의 공통 EG와 worker snapshot 준비도 CPU0 synth 집계에 포함된다.
+`mc_render_ex` alternates between 2 slice slots. This model arranges 128 frames as
+**8×16 frames**, with local melodic5 / worker melodic3 / drums6 / FX4.
+CPU0's shared EG and worker snapshot preparation are also included in the CPU0 synth aggregate.
 
-각 round에서 실제 코드 순서를 따른다.
+Each round follows the actual code order.
 
-1. CPU0: 다음 slice prepare 및 공통 EG.
-2. CPU0: 이전 FX와 다음 synth payload submit/copy-in.
-3. 병렬: CPU0 local synth5; CPU1은 **이전 FX4 다음 현재 melodic3+drums6**.
-4. CPU0 join: 두 경로 종료의 max까지 대기한 뒤 copy-out/state commit.
-5. CPU0: 이전 slice output, 다음 slice route.
+1. CPU0: prepare the next slice and shared EG.
+2. CPU0: submit/copy-in the previous FX and next synth payload.
+3. In parallel: CPU0 local synth5; CPU1 runs **previous FX4, then current melodic3+drums6**.
+4. CPU0 join: wait until the maximum of both path completion times, then copy-out/state commit.
+5. CPU0: previous slice output, next slice route.
 
-첫 round는 이전 FX/output이 없는 prologue다. 마지막 9번째 round는 다음
-synth/route가 없고 마지막 FX/output만 있는 epilogue다.
-각 round의 prepare/copy/local/FX/synth/join/output/route 시작·종료 tick을 JSON의
-대표 timeline에 담는다. bank 비용은 worker 경로에만 넣고 CPU0 경과에 다시
-더하지 않는다. 검사에서 round 의존성, join의 max, epilogue, serial-dual 차이와
-overlap의 정확한 일치를 확인한다.
+The first round is a prologue without previous FX/output. The final, 9th round is an
+epilogue with only the final FX/output and no next synth/route.
+The representative timeline in JSON contains the start/end ticks for prepare/copy/local/FX/synth/join/output/route
+in each round. Bank costs are included only on the worker path, not added again
+to CPU0 elapsed time. Checks verify round dependencies, the join maximum, the epilogue, and
+exact agreement between the serial-dual difference and overlap.
 
-실제 `render_prepare`는 step/demo/arp 경계에서 16보다 짧게 자른다.
-8×16은 지정된 가상 스케줄이지 실제 모든 블록의 계측 재생이 아니다.
-FX bank별 평균은 보존하되 timeline의 CPU1 FX interval은 bank 합이다.
+Actual `render_prepare` cuts slices shorter than 16 at step/demo/arp boundaries.
+8×16 is the specified hypothetical schedule, not an instrumentation replay of every actual block.
+Per-FX-bank means are preserved, but the timeline's CPU1 FX interval is the bank sum.
 
-### 평균 재현과 식별되지 않는 계수
+### Mean Reproduction and Unidentified Coefficients
 
-모든 clean 캡처를 별도로 적합한다. `Fraction`으로 내부 계산하여 재현 오차를
-정확히 0인지 검사한다. JSON에서만 부동소수점으로 직렬화한다.
+Each clean capture is fitted separately. Internal calculations use `Fraction` to check
+that reproduction error is exactly 0. Only JSON serialization uses floating point.
 
-`S,R,T,O,W,F`를 각각 관측 synth, route, transfer, output, wait, 네 bank 합의
-블록 평균이라고 두면, synth에서 prepare 비중을 0.15로 **가정**하고
-`L = (1-0.15)*S/8`로 둔다. CPU1 한 slice 합성 잠재 비용 `U`는 다음 식을 맞춘다.
+Let `S,R,T,O,W,F` denote the observed block means for synth, route, transfer, output, wait, and the sum of
+four banks, respectively. **Assume** that preparation accounts for 0.15 of synth;
+set `L = (1-0.15)*S/8`. The latent CPU1 synthesis cost per slice, `U`, is fitted to:
 
 ```text
 wait = max(U-L,0) + 7*max(U+F/8-L,0) + F/8
@@ -127,62 +127,62 @@ outside_render = audio_mean - render_mean
 audio_prediction = timeline_elapsed + render_residual + outside_render
 ```
 
-역산 가능 조건 `W >= F/8`, `U >= 0`을 만족하지 못하면 정직하게 보정 불가로
-중단한다. `U`는 **균등 스케줄을 가정한 잠재값**이다. 실제 CPU1 합성 시간을
-학습했다고 주장하지 않는다. 그 안의 worker melodic3/drum6 비용을 0.6/0.4로
-나누는 것도 가정이다. prepare와 transfer copy-in/out의 실제 분할도 미지다.
-transfer를 9회 앞/뒤에 균등 분배한다. payload byte 수가 이 분배를 증명하지 않는다.
+If the inversion conditions `W >= F/8` and `U >= 0` fail, the model stops and honestly
+reports that calibration is impossible. `U` is **a latent value assuming a uniform schedule**.
+It does not claim to have learned actual CPU1 synthesis time. Splitting worker melodic3/drum6 costs
+within it as 0.6/0.4 is also an assumption. The actual split of preparation and transfer copy-in/out is unknown.
+Transfer is distributed evenly across the fronts/backs of 9 rounds. Payload byte counts do not prove this allocation.
 
-계수는 local voice-frames 640, worker voice-frames 384, drum-frames 768,
-FX bank-frames 512 같은 가상 작업 단위에 비용을 배정하는 방식이다.
-엔진을 계측해 동적 활성/명령어/복사 횟수를 얻은 모델이 아니다.
-`Costs`의 local/worker/drums/banks는 각각 이 작업 단위의 **블록 합 비용**이므로
-단위 비용이 필요하면 해당 합을 작업 단위 수로 나눈다.
+The coefficients assign costs to hypothetical work units such as local voice-frames 640, worker voice-frames 384,
+drum-frames 768, and FX bank-frames 512.
+This is not a model derived by instrumenting the engine for dynamic activity/instruction/copy counts.
+The local/worker/drums/banks fields of `Costs` are **total block costs** for those work units;
+divide the corresponding total by the work-unit count to obtain a unit cost.
 
-render 잔차와 audio-render는 실제 분해되지 않은 차이로 그대로 보고하며
-시나리오에서도 고정하는 가정이다. TIMER5 평균은 관측용이다. stage와 ISR 경과에
-preemption이 포함될 수 있어 별도 가산하지 않는다. `non_render`와
-`stage_audio`도 중복 가산하지 않는다. exact fit은 같은 평균을 사용한 대수적
-재현이지 held-out 검증이 아니다.
+Render residual and audio-render are reported unchanged as differences that have not actually been decomposed;
+holding them fixed in scenarios is also an assumption. TIMER5 mean is observational. Stage and ISR elapsed time
+may include preemption, so it is not added separately. Neither `non_render` nor
+`stage_audio` is added again. Exact fit is algebraic
+reproduction using the same means, not held-out validation.
 
-## 조건부 stress/sensitivity
+## Conditional Stress/Sensitivity
 
-현재 fixture는 acid0에서 8 melodic voices, Analog127, PCM/FM/VA gain127,
-source_mask7, drums6, FX `[4,5,5,5]`, BPM240, 모든 part-bank sends127이다.
-모델도 이 활성 조건을 명시한다. 실제 `available_mask`, gain ramp, EG 종료,
-PCM 종료와 FM 유한 수명은 부하를 줄일 수 있다. 고정 all-source 활성8은
-가능한 스트레스 작업 단위를 유지한다는 **가정**이다.
+The current fixture uses acid0 with 8 melodic voices, Analog127, PCM/FM/VA gain127,
+source_mask7, drums6, FX `[4,5,5,5]`, BPM240, and all part-bank sends127.
+The model states these active conditions explicitly. Actual `available_mask`, gain ramps, EG completion,
+PCM completion, and finite FM lifetime can reduce load. Fixed all-source active8 is
+an **assumption** that maintains the possible stress work units.
 
-원본 fixture는 Analog0, 다른 프로그램과 기존 PCM 경로를 사용한다. 기본 진입점은
-두 FX bank이고 별도 four 진입점이 있다. 캡처에는 네 stage bank의 관측치가 있지만
-이를 현재 hybrid 비용의 측정으로 바꾸지 않는다.
+The original fixture uses Analog0, different programs, and the existing PCM path. Its default entry point
+has two FX banks; a separate four-bank entry point exists. Captures contain observations for four stage banks,
+but these do not become measurements of current hybrid costs.
 
-주요 보정군은 NIGHT 5/6/7이다. 원래 8음의 매 frame 활성수는 알 수 없다.
-실제 최대 활성 fixture 쪽은 acid0 **단일점 2**로 별도 스윕하며 이를 3반복 추론으로
-부풀리지 않는다. 두 보정군의 결과를 서로 다른 workload의 성능 비교로 취급하지 않는다.
+The primary calibration group is NIGHT 5/6/7. The original per-frame active count of the 8 notes is unknown.
+The actual maximum-active fixture is swept separately using acid0 **single point 2**; this is not inflated into
+3-repeat inference. Results from the two calibration groups are not treated as performance comparisons between different workloads.
 
-기본 가정과 스윕은 JSON에 모두 들어간다.
+All default assumptions and sweeps are included in JSON.
 
-- all-source 비용은 역사 melodic 비용과 같은 1×로 시작한다. 이는 사실이 아니다.
-  공통55% + PCM15% + FM15% + VA15%로 나누며 mask0..7로 settled source-gating을
-  스윕한다. 실제 소스 disable 직후에는 gain ramp 때문에 즉시 DSP가 사라지지 않는다.
-- melodic, CPU1 전체 synth, drum, FX, copy 배율에 0.5×~2× 예시를 둔다.
-  이 범위는 plausibility 탐색값일 뿐 경험적으로 검증된 범위가 아니다.
-- arithmetic 배율 0.5×/1.5×/2×는 melodic 비용 중 가정한 20%에 적용한다.
-  64bit multiply/division/modulo/일반 정수 나눗셈의 개별 target 비용은 미지다.
-  실제 ISA의 64bit divide 비용을 식별한 값으로 읽으면 안 된다.
-- 추가 XIP 및 IRQ tick은 각각 256/1024/4096 예시를 별도로 스윕한다.
-  기본 추가0은 기존 비용에 더하는 증분0이라는 뜻이지 IRQ/XIP가 없다는 뜻이 아니다.
-  487 관측 간격 초과에서 선택한 범위가 아니다.
-- prep 비중과 비용 분할 가정도 바꾼다. prep 비중은 melodic1.5× 조건,
-  worker/source 분할은 PCM-only 조건에서 스윕한다. 각 분할에 맞춰 같은 역사 wait를
-  다시 적합하므로 여러 잠재 해가 같은 관측을 만족함을 보여 준다.
-- serial fallback과 combined stress도 포함한다. serial은 CPU1 비활성 정상 fallback의
-  총합 모델이며 timeout 실패/부분 실행/격리/복구를 시뮬레이션하지 않는다.
-  공통 비용 비교를 위해 copy budget은 유지한다. serial timeline에서 `cpu1_*` 필드는
-  CPU0에서 직렬 실행하는 논리적 worker 작업 구간이다. 실제 serial의 복사 비용 측정이 아니다.
+- All-source cost starts at 1× the historical melodic cost. This is not an established fact.
+  It is split into shared55% + PCM15% + FM15% + VA15%, with mask0..7 sweeping settled source gating.
+  Immediately after actually disabling a source, gain ramps mean its DSP does not disappear instantly.
+- Melodic, total CPU1 synth, drum, FX, and copy multipliers use examples from 0.5×~2×.
+  This range is only a plausibility exploration, not an empirically validated range.
+- Arithmetic multipliers 0.5×/1.5×/2× apply to an assumed 20% of melodic cost.
+  Individual target costs of 64bit multiply/division/modulo/general integer division are unknown.
+  These must not be read as identified 64bit divide costs for the actual ISA.
+- Additional XIP and IRQ ticks are swept separately with examples 256/1024/4096 each.
+  Default additional0 means incremental cost 0 added to existing costs, not the absence of IRQ/XIP.
+  This range was not selected from the observed interval excess of 487.
+- Preparation share and cost-split assumptions are varied too. Preparation share is swept under melodic1.5×;
+  worker/source splits are swept under PCM-only. The same historical wait is
+  refitted for each split, showing that multiple latent solutions satisfy the same observations.
+- Serial fallback and combined stress are also included. Serial is a total-cost model of
+  normal fallback with CPU1 disabled; it does not simulate timeout failure/partial execution/quarantine/recovery.
+  The copy budget is retained for common-cost comparison. In a serial timeline, `cpu1_*` fields
+  are logical worker-work intervals executed serially on CPU0, not measured actual serial copy costs.
 
-결과는 `predicted_mean_ticks`와 다음 별도 감도로 나눈다.
+Results distinguish `predicted_mean_ticks` from the following separate sensitivity:
 
 ```text
 observed_max_ratio = historical_audio_max / historical_audio_mean
@@ -190,33 +190,33 @@ observed_max_scaled_sensitivity = predicted_mean * observed_max_ratio
 conditional_margin = 69648 - prediction
 ```
 
-두 번째 식은 역사 peak/mean 모양이 새 workload에서도 유지된다는 가정이다.
-미래 maximum, p99, 확률 신뢰구간이 아니다. 음수 margin 또는 경계 도달은
-**그 가정하의 deadline crossing**, 양수 margin도 **그 가정하의 여유**다.
-IRQ 진입 오프셋 및 다른 미지를 커버했다고 주장하지 않는다.
-호스트 M2 비율, 320/360 MHz, CPU cycle 환산은 사용하지 않는다.
+The second equation assumes that the historical peak/mean shape persists in the new workload.
+It is not a future maximum, p99, or statistical confidence interval. A negative margin or reaching the boundary
+means **deadline crossing under that assumption**; a positive margin is also only **margin under that assumption**.
+It does not claim to cover IRQ entry offsets or other unknowns.
+No host M2 ratio, 320/360 MHz, or CPU-cycle conversion is used.
 
-## 타깃 메타데이터
+## Target Metadata
 
-`build/target-report.json`이 있으면 원문 값, 파일 해시, app hash,
-target ABI, app/data-bss/pool/RAM 크기와 한도를 담는다.
-`tools/build_target.py`의 source-input 규약(정렬 경로 + NUL + 내용 + NUL)을 그대로
-재계산하고 실제 읽은 각 입력도 해시 목록에 넣는다. `source_input_matches=false`면
-stale report로 읽어야 하며 현재 빌드의 증거로 쓰면 안 된다.
-없는 경우 타깃 메타데이터는 null이며 timing 모델 실행은 가능하다.
+If `build/target-report.json` exists, the model includes its original values, file hash, app hash,
+target ABI, and app/data-bss/pool/RAM sizes and limits.
+It recomputes the source-input convention from `tools/build_target.py` unchanged (sorted path + NUL + content + NUL)
+and includes every input actually read in the hash list. If `source_input_matches=false`,
+read it as a stale report, not evidence of the current build.
+If absent, target metadata is null and the timing model can still run.
 
-ABI가 있으면 `McSynthJob` 8회 payload, `McFxJob` 8회 payload와 FX bus 반환의
-명시적 byte 수만 계산한다. sparse history prepare/commit와 voice state commit 등은
-포함하지 않는다. 이를 전체 copy byte 수나 실측 대역폭으로 광고하지 않는다.
-타깃 ABI와 메모리도 장치 timing 또는 펌웨어 성공을 입증하지 않는다.
+When an ABI is available, only explicit byte counts for 8 `McSynthJob` payloads, 8 `McFxJob` payloads,
+and FX bus returns are calculated. Sparse history prepare/commit, voice state commit, and similar work
+are excluded. Do not advertise these as total copy bytes or measured bandwidth.
+Target ABI and memory figures do not prove device timing or firmware success either.
 
-## 가장 큰 한계
+## Largest Limitations
 
-관측은 역사 집계뿐이다. hybrid PCM/FM/VA와 Analog의 실제 MCU 비용, CPU1 합성
-시간, XIP 경합, IRQ 진입 지연, 64bit 연산 비용을 식별할 데이터가 없다.
-균등 시간 배분·선형 비용·고정 잔차·peak/mean 유지 가정이 결과를 좌우한다.
-개별 블록 분포와 stage 동시성을 모르므로 p99나 보증 상한은 만들 수 없다.
+The observations are historical aggregates only. There is no data identifying actual MCU costs of hybrid PCM/FM/VA
+and Analog, CPU1 synthesis time, XIP contention, IRQ entry delay, or 64bit operation costs.
+Uniform time allocation, linear costs, fixed residuals, and peak/mean persistence drive the results.
+Without individual block distributions or stage concurrency, p99 and guaranteed upper bounds cannot be produced.
 
-이 모델의 가장 강한 증거는 원시 출처 검증, 정확 평균 재현, 실행 순서에 맞는
-중첩 검사, 그리고 어떤 가정이 여유를 없애는지 재현 가능한 민감도다.
-현재 이미지의 실제 동작과 MCU 적합 여부는 여전히 **미확인**이다.
+The strongest evidence from this model is raw-provenance verification, exact mean reproduction,
+overlap checks consistent with execution order, and reproducible sensitivity showing
+which assumptions remove the margin. Actual operation and MCU suitability of the current image remain **unconfirmed**.

@@ -4,11 +4,11 @@
   "source_root": "/Users/wknam/workspace/mc-1/mcfm-1",
   "target_root": "/Users/wknam/workspace/mc-1-mod",
   "source_commit": null,
-  "source_commit_note": "펌웨어 빌드나 Git 커밋을 만들지 않았다. 빌드 도구는 HEAD 조회 실패 시 JSON null을 기록한다.",
+  "source_commit_note": "No firmware build or Git commit was created during this import. Build tools record JSON null when querying HEAD fails.",
   "source_input_sha256": "641f3db9cd4dca259eafcd13a2ece6376b8f6644215b6d717e3b5def4c8a82ca",
-  "source_input_sha256_scope": "build_target.py와 src/** 및 firmware/**의 .c/.h/.S/.ld 입력 77개를 경로 NUL 바이트 NUL 방식으로 해시함",
-  "source_input_snapshot": "main 혼합 코어 DAG 시작 전 검증된 foundation snapshot",
-  "source_input_sha256_note": "이 해시는 foundation 시점의 입력이다. 이후 main이 의도적으로 반영하는 mixed-core 변경은 import 손상으로 분류하지 않는다.",
+  "source_input_sha256_scope": "Hashes 77 inputs from build_target.py and the .c/.h/.S/.ld files under src/** and firmware/** as path NUL bytes NUL.",
+  "source_input_snapshot": "Verified foundation snapshot before the main mixed-core DAG started.",
+  "source_input_sha256_note": "This hash describes the foundation inputs. Subsequent intentional mixed-core changes by main are not import corruption.",
   "ownership_handoff": {
     "mixed_core_owner": "main",
     "forbidden_write_paths": [
@@ -16,7 +16,7 @@
       "firmware/perf_fixture.h",
       "firmware/panel_modes.h"
     ],
-    "interpretation": "후속 혼합 코어 수정은 의도된 변경이며 foundation import 불일치가 아니다."
+    "interpretation": "Subsequent mixed-core changes are intentional and are not foundation import mismatches."
   },
   "import_summary": {
     "file_count": 60,
@@ -26,11 +26,11 @@
   "documented_changes": [
     {
       "path": "firmware/app.c",
-      "change": "C4: hybrid.c는 비분리 단일 TU에서만 포함하고 tables.c는 항상 app TU에서 정확히 한 번 포함"
+      "change": "C4: Include hybrid.c only in the non-split single TU; always include tables.c exactly once in the app TU."
     },
     {
       "path": "tools/build_target.py",
-      "change": "C4: split DSP 목록에 hybrid.c를 추가하고 tables.c는 별도 object로 중복 링크하지 않음. C6: Git 조회 실패 시 source_commit/source_dirty는 null이며 입력 해시는 계속 계산"
+      "change": "C4: Add hybrid.c to split DSP objects and do not link tables.c again as a separate object. C6: Set source_commit/source_dirty to null when Git queries fail and continue computing the input hash."
     }
   ],
   "defaults": {
@@ -48,13 +48,13 @@
     "header_read": "0x00000..0x04000"
   },
   "checks": {
-    "source_paths": "60개 upstream 경로 읽기 확인",
-    "raw_sha256": "원본/대상 120개 경로 해시; 58쌍 일치, firmware/app.c와 tools/build_target.py는 문서화된 C4/C6 변경",
-    "build_target_python_syntax": "통과: C4 반영 후 메모리 compile() 검사",
-    "full_target_build": "실행 안 함; 혼합 코어 통합 후속",
-    "flash": "실행 안 함",
-    "independent_host_tests": "C4 반영 후 통과: connections.c 기본/OTA, panel_leds, perf_probe, perf_hardware, stage_probe, memory",
-    "ota_loader": "ota_test.c와 ldr_test.c 컴파일 통과; FWSC 입력 부재로 실행 안 함"
+    "source_paths": "Confirmed reads of 60 upstream paths.",
+    "raw_sha256": "Hashed 120 source/target paths; 58 pairs match. firmware/app.c and tools/build_target.py have the documented C4/C6 changes.",
+    "build_target_python_syntax": "PASS: in-memory compile() check after C4.",
+    "full_target_build": "Not run during import; deferred to mixed-core integration.",
+    "flash": "Not performed.",
+    "independent_host_tests": "PASS after C4: connections.c default/OTA, panel_leds, perf_probe, perf_hardware, stage_probe, memory.",
+    "ota_loader": "ota_test.c and ldr_test.c compiled successfully; not executed because no FWSC input was available at import."
   },
   "files": [
     {
@@ -419,7 +419,7 @@
     }
   ],
   "c4_linkage": {
-    "hybrid": "MC_DSP_SPLIT=1이면 별도 -O2 object, 아니면 app TU 포함",
-    "tables": "src/tables.c는 app TU에 한 번 포함하며 별도 object 없음"
+    "hybrid": "Separate -O2 object when MC_DSP_SPLIT=1; otherwise included in the app TU.",
+    "tables": "src/tables.c is included once in the app TU, with no separate object."
   }
 }

@@ -4,9 +4,9 @@
 # requires-python = ">=3.10"
 # dependencies = []
 # ///
-"""프로젝트 로컬 공유 C 소스로 WASM과 다운로드 전용 사이트를 조립한다."""
-# 실행: python3 tools/build_web.py
-# CLANG은 wasm32 지원 clang, BUILD_DIR은 기본 build 경로를 바꾼다.
+"""Build WASM and the download-only site from the local shared C core."""
+# Run: python3 tools/build_web.py
+# CLANG selects a wasm32-capable clang; BUILD_DIR overrides the output directory.
 
 import hashlib
 import json
@@ -52,7 +52,7 @@ def source_input_sha256(root: Path) -> str:
 
 
 def assemble_site(root: Path, out: Path) -> None:
-    """기존 downloads·notice를 지우지 않고 로컬 프런트엔드를 덧복사한다."""
+    """Copy the frontend without deleting existing downloads or notices."""
     site = out / "site"
     shutil.copytree(root / "site", site, dirs_exist_ok=True)
     shutil.copytree(root / "LICENSES", site / "LICENSES", dirs_exist_ok=True)
@@ -61,10 +61,23 @@ def assemble_site(root: Path, out: Path) -> None:
     shutil.copytree(root / "data", site / "data", dirs_exist_ok=True)
     for name in ("mod1.wasm", "build-info.json"):
         shutil.copy2(out / name, site / name)
+    info = json.loads((out / "build-info.json").read_text())
+    cache_key = info["source_input_sha256"][:16]
+    for page in site.glob("*.html"):
+        page.write_text(re.sub(
+            r"""(\b(?:src|href)=["'])([^"']+\.(?:js|css))(?:\?[^"']*)?(["'])""",
+            lambda match: match.group(0) if "://" in match.group(2) else
+            f"{match.group(1)}{match.group(2)}?v={cache_key}{match.group(3)}",
+            page.read_text(),
+        ))
+    frontend = site / "emu.js"
+    frontend.write_text(frontend.read_text().replace(
+        f"?v={info['version']}", f"?v={cache_key}",
+    ))
 
 
 def main() -> None:
-    """컴파일 실패는 그대로 전달하며 성공한 로컬 WASM만 사이트에 게시한다."""
+    """Propagate build errors and publish only a successfully built local WASM."""
     root = Path(__file__).resolve().parents[1]
     out = Path(os.environ.get("BUILD_DIR", "build"))
     if not out.is_absolute():
@@ -76,7 +89,7 @@ def main() -> None:
         r'^#define MC_VERSION "([^"]+)"$', (root / "src/mcfm.h").read_text(), re.MULTILINE,
     )
     if core_version is None or core_version.group(1) != version or package_version != version:
-        raise SystemExit("VERSION, package.json, C 코어의 버전이 일치하지 않습니다.")
+        raise SystemExit("VERSION, package.json, and the C core version do not match.")
     fingerprint = source_input_sha256(root)
     command = [
         os.environ.get("CLANG", "clang"), "--no-default-config", "--target=wasm32", "-std=c11",
@@ -90,7 +103,7 @@ def main() -> None:
         wasm = Path(temporary) / "mod1.wasm"
         subprocess.run([*command, "-o", str(wasm)], cwd=root, check=True)
         if source_input_sha256(root) != fingerprint:
-            raise SystemExit("빌드 중 입력이 변경되었습니다. 일관된 소스에서 다시 실행하세요.")
+            raise SystemExit("Inputs changed during the build. Rebuild from a consistent source snapshot.")
         wasm.replace(out / "mod1.wasm")
 
     commit: str | None = None

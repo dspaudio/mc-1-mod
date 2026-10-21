@@ -44,7 +44,7 @@ async function run(response,cause) {
     assert.equal(nodes['fetch-error'].hidden,!cause);
     assert.equal(nodes['manifest-section'].hidden,Boolean(cause));
     if(cause)assert.equal(nodes['fetch-error'].dataset.cause,cause);
-    else assert.deepEqual(nodes.files.children.map(entry=>entry.children[2].href),manifest.files.map(file=>file.url));
+    else assert.deepEqual(nodes.files.children.map(entry=>entry.children[2].href),manifest.files.map(file=>file.url+'?v='+file.sha256));
 }
 await run(()=>({ok:true,json:async()=>manifest}));
 await run(()=>({ok:false,status:503}),'HTTP 503');

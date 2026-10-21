@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""실제 native 어댑터 출력과 WASM·worklet 회귀를 하나의 명령으로 검증한다."""
+"""Verify actual native adapter output against WASM and worklet regressions."""
 import json
 import subprocess
 from pathlib import Path

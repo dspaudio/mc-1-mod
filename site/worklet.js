@@ -11,19 +11,19 @@ class Mc1ModProcessor extends AudioWorkletProcessor {
         const fl = new Uint8Array(this.e.memory.buffer, this.e.emu_flash_ptr(), this.e.emu_flash_size());
         fl.fill(255);
         if (img) {
-            if (img.byteLength !== fl.length) throw new Error('저장 이미지 크기가 다릅니다. 원본 브라우저 저장은 변경하지 않았습니다.');
+            if (img.byteLength !== fl.length) throw new Error('Saved image size mismatch. The original browser save was not changed.');
             fl.set(new Uint8Array(img));
         }
         this.lastFlashGen = 0;
         this.e.emu_init();
-        if (!this.e.emu_resample_init(options.processorOptions.outputRate)) throw new Error('지원하지 않는 오디오 출력 레이트입니다.');
+        if (!this.e.emu_resample_init(options.processorOptions.outputRate)) throw new Error('Unsupported audio output rate.');
         const pack = new Uint8Array(this.e.memory.buffer, this.e.emu_pack_ptr(), this.e.emu_pack_bytes());
         const expectedPack = [77,79,68,49,1,0,1,0];
-        if (pack.length !== expectedPack.length || pack.some((byte,i) => byte !== expectedPack[i])) throw new Error('mc-1-mod pack identity가 다릅니다.');
+        if (pack.length !== expectedPack.length || pack.some((byte,i) => byte !== expectedPack[i])) throw new Error('mc-1-mod pack identity mismatch.');
         const saved = this.e.emu_store_status();
-        if (saved === 3) this.port.postMessage({t:'storage-reset',message:'다른 팩의 저장을 보존했습니다. SAVE는 잠깁니다.'});
-        else if (saved === 2) this.port.postMessage({t:'storage-reset',message:'손상된 프로젝트를 복원하지 못했습니다. 자동 덮어쓰기는 하지 않았습니다.'});
-        else if (saved === 4) throw new Error('프로젝트 저장소를 읽지 못했습니다.');
+        if (saved === 3) this.port.postMessage({t:'storage-reset',message:'Another pack’s save was preserved. SAVE is locked.'});
+        else if (saved === 2) this.port.postMessage({t:'storage-reset',message:'Could not restore the corrupted project. It was not automatically overwritten.'});
+        else if (saved === 4) throw new Error('Could not read project storage.');
         this.lastFlashGen = this.e.emu_flash_gen();   // boot-time writes need no save
         this.fbPtr = this.e.emu_fb_ptr();
         this.audioPtr = this.e.emu_audio_ptr();

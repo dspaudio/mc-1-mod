@@ -1,32 +1,32 @@
-# 0.0.1 experimental 검증 기록
+# 0.0.1 experimental Verification Record
 
-2026-10-21. 이 기록은 로컬 빌드와 웹 검증이다. FM-1에 설치·flash하거나 새 이미지의 부팅, 아날로그 출력, CPU1 타이밍, 실시간 기한을 측정하지 않았다. 음질도 청취 미승인이다.
+2026-10-21. This record covers local builds and web verification. The firmware was not installed/flashed on an FM-1, and the new image's boot, analog output, CPU1 timing, and real-time deadlines were not measured. Sound quality also remains unapproved by listening.
 
-## 실행한 검사
+## Checks Performed
 
-`make -j2 OUT=build/dance-release test`는 댄스송 추가 뒤 등록된 전체 호스트 시험을 종료 코드 0으로 통과했다. 프리셋 32개, UI/MIDI/저장, 64패턴·SONG·ARP, 6드럼·네 FX, 루프·공유 pitch·게인 전환과 듀얼코어 fallback을 포함한다. 네 데모를 포함한 듀얼코어 시험은 3,795,820프레임의 PCM과 전체 113,048바이트 엔진 상태가 직렬 경로와 일치했다. 이는 호스트의 병렬 계약 검사이지 FM-1 CPU1 실행 증거가 아니다.
+`make -j2 OUT=build/dance-release test` passed all registered host tests with exit code 0 after the dance songs were added. Coverage includes 32 presets, UI/MIDI/storage, 64 patterns/SONG/ARP, 6 drums/four FX, loops/shared pitch/gain transitions, and dual-core fallback. The dual-core test, including four demos, matched the serial path for 3,795,820 PCM frames and the entire 113,048-byte engine state. This is a host parallel-contract check, not evidence of FM-1 CPU1 execution.
 
-LLVM 23의 ASan/UBSan으로 같은 전체 시험과 데모 렌더를 종료 코드 0으로 통과했다. Apple 기본 clang의 ASan 초기화 실패를 숨기지 않고, 정상 동작한 LLVM과 명시적 macOS SDK를 사용했다. 명령은 README에 있다.
+The same full test suite and demo rendering passed with exit code 0 under LLVM 23 ASan/UBSan. The initialization failure of Apple's default clang ASan was not hidden; working LLVM and an explicit macOS SDK were used. Commands are in the README.
 
-추가된 두 SONG의 전체 재생·저장 복원·MIDI 정리·네 항목 UI도 `OUT=build/dance-sanitize test-demo-songs`를 ASan/UBSan으로 실행해 종료 코드 0을 확인했다. 네 데모 중 두 번 회전하면 원래 선택으로 돌아온다는 기존 UI fixture는 네 선택지의 실제 순환 계약으로 갱신했다.
+Full playback, save restoration, MIDI cleanup, and the four-entry UI for the two added SONGs were also checked by running `OUT=build/dance-sanitize test-demo-songs` under ASan/UBSan with exit code 0. The existing UI fixture, which expected two turns through the demos to return to the original selection, was updated to the actual cycle contract of four choices.
 
-`python3 tools/verify_web.py`는 종료 코드 0으로 통과했다. 32개 프로필과 네 FX 뱅크의 32개 선택에 대해 네이티브/WASM PCM이 일치한다. 실제 WASM을 사용하는 worklet·저장 identity·전송 버퍼 시험, UI 타임스탬프 경계, MIDI 연결 실패·큐·해제, 44.1/48/96kHz 출력의 호출 분할 일치와 유리수 위상 누적을 검사했다. 브라우저 물리 MIDI 포트나 USB 오디오 장치를 시험한 것은 아니다.
+`python3 tools/verify_web.py` passed with exit code 0. Native/WASM PCM matches for 32 profiles and the 32 selections in four FX banks. Checks covered the worklet using actual WASM, storage identity, transfer buffers, UI timestamp boundaries, MIDI connection failure/queue/release, call-partition equivalence at 44.1/48/96kHz output, and rational phase accumulation. Browser physical MIDI ports and USB audio devices were not tested.
 
-이관된 구 저장 시험에서 v1–v8 자동 이관과 예전 wire 오프셋을 기대하던 fixture는 현재 팩의 v9 거부 계약으로 갱신했다. SONG의 clock-only 시험은 음성을 렌더하지 않아 poly 음성이 누적되므로 기존 mono 전제를 명시적으로 고정했다. 저장 복원 검사는 팝업의 임시 커서가 아니라 실제 project origin과 patch profile을 확인한다.
+Migrated legacy storage-test fixtures that expected automatic v1–v8 migration and old wire offsets were updated to this pack's v9 rejection contract. The SONG clock-only test does not render voices, allowing poly voices to accumulate, so its existing mono assumption was made explicit. Storage restoration checks inspect the actual project origin and patch profile rather than the popup's temporary cursor.
 
-## 실제 타깃 산출물
+## Actual Target Artifacts
 
-공식 pi32v2 툴체인으로 앱과 RAM 로더를 빌드했다. `make test-ota`는 실제 FWSC를 사용한 OTA 및 로더 시험에서 종료 코드 0을 반환했다. 손상 패키지·CRC·복구 경로도 검사한다.
+The app and RAM loader were built with the official pi32v2 toolchain. `make test-ota` returned exit code 0 for OTA and loader tests using the actual FWSC. Corrupt packages, CRC, and recovery paths are also checked.
 
-| 항목 | 결과 |
+| Item | Result |
 |---|---:|
-| app | 294,324바이트 |
-| FWSC | 610,089바이트 |
-| globals | 55,708 / 정책 한도 65,536바이트 |
-| pool | 303,968 / 정책 한도 335,872바이트 |
-| RAM text | 5,568바이트 |
-| RAM loader | 8,212바이트 |
-| McPatch / McVoice / McSynthJob | 15 / 120 / 1,204바이트 |
+| app | 294,324 bytes |
+| FWSC | 610,089 bytes |
+| globals | 55,708 / policy limit 65,536 bytes |
+| pool | 303,968 / policy limit 335,872 bytes |
+| RAM text | 5,568 bytes |
+| RAM loader | 8,212 bytes |
+| McPatch / McVoice / McSynthJob | 15 / 120 / 1,204 bytes |
 
 FWSC SHA-256:
 `a1f45ab564e0cfbaba6cad3ccde980d60cd13d06e60b450a954e58294f655ff8`
@@ -34,51 +34,53 @@ FWSC SHA-256:
 app SHA-256:
 `214e7731e5806af2772685f35c9828815e0a07b80f0b721e9aed50f1b902a322`
 
-타깃 입력 SHA-256:
-`7670c1a5a1da843565ab5f52af862adc031fb0ea1c9fd6102f20de0b5ae382fd`
+Target-input SHA-256:
+`538fbed99c29862cae1d37dad398e13d484da7ccceb442de45c7d7b40f31eb6b`
 
-`artifacts/firmware/`는 검증된 패키지와 보고서를 보존한다. 조립기는 현재 타깃 입력 해시와 바이트 해시를 대조하므로 소스가 달라지면 이 패키지로 게시하지 않는다. WASM의 별도 입력·바이트 해시는 매번 생성하는 `build/site/build-info.json`과 `FIRMWARE.json`에 있다. 로컬 Git 첫 커밋 전 빌드이므로 타깃 보고서의 commit은 null이며 특정 커밋에서 빌드했다고 가장하지 않는다.
+`artifacts/firmware/` preserves the verified package and reports. The assembler compares current target-input and byte hashes, so this package will not be published if the source changes. Separate WASM input/byte hashes are in the regenerated `build/site/build-info.json` and `FIRMWARE.json`. The original build preceded the first local Git commit and recorded a null commit. The English-metadata rebuild records its actual parent commit and dirty working tree, with the new input hash above; app and FWSC bytes are unchanged.
 
-사용자 결정에 따라 릴리스 버전은 `0.0.1 experimental`이다. VERSION·package.json·C 상수·웹 표시를 맞추고 타깃 앱과 FWSC를 다시 빌드해 OTA 검사를 통과했다. 타깃·패키지 보고서에도 `version: "0.0.1"`과 `experimental: true`를 기록한다. 버전 표기만 바꾼 초기 단계에는 바이너리가 같았으나, 이후 두 댄스송을 추가한 최종 앱·FWSC와 입력 해시는 위의 새 값이다.
+By user decision, the release version is `0.0.1 experimental`. VERSION, package.json, the C constant, and web display were aligned; the target app and FWSC were rebuilt and passed OTA checks. Target/package reports also record `version: "0.0.1"` and `experimental: true`. Binaries were identical at the initial stage when only version labeling changed, but the final app/FWSC and input hashes after the subsequent addition of two dance songs are the new values above.
 
-## 오디오와 실제 브라우저
+## Audio and Actual Browser
 
-`tools/assemble_pages.py`는 같은 C 코어로 98개 WAV를 새로 생성하고 각각의 SHA-256·바이트·기계 검사 결과를 확인했다. preset ID 0–31, kit ID 0–7, 소스별 비교 54개, 두 댄스송, 개별 데모와 스트레스 렌더다. 클리핑·미종료 꼬리·루프 경계 검토 실패는 0건이다. 숨은 detune 대신 공유 pitch와 실제 PCM tuning을 사용하며, 루프의 주기·배음·bend/glide를 검사했다.
+The current bank failed the user's listening standard for richness and is being revised. Existing machine checks remain useful evidence of behavior, not sound-quality approval. Final preset acceptance includes source material, envelope/filter, and the existing built-in FX together; dry clips are diagnostic references only.
 
-HIPHOP POCKET은 128 BPM·swing 12·24마디(곡 45초), TECHNO DRIVE는 144 BPM·swing 0·32마디(곡 53⅓초)다. 인트로·본문·브레이크·필·훅·종결을 canonical SONG에 저장하며 기존 두 데모도 보존한다. WAV는 FX 꼬리 확인용 10초를 더해 각각 55초·63⅓초다. 실제 재생의 최대 활성 슬롯은 두 곡 모두 멜로디 4/8·드럼 4/6, clip·limiter·멜로디 stealing은 0이었다. SONG 렌더의 드럼 slot stealing 횟수는 측정하지 않아 JSON에서 null이다.
+`tools/assemble_pages.py` freshly generated 98 WAVs with the same C core and checked each one's SHA-256, bytes, and machine-check results. These cover preset IDs 0–31, kit IDs 0–7, 54 per-source comparisons, two dance songs, individual demos, and stress renders. There were 0 failures for clipping, unterminated tails, or loop-boundary review. Shared pitch and actual PCM tuning are used instead of hidden detune; loop periods, harmonics, and bend/glide were checked.
 
-`node tests/demo-songs.mjs`는 실제 WASM의 네 항목 UI에서 두 곡을 선택·로드·PLAY하고 전체 WAV와 PCM을 샘플 단위로 비교했다. 각각 2,425,500프레임과 2,793,000프레임이 정확히 일치하고 자동 종료했다. 이는 같은 C 시퀀서·오디오 경로의 증거이며 주관적 댄스곡 품질 승인은 아니다.
+HIPHOP POCKET is 128 BPM, swing 12, and 24 bars (45 seconds of song); TECHNO DRIVE is 144 BPM, swing 0, and 32 bars (53⅓ seconds of song). Intros, main sections, breaks, fills, hooks, and endings are stored in canonical SONG, and the two existing demos are preserved. WAVs add 10 seconds for FX-tail inspection, giving 55 seconds and 63⅓ seconds respectively. During actual playback, maximum active slots for both songs were melody 4/8 and drums 4/6, with 0 clips, limiter events, or melody steals. Drum slot stealing counts were not measured in SONG renders and are null in JSON.
 
-이 숫자들은 음악적 유용성을 승인하지 않는다. 특히 가벼운 수학적 PCM 후보가 “장난감 같지 않다”는 결론이나 실제 악기 재현 성공을 대신하지 않는다. 전체 음색의 곡 안의 역할과 청취 평가는 [음질 기준](AUDIO_ACCEPTANCE.md)에 따라 별도로 남는다.
+`node tests/demo-songs.mjs` selected, loaded, and PLAYed both songs in the actual WASM four-entry UI and compared complete WAVs with PCM sample by sample. Exactly 2,425,500 frames and 2,793,000 frames matched respectively, and playback ended automatically. This is evidence of the same C sequencer/audio path, not subjective approval of dance-song quality.
 
-실제 Chrome의 독립 QA 프로필에서 390px/DPR 3 모바일과 1440·1920px 데스크톱을 사용했다. 실제 C 240×240 화면과 AudioWorklet 시작을 확인했다. 실제 PLAY 버튼 뒤 관측한 출력은 44,100Hz·2채널·비무음이었다. 최종 98개 오디오 컨트롤, 54개 비교의 펼침, WAV 재생과 배타 재생을 확인했다. 초기 브라우저 다운로드 검사에서는 당시 FWSC와 앱·두 보고서의 바이트·SHA-256 일치를 확인했으며, 댄스송 추가 후의 새 펌웨어는 조립기의 입력/바이트 해시 대조와 OTA 검사로 검증했다.
+These figures do not approve musical usefulness. In particular, they do not establish that lightweight mathematical PCM candidates "do not sound like toys" or successfully reproduce real instruments. The roles of the full timbres within songs and listening evaluation remain separate under the [audio criteria](AUDIO_ACCEPTANCE.md).
 
-제품면·다운로드면·에뮬레이터의 상단과 하단을 밝은/어두운 시스템 환경에서 캡처했다. 사이트는 DESIGN.md의 고정 어두운 디자인을 따른다. 초기 캡처에서 발견한 좁은 플레이어, 소스별 비교 렌더 실패와 모바일 상태 줄 잘림을 수정하고 해당 화면을 다시 캡처했다. 독립 시각 검토 결과는 로컬 `build/visual/`에 보관한다.
+Actual Chrome was used with an independent QA profile at 390px/DPR 3 mobile and 1440/1920px desktop widths. The actual C 240×240 display and AudioWorklet startup were confirmed. Output observed after the actual PLAY button was 44,100Hz, 2-channel, and non-silent. The final 98 audio controls, expansion of 54 comparisons, WAV playback, and exclusive playback were checked. Initial browser download checks confirmed byte/SHA-256 agreement for the then-current FWSC, app, and two reports; new firmware after the dance-song additions was verified through the assembler's input/byte hash comparisons and OTA checks.
 
-댄스송 추가 전 `0.0.1 experimental` 후보의 `release-*` 기본 캡처는 50장이다. 모든 상태에서 문서·오디오 행의 가로 넘침과 신규 링크의 44px 미만 타깃은 0건이다. HTTP 응답을 실제로 보류한 모바일·데스크톱 로딩 상태도 캡처했다. 다운로드·갤러리의 관측한 로딩→성공 뷰포트에서 Layout Instability API의 CLS는 각각 0이었다. 이는 임의 스크롤 위치나 실제 iPhone Safari 전체의 무이동 보증이 아니다. `node tests/install.mjs`는 응답 전 안내, 성공과 HTTP·네트워크·JSON·스키마 오류의 구분, 실제 파일 링크를 검사해 통과했다.
+The tops and bottoms of the product surface, download surface, and emulator were captured under light/dark system settings. The site follows DESIGN.md's fixed dark design. Narrow players, failed per-source comparison rendering, and mobile status-line clipping found in initial captures were fixed, and the affected screens were recaptured. Independent visual-review results are kept locally in `build/visual/`.
 
-두 댄스송을 추가한 현재 빌드는 `build/demo-songs/browser.json`의 18개 새 캡처와 9개 기능 관측으로 보완했다. 세 화면 폭 모두에서 갤러리 첫 두 곡의 재생·배타 재생, 실제 키/휠 입력으로 C DEMO 선택→LOAD→PLAY를 확인했다. 선택·로드 화면의 C 프레임 영역 일치를 이벤트로 기다렸으며 고정 sleep으로 성공을 가정하지 않았다. 측정용 AudioWorklet이 실제 엔진 출력을 받아 힙합 peak 약 0.3920, 테크노 약 0.3475의 44,100Hz·2채널 출력을 관측했다. 새 랜딩·두 플레이어·네 선택 항목 화면의 넘침은 0건이다.
+There are 50 baseline `release-*` captures of the `0.0.1 experimental` candidate before the dance-song additions. Across all states, there were 0 instances of horizontal overflow in documents/audio rows or new link targets smaller than 44px. Mobile/desktop loading states were also captured with HTTP responses actually held back. CLS from the Layout Instability API was 0 in each observed loading→success viewport for downloads/gallery. This is not a guarantee of no movement at arbitrary scroll positions or across all actual iPhone Safari behavior. `node tests/install.mjs` passed checks for guidance before responses, distinctions among success and HTTP/network/JSON/schema errors, and actual file links.
 
-초기 두 독립 시각 감사의 수정 사항은 `pass-a-release.md`와 `pass-b-release.md`에서 해당 범위 PASS로 종료했다. 독립 C SONG 검토의 “음표/드럼 hit 수 상한”은 요청된 동시발음 8/6과 다른 제약이므로 새 요구로 채택하지 않는다. 동시 슬롯·전체 종료·PCM·codec·정박/당김음·브레이크/필은 실제 시험으로 확인했으며, 모든 스코어의 별도 golden 전수 비교나 주관적 곡 품질까지 승인했다고 주장하지 않는다.
+The current build with the two dance songs is supplemented by 18 new captures and 9 functional observations in `build/demo-songs/browser.json`. At all three widths, checks confirmed playback/exclusive playback of the first two gallery songs and C DEMO selection→LOAD→PLAY using actual key/wheel input. Events were awaited for C frame-region agreement on selection/load screens; success was not assumed through fixed sleeps. An instrumentation AudioWorklet received actual engine output and observed 44,100Hz, 2-channel output with hip-hop peak approximately 0.3920 and techno peak approximately 0.3475. There were 0 overflows in the new landing, two players, and four-choice screen.
 
-댄스송 추가 뒤의 독립 시각 후속 검토 `build/demo-songs/visual.md`도 새 PNG 18개를 전부 직접 열어 해당 변경 범위 PASS로 종료했다. 새 CTA·첫 두 플레이어·128/144 BPM SONG 표시·3/4와 4/4 선택 개수·세 화면 폭의 원래 faceplate 보존에서 차단 사항은 없었다.
+Fixes from the first two independent visual audits were closed as PASS within their respective scope in `pass-a-release.md` and `pass-b-release.md`. The independent C SONG review's "upper limit on note/drum hit counts" is a different constraint from the requested simultaneous polyphony of 8/6 and is not adopted as a new requirement. Concurrent slots, complete termination, PCM, codec, on-beat/syncopation behavior, and breaks/fills were verified by actual tests; this does not claim separate exhaustive golden comparison of every score or subjective song-quality approval.
 
-## 이전 MC-1 실측과 조건부 부하 모델
+The independent visual follow-up after the dance-song additions, `build/demo-songs/visual.md`, also directly opened all 18 new PNGs and closed the changed scope as PASS. No blockers were found in the new CTA, first two players, 128/144 BPM SONG display, 3/4 and 4/4 selection counts, or preservation of the original faceplate at all three widths.
 
-원본과 11×42 perf words 및 11×42 stage words를 직접 대조했다. 90,112블록 중 드리프트 캡처 1/9/10은 매칭 비교에서 제외하며 5/6/7만 같은 설정의 3회 반복군이다. TIMER4는 명목 24MHz이며 MCU CPU 클록은 미상이다.
+## Previous MC-1 Measurements and Conditional Load Model
 
-과거 최악 ISR은 69,184tick, 정수 기한은 69,648tick이다. 관측 여유 464tick은 약 19.33µs지만, 이를 새 이미지의 여유로 옮겨 쓸 수 없다.
+All 11×42 perf words and 11×42 stage words were directly compared with the originals. Among 90,112 blocks, drift captures 1/9/10 are excluded from matched comparison; only 5/6/7 form a 3-repeat group with the same settings. TIMER4 is nominally 24MHz; the MCU CPU clock is unknown.
 
-`python3 tools/load_model.py`는 raw/manual/drift/overlap 검사, 8개 clean 평균의 대수 재현과 86개 조건부 시나리오를 통과했다. 8×16프레임의 가상 5+3 보이스와 드럼·FX·copy·join을 구성하며 CPU1 FX 시간을 CPU0 경과에 다시 더하지 않는다. 소스 비용·CPU1 합성·64bit 연산·XIP·IRQ 계수는 식별되지 않았다. 최대값의 동시성, p99, 보증 상한을 발명하지 않는다. 감도 시나리오에는 기한을 넘는 경우도 있다.
+The historical worst ISR was 69,184 ticks; the integer deadline is 69,648 ticks. The observed margin of 464 ticks is approximately 19.33µs, but it cannot be transferred to the new image.
 
-양쪽 코어를 직접 다시 빌드하고 ABAB 3회, 총 12프로세스를 재실행했다. 실제 매 블록에서 8멜로디·6드럼·네 FX를 유지하고 clip/steal 0을 확인했다. 이 호스트의 신규/원본 render wall 중앙값 비율은 약 1.51이었다. 같은 이벤트·발음 수지만 원본 LA와 신규 PCM/FM/VA의 프리셋·소스 게인·합성 경로는 다르다. 같은 fixture 파일이나 같은 DSP 연산의 최적화 전후 비교로 해석하지 않으며, 이 비율로 MCU 시간을 환산하지 않는다.
+`python3 tools/load_model.py` passed raw/manual/drift/overlap checks, algebraic reproduction of 8 clean means, and 86 conditional scenarios. It constructs a hypothetical 8×16-frame schedule of 5+3 voices, drums, FX, copy, and join, without adding CPU1 FX time again to CPU0 elapsed time. Source costs, CPU1 synthesis, 64bit operation, XIP, and IRQ coefficients are unidentified. Concurrency of maxima, p99, and guaranteed upper bounds are not invented. Some sensitivity scenarios cross the deadline.
 
-초기 독립 검토의 두 지적은 이렇게 구분한다. “동일 fixture”라는 강한 해석은 채택하지 않고 위의 차이를 한계로 확정했다. `exact11capture`라는 출력 문자열 부재는 결함이 아니다. 실제 검사 근거는 11개 원시 배열을 비교하는 조건과 성공한 실행이지 그 문구가 아니다. 버전 관리되지 않는 초기 설계 보고서에 대한 실행 의존성은 제거하고 추적되는 raw 데이터와 원본을 직접 비교한다.
+Both cores were directly rebuilt and ABAB was rerun 3 times, totaling 12 processes. Actual activity of 8 melody voices, 6 drums, and four FX was maintained in every block, with clip/steal 0. On this host, the ratio of median new/original render wall time was approximately 1.51. Events and voice counts are the same, but original LA and new PCM/FM/VA presets, source gains, and synthesis paths differ. This is not interpreted as the same fixture file or a before/after optimization comparison of identical DSP operations; the ratio is not converted into MCU time.
 
-## 미실행 범위와 원본 보존
+Two findings from the initial independent review are distinguished as follows. The strong "identical fixture" interpretation is not adopted; the differences above are established limitations. Absence of an `exact11capture` output string is not a defect. The actual evidence is the conditions comparing 11 raw arrays and the successful execution, not that wording. Runtime dependence on unversioned early design reports was removed; tracked raw data is compared directly against the originals.
 
-실기 설치·부팅·아날로그 출력·실시간 성능·실제 MIDI 장치·주관적 청취 승인은 미실행이다. JavaScript/Python/HTML/YAML LSP가 이 환경에 없어 해당 언어는 실제 실행·구문 검사와 브라우저로 검증했다. C 변경 파일은 clangd 진단을 확인했다.
+## Unexecuted Scope and Preservation of Originals
 
-첫 커밋의 공백 검사에서 문서 줄바꿈·끝의 빈 줄·worklet의 빈 공백 줄을 최소 정리했고, 펌웨어와 WASM의 입력 해시를 다시 생성해 타깃/OTA·웹 회귀를 통과했다. 앱·FWSC·WASM 바이트는 의미 변경 전과 같다. `firmware/connection/midi_uart.c`는 `firmware/app.c`에 포함되는 코드 조각이어서 단독 clangd 진단은 상위 파일의 전역 이름을 찾지 못하지만, 실제 pi32v2 번역 단위 컴파일과 관련 호스트 시험은 통과했다.
+Physical installation, boot, analog output, real-time performance, actual MIDI devices, and subjective listening approval remain unexecuted. JavaScript/Python/HTML/YAML LSPs were unavailable in this environment, so those languages were verified through actual execution, syntax checks, and the browser. clangd diagnostics were checked for changed C files.
 
-원본 `mcfm-1`과 `mc-1-web`의 `git status --porcelain`은 비어 있었다. 현재 저장소에 추가 worktree가 없으며, 이 기록 시점에는 커밋·push·Pages 게시와 장치 flash를 하지 않았다.
+The first commit's whitespace check prompted minimal cleanup of document line breaks, trailing blank lines, and blank whitespace lines in the worklet. Firmware/WASM input hashes were regenerated and target/OTA/web regressions passed. App/FWSC/WASM bytes are unchanged from before this nonsemantic change. `firmware/connection/midi_uart.c` is a code fragment included by `firmware/app.c`, so standalone clangd diagnostics cannot resolve the parent file's global names; actual pi32v2 translation-unit compilation and related host tests passed.
+
+`git status --porcelain` was empty for both original repositories, `mcfm-1` and `mc-1-web`. The current repository has no additional worktrees; at the time of this record, no commit, push, Pages publication, or device flash had been performed.

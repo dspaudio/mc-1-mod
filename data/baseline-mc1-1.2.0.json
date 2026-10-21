@@ -30,7 +30,7 @@
     "non_render",
     "stage_audio"
   ],
-  "scope": "기존 이미지의 장치 측정이며 새 펌웨어의 실측이 아니다. 구간별 최대값은 서로 다른 블록에서 발생할 수 있다.",
+  "scope": "Device measurements from the previous image, not measurements of the new firmware. Stage maxima may come from different blocks.",
   "captures": [
     {
       "capture": "hardware-indexed/action-2-kit-6-rd-5-cf-5-trial-1.json",

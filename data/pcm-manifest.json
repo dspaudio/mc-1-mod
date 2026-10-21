@@ -413,5 +413,5 @@
   ],
   "pcm_bytes": 193678,
   "budget_bytes": 229376,
-  "generator_sha256_scope": "소스 입력 해시에 tools/gen_pcm.py와 모든 생성 헤더를 포함한다."
+  "generator_sha256_scope": "The source input hash includes tools/gen_pcm.py and every generated header."
 }

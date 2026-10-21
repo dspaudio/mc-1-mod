@@ -40,11 +40,11 @@
   }
 
   function render(data) {
-    document.title = `펌웨어 다운로드 ${data.version} experimental — mc-1-mod`;
+    document.title = `Firmware downloads ${data.version} experimental — mc-1-mod`;
     const metadata = document.querySelector("#metadata");
-    addRow(metadata, "제품", data.product);
-    addRow(metadata, "버전", data.version);
-    addRow(metadata, "상태", "experimental · 장치 미검증 · 청취 미승인");
+    addRow(metadata, "Product", data.product);
+    addRow(metadata, "Version", data.version);
+    addRow(metadata, "Status", "experimental · Hardware unverified · Listening not approved");
 
     const files = document.querySelector("#files");
     for (const file of data.files) {
@@ -55,24 +55,24 @@
       name.textContent = file.name;
       const detail = document.createElement("div");
       detail.className = "file-meta";
-      detail.textContent = `${file.kind} · ${file.bytes.toLocaleString("ko-KR")} bytes · SHA-256 ${file.sha256}`;
+      detail.textContent = `${file.kind} · ${file.bytes.toLocaleString("en-US")} bytes · SHA-256 ${file.sha256}`;
       const link = document.createElement("a");
       link.className = "button";
-      link.href = file.url;
+      link.href = `${file.url}?v=${file.sha256}`;
       link.download = "";
-      link.textContent = `${file.name} 다운로드`;
+      link.textContent = `Download ${file.name}`;
       entry.append(name, detail, link);
       files.append(entry);
     }
 
     const build = document.querySelector("#build-metadata");
-    addRow(build, "타깃 입력 SHA-256", data.target.source_input_sha256);
-    addRow(build, "타깃 globals", `${data.target.globals_bytes.toLocaleString("ko-KR")} bytes`);
-    addRow(build, "타깃 pool", `${data.target.pool_bytes.toLocaleString("ko-KR")} bytes`);
-    addRow(build, "타깃 app", `${data.target.app_bytes.toLocaleString("ko-KR")} bytes`);
-    addRow(build, "WASM 입력 SHA-256", data.wasm.source_input_sha256);
+    addRow(build, "Target input SHA-256", data.target.source_input_sha256);
+    addRow(build, "Target globals", `${data.target.globals_bytes.toLocaleString("en-US")} bytes`);
+    addRow(build, "Target pool", `${data.target.pool_bytes.toLocaleString("en-US")} bytes`);
+    addRow(build, "Target app", `${data.target.app_bytes.toLocaleString("en-US")} bytes`);
+    addRow(build, "WASM input SHA-256", data.wasm.source_input_sha256);
     addRow(build, "WASM SHA-256", data.wasm.sha256);
-    addRow(build, "WASM 크기", `${data.wasm.bytes.toLocaleString("ko-KR")} bytes`);
+    addRow(build, "WASM size", `${data.wasm.bytes.toLocaleString("en-US")} bytes`);
 
     const limitations = document.querySelector("#limitations");
     for (const limitation of data.limitations) {
@@ -105,11 +105,11 @@
       const panel = document.querySelector("#fetch-error");
       panel.dataset.cause = reason;
       const detail = reason.startsWith("HTTP ")
-        ? `서버 응답 오류(${reason})입니다. 잠시 후 페이지를 새로고침하세요.`
-        : reason === "NETWORK" ? "서버에 연결하지 못했습니다. 네트워크 연결을 확인하고 다시 시도하세요."
-        : reason === "JSON" ? "서버의 패키지 정보를 해석하지 못했습니다. 소스 저장소에서 배포 상태를 확인하세요."
-        : "패키지 정보 형식이 올바르지 않습니다. 소스 저장소에서 배포 상태를 확인하세요.";
-      panel.textContent = `펌웨어 매니페스트를 불러오지 못했습니다. ${detail}`;
+        ? `Server response error (${reason}). Reload the page in a moment.`
+        : reason === "NETWORK" ? "The server could not be reached. Check your network connection and try again."
+        : reason === "JSON" ? "The package information could not be parsed. Check the source repository for deployment status."
+        : "The package information has an invalid format. Check the source repository for deployment status.";
+      panel.textContent = `The firmware manifest could not be loaded. ${detail}`;
       panel.hidden = false;
     } finally {
       document.querySelector("#manifest-loading").hidden = true;

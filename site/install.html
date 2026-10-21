@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#101114">
-  <title>펌웨어 다운로드 0.0.1 experimental — mc-1-mod</title>
+  <title>Firmware downloads 0.0.1 experimental — mc-1-mod</title>
   <style>
     :root {
       color-scheme: dark;
@@ -74,44 +74,44 @@
   <script src="./install.js" defer></script>
 </head>
 <body>
-  <a class="skip" href="#main">본문으로 건너뛰기</a>
+  <a class="skip" href="#main">Skip to content</a>
   <header>
-    <nav aria-label="주요 메뉴">
+    <nav aria-label="Main navigation">
       <a class="brand" href="./">mc-1-mod</a>
-      <a href="./">홈</a>
-      <a href="./emulator.html">에뮬레이터</a>
-      <a href="./#auditions">갤러리</a>
+      <a href="./">Home</a>
+      <a href="./emulator.html">Emulator</a>
+      <a href="./#auditions">Gallery</a>
     </nav>
   </header>
   <main id="main">
     <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow">정적 패키지 배포</p>
-      <h1 id="page-title">펌웨어 다운로드</h1>
-      <p>FM-1 대상 FWSC 패키지와 빌드 출처를 확인하세요. 이 페이지는 브라우저에서 장치에 펌웨어를 쓰지 않습니다.</p>
+      <p class="eyebrow">Static package downloads</p>
+      <h1 id="page-title">Firmware downloads</h1>
+      <p>Download the FM-1 FWSC package and review its build provenance. This page does not write firmware to a device from your browser.</p>
     </section>
     <section class="panel" aria-labelledby="status-title">
-      <h2 id="status-title">0.0.1 experimental · 장치 미검증</h2>
-      <p>FWSC는 FM-1 타깃용으로 컴파일하고 오프라인 검사를 마친 실험 패키지입니다. 실제 장치에서 테스트하지 않았으며, 하드웨어 검증이나 청취 승인을 의미하지 않습니다.</p>
-      <p class="notice">다른 사운드 팩과 저장 데이터의 호환성은 보장하지 않습니다. 별도 설치기를 사용하기 전 현재 데이터를 백업하세요. 자동 하드웨어 쓰기는 제공하지 않습니다.</p>
+      <h2 id="status-title">0.0.1 experimental · Hardware unverified</h2>
+      <p>This experimental FWSC package was compiled for FM-1 and checked offline. It has not been tested on a physical device. Compilation and offline checks do not constitute hardware or listening approval.</p>
+      <p class="notice">Saved data may be incompatible with other sound packs. Back up your current data before using a separate installer. Automatic device writes are not provided.</p>
     </section>
     <div id="manifest-slot" aria-busy="true">
-    <p id="manifest-loading" class="panel">펌웨어 패키지 정보와 다운로드 목록을 불러오는 중입니다.</p>
+    <p id="manifest-loading" class="panel">Loading firmware package information and download links.</p>
     <section id="manifest-section" class="panel" aria-labelledby="package-title" hidden>
-      <h2 id="package-title">패키지 정보</h2>
+      <h2 id="package-title">Package information</h2>
       <dl id="metadata"></dl>
-      <h2 style="margin-top:24px">다운로드 파일</h2>
+      <h2 style="margin-top:24px">Download files</h2>
       <div id="files"></div>
-      <h2 style="margin-top:24px">빌드 산출물</h2>
+      <h2 style="margin-top:24px">Build artifacts</h2>
       <dl id="build-metadata"></dl>
-      <h2 style="margin-top:24px">제한 사항</h2>
+      <h2 style="margin-top:24px">Limitations</h2>
       <ul id="limitations"></ul>
     </section>
-    <p id="fetch-error" class="panel error" role="status" hidden>펌웨어 매니페스트를 불러오지 못했습니다. 나중에 다시 시도하거나 소스 저장소에서 배포 상태를 확인하세요.</p>
+    <p id="fetch-error" class="panel error" role="status" hidden>The firmware manifest could not be loaded. Try again later or check the source repository for deployment status.</p>
     </div>
   </main>
   <footer>
-    <p>펌웨어는 다운로드 전용이며 장치 설치 기능을 포함하지 않습니다.</p>
-    <p><a href="https://github.com/dspaudio/mc-1-mod">mc-1-mod 소스 저장소</a></p>
+    <p>Firmware is download-only. Device installation is not included.</p>
+    <p><a href="https://github.com/dspaudio/mc-1-mod">mc-1-mod source repository</a></p>
   </footer>
 </body>
 </html>

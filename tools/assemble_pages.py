@@ -98,10 +98,11 @@ def main() -> None:
         "wasm": {"source_input_sha256": info["source_input_sha256"],
                  "sha256": info["wasm_sha256"], "bytes": info["wasm_bytes"]},
         "limitations": [
-            "FM-1 실기 설치·부팅·오디오·듀얼코어 기한 검사는 수행하지 않았습니다.",
-            "WASM과 호스트 회귀·오디션은 실기 성공이나 청취 승인을 증명하지 않습니다.",
-            "다른 팩의 저장 데이터는 자동 이관하지 않으며 외래 데이터가 있으면 SAVE가 잠깁니다.",
-            "이 페이지는 다운로드 전용입니다. 장치에 자동으로 쓰지 않습니다.",
+            "The sound bank is undergoing a timbre revision and has not met the current listening standard for richness.",
+            "Physical FM-1 installation, boot, audio, and dual-core deadline tests have not been performed.",
+            "WASM and host tests or audio examples do not prove hardware success or listening approval.",
+            "Other packs' saved data is not migrated automatically. Foreign data locks SAVE.",
+            "This page provides downloads only. It does not write to a device automatically.",
         ],
     }
     (site / "FIRMWARE.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")

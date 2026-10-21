@@ -311,7 +311,7 @@ async function powerOn() {
     status.textContent = 'Starting audio engine…';
     try {
     ctx = new AudioContext({ sampleRate: 44100, latencyHint: 'interactive' });
-    if(![44100,48000,96000].includes(ctx.sampleRate)) throw new Error('지원하지 않는 오디오 레이트: '+ctx.sampleRate+' Hz');
+    if(![44100,48000,96000].includes(ctx.sampleRate)) throw new Error('Unsupported audio rate: '+ctx.sampleRate+' Hz');
     await ctx.audioWorklet.addModule('worklet.js?v=0.0.1');
     const [wasmBytes, flashImage] = await Promise.all([
         fetch(FW + '.wasm?v=0.0.1').then(response => {

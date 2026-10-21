@@ -1,7 +1,7 @@
 {
-  "기준일": "2026-10-21",
-  "원본저장소": "/Users/wknam/workspace/mc-1/mc-1-web",
-  "설계": [
+  "date": "2026-10-21",
+  "source_repository": "/Users/wknam/workspace/mc-1/mc-1-web",
+  "design_references": [
     "DESIGN.md",
     "build/integration-design/web.md",
     "build/integration-design/core.md",
@@ -10,33 +10,121 @@
     "docs/SOUND_BANK_32.md",
     "docs/INTEGRATION_DECISIONS.md"
   ],
-  "범위": "다운로드 전용. Web MIDI 펌웨어 설치기, firmware-install.js, stock 복원 UI는 제외한다. site/index.html과 다운로드 페이지는 main 소유이며 작성하지 않는다.",
-  "처리원칙": "기존 대상 파일을 보존하고 재복사하지 않았다. 원본 및 결과 해시·바이트 수는 실제 재측정값이다.",
-  "파일": [
-    {"경로":"site/emulator.html","원본":"site/index.html","원본SHA256":"e37a5663cca8fdfcf8259c9f97e2e3592329188cbcd2afd416ee5d28ce6ead50","원본바이트":20404,"결과SHA256":"4bf9fc3ea87dcc89139fcd5c29a01e9926364564bab3d45502895c2d18760a22","결과바이트":20351,"변경":"브랜딩·32 프로필/MIX 설명·상대 링크·죽은 규칙과 외부 preconnect 제거. faceplate geometry/CSS/control/LED 보존."},
-    {"경로":"site/emu.js","원본":"site/emu.js","원본SHA256":"3bcbd2a267582b89dc9d588a0183b5c18901e8413fb0aedd0b931526709fd4f4","원본바이트":22895,"결과SHA256":"84cb26e7b38de8c5760b0d4185af62738369c342c449858f6c7403f69027bfcd","결과바이트":22823,"변경":"wasm mod1, mc1mod processor, mc-1-mod-emu-v1 DB, mc-1-mod:MOD1:s1:b1 pack key, 32 profiles."},
-    {"경로":"site/worklet.js","원본":"site/worklet.js","원본SHA256":"bcc532a46f6ef6d36e5228ca71198cf345bd2a9d0286b27e71ba8387bc1511f8","원본바이트":5490,"결과SHA256":"fd544664bb1a5fc35ad51269e844c7a7b5aaacd57798410ab991724d47b752c0","결과바이트":5493,"변경":"processor 이름 mc1mod."},
-    {"경로":"site/midi.js","원본":"site/midi.js","원본SHA256":"023bc1bac89b54f198e2a8f7bb4a5f5dbba0dc6b7d8f33bda61a7c0ce3450ba9","원본바이트":6782,"결과SHA256":"023bc1bac89b54f198e2a8f7bb4a5f5dbba0dc6b7d8f33bda61a7c0ce3450ba9","결과바이트":6782,"변경":"없음."},
-    {"경로":"src/mod1_wasm.c","원본":"src/mc1_wasm.c","원본SHA256":"b4fcb7cff5734c230af7cac52bea0feef74d92713e8a36cc5324a85bd865345e","원본바이트":7257,"결과SHA256":"a5e0fe5f987d3ef401db511d96cae2e73758d178707d32c516c27f6c31827cd4","결과바이트":7309,"변경":"프로젝트 로컬 include 경로와 어댑터 출처 설명."},
-    {"경로":"tests/wasm.mjs","원본":"tests/wasm.mjs","원본SHA256":"d6efc9a30afefc65bac215a74c3c6292e0e0fd8375ca8e135cccbeba6808c7dc","원본바이트":7686,"결과SHA256":"7ce331791e1f0fbf12bd8fcb2c423e934e16f00dae8725c5048c4106aedc276e","결과바이트":6124,"변경":"mod1 경로·32 프로필 그룹 및 관련 단정. 구 bank golden은 유효한 새 증거가 아니므로 제거."},
-    {"경로":"tests/controls.mjs","원본":"tests/controls.mjs","원본SHA256":"db2587a71ac8f597e3797d55302ca058d45897185503a0dd6b6900d437297b3b","원본바이트":8027,"결과SHA256":"921d4198c0cf256c77993f96d22cff1c9a70e327417b987d65bab32dd98157ca","결과바이트":8734,"변경":"32 프로필 경계 및 wire 오프셋을 사용하지 않는 저장 복원 검사."},
-    {"경로":"tests/startup.mjs","원본":"tests/startup.mjs","원본SHA256":"384f3eb6deaa8d145de88f4a0a873d76d4712b9993d9be6da8c7976a16f0ac64","원본바이트":4074,"결과SHA256":"6a580c3ca0eb1387fe9786c33927a0edc700de3d362cffde32b401ea965d9f6d","결과바이트":4075,"변경":"샌드박스 firmware 식별자."},
-    {"경로":"tests/midi.mjs","원본":"tests/midi.mjs","원본SHA256":"1fb434c8f0656a547aa679569f6d117d33a6707fb6ae211471fcf51cfb8b6d4f","원본바이트":6150,"결과SHA256":"1fb434c8f0656a547aa679569f6d117d33a6707fb6ae211471fcf51cfb8b6d4f","결과바이트":6150,"변경":"없음."},
-    {"경로":"tests/native.c","원본":"tests/native.c","원본SHA256":"9cd2e26f24155bc41dcf3b79ebc9a692484f5d536b14481bddb1c61b7a0efd08","원본바이트":5855,"결과SHA256":"bf32fd11fa03c24b33f2326e16e36c512f7b28e72ce8b2e39128834759f8e9ca","결과바이트":5031,"변경":"로컬 include 및 새 bank와 무관한 구 LA golden 제거."},
-    {"경로":"tests/native_midi.c","원본":"tests/native_midi.c","원본SHA256":"c40dc17335c57f961208e9d5c1ea48f6bc0e3535e25767f1fd113add41d5a0d2","원본바이트":1861,"결과SHA256":"16c4790badc7204383f3602a4abdf0142011e95666908075ff45c40fecbaebe2","결과바이트":1862,"변경":"로컬 include 경로."}
+  "scope": "Download-only scope. Excludes the Web MIDI firmware installer, firmware-install.js, and stock recovery UI. At this handoff, site/index.html and the download page belonged to main and were not written by the importer.",
+  "handling_policy": "At initial import, existing target files were preserved rather than recopied. Source and result hashes and byte counts were measured directly.",
+  "files": [
+    {
+      "path": "site/emulator.html",
+      "source": "site/index.html",
+      "source_sha256": "e37a5663cca8fdfcf8259c9f97e2e3592329188cbcd2afd416ee5d28ce6ead50",
+      "source_bytes": 20404,
+      "result_sha256": "4bf9fc3ea87dcc89139fcd5c29a01e9926364564bab3d45502895c2d18760a22",
+      "result_bytes": 20351,
+      "change": "Branding, 32-profile/MIX guidance, relative links, and removal of unused rules and external preconnect. Preserved faceplate geometry/CSS/controls/LEDs."
+    },
+    {
+      "path": "site/emu.js",
+      "source": "site/emu.js",
+      "source_sha256": "3bcbd2a267582b89dc9d588a0183b5c18901e8413fb0aedd0b931526709fd4f4",
+      "source_bytes": 22895,
+      "result_sha256": "84cb26e7b38de8c5760b0d4185af62738369c342c449858f6c7403f69027bfcd",
+      "result_bytes": 22823,
+      "change": "wasm mod1, mc1mod processor, mc-1-mod-emu-v1 DB, mc-1-mod:MOD1:s1:b1 pack key, 32 profiles."
+    },
+    {
+      "path": "site/worklet.js",
+      "source": "site/worklet.js",
+      "source_sha256": "bcc532a46f6ef6d36e5228ca71198cf345bd2a9d0286b27e71ba8387bc1511f8",
+      "source_bytes": 5490,
+      "result_sha256": "fd544664bb1a5fc35ad51269e844c7a7b5aaacd57798410ab991724d47b752c0",
+      "result_bytes": 5493,
+      "change": "Processor name mc1mod."
+    },
+    {
+      "path": "site/midi.js",
+      "source": "site/midi.js",
+      "source_sha256": "023bc1bac89b54f198e2a8f7bb4a5f5dbba0dc6b7d8f33bda61a7c0ce3450ba9",
+      "source_bytes": 6782,
+      "result_sha256": "023bc1bac89b54f198e2a8f7bb4a5f5dbba0dc6b7d8f33bda61a7c0ce3450ba9",
+      "result_bytes": 6782,
+      "change": "None."
+    },
+    {
+      "path": "src/mod1_wasm.c",
+      "source": "src/mc1_wasm.c",
+      "source_sha256": "b4fcb7cff5734c230af7cac52bea0feef74d92713e8a36cc5324a85bd865345e",
+      "source_bytes": 7257,
+      "result_sha256": "a5e0fe5f987d3ef401db511d96cae2e73758d178707d32c516c27f6c31827cd4",
+      "result_bytes": 7309,
+      "change": "Project-local include paths and adapter attribution."
+    },
+    {
+      "path": "tests/wasm.mjs",
+      "source": "tests/wasm.mjs",
+      "source_sha256": "d6efc9a30afefc65bac215a74c3c6292e0e0fd8375ca8e135cccbeba6808c7dc",
+      "source_bytes": 7686,
+      "result_sha256": "7ce331791e1f0fbf12bd8fcb2c423e934e16f00dae8725c5048c4106aedc276e",
+      "result_bytes": 6124,
+      "change": "mod1 paths, 32-profile groups and related assertions. Removed the old bank golden because it is not valid evidence for the new bank."
+    },
+    {
+      "path": "tests/controls.mjs",
+      "source": "tests/controls.mjs",
+      "source_sha256": "db2587a71ac8f597e3797d55302ca058d45897185503a0dd6b6900d437297b3b",
+      "source_bytes": 8027,
+      "result_sha256": "921d4198c0cf256c77993f96d22cff1c9a70e327417b987d65bab32dd98157ca",
+      "result_bytes": 8734,
+      "change": "32-profile boundaries and save restoration checks that do not use wire offsets."
+    },
+    {
+      "path": "tests/startup.mjs",
+      "source": "tests/startup.mjs",
+      "source_sha256": "384f3eb6deaa8d145de88f4a0a873d76d4712b9993d9be6da8c7976a16f0ac64",
+      "source_bytes": 4074,
+      "result_sha256": "6a580c3ca0eb1387fe9786c33927a0edc700de3d362cffde32b401ea965d9f6d",
+      "result_bytes": 4075,
+      "change": "Sandbox firmware identifier."
+    },
+    {
+      "path": "tests/midi.mjs",
+      "source": "tests/midi.mjs",
+      "source_sha256": "1fb434c8f0656a547aa679569f6d117d33a6707fb6ae211471fcf51cfb8b6d4f",
+      "source_bytes": 6150,
+      "result_sha256": "1fb434c8f0656a547aa679569f6d117d33a6707fb6ae211471fcf51cfb8b6d4f",
+      "result_bytes": 6150,
+      "change": "None."
+    },
+    {
+      "path": "tests/native.c",
+      "source": "tests/native.c",
+      "source_sha256": "9cd2e26f24155bc41dcf3b79ebc9a692484f5d536b14481bddb1c61b7a0efd08",
+      "source_bytes": 5855,
+      "result_sha256": "bf32fd11fa03c24b33f2326e16e36c512f7b28e72ce8b2e39128834759f8e9ca",
+      "result_bytes": 5031,
+      "change": "Local includes and removal of the old LA golden, which is unrelated to the new bank."
+    },
+    {
+      "path": "tests/native_midi.c",
+      "source": "tests/native_midi.c",
+      "source_sha256": "c40dc17335c57f961208e9d5c1ea48f6bc0e3535e25767f1fd113add41d5a0d2",
+      "source_bytes": 1861,
+      "result_sha256": "16c4790badc7204383f3602a4abdf0142011e95666908075ff45c40fecbaebe2",
+      "result_bytes": 1862,
+      "change": "Local include paths."
+    }
   ],
-  "가져오지않음": [
-    "site/index.html: main 소유",
-    "다운로드 페이지: main 소유",
-    "firmware-install.js 및 Web MIDI 펌웨어 설치기",
-    "firmware-stock.js 및 stock 복원 UI",
-    "설치기 전용 페이지/스크립트",
-    "format/panel/worklet/midi-worklet/patterns/performance 레인: 새 C pack 필드 이후",
-    "전체 wasm 링크/엔진 컴파일 결과: 혼합 코어 다음 단계"
+  "excluded": [
+    "site/index.html: owned by main",
+    "Download page: owned by main",
+    "firmware-install.js and the Web MIDI firmware installer",
+    "firmware-stock.js and stock recovery UI",
+    "Installer-only pages/scripts",
+    "format/panel/worklet/midi-worklet/patterns/performance lanes: after the new C pack fields",
+    "Full wasm linking/engine compilation results: after mixed-core integration"
   ],
-  "후속통합": [
-    "혼합 코어 필드가 준비된 뒤 C ABI export와 emu_state 40..43을 정확히 구현한다. 스텁과 JS DSP는 만들지 않는다.",
-    "실제 C 코어 빌드 이후 AudioWorklet 레이트 지원, 저장 상태 판정, 브라우저 시각 실행을 통합·검증한다.",
-    "사이트 조립 때 32개 프로필과 드럼 8킷의 청취 자료를 보존한다. 목표는 현대적인 hybrid keys이며 synth piano와 piano+strings/pad 포함이다."
+  "follow_up_integration": [
+    "After the mixed-core fields are ready, implement the C ABI exports and emu_state 40..43 exactly. Do not create stubs or JS DSP.",
+    "After the actual C core build, integrate and verify AudioWorklet output rates, storage status detection, and browser visual execution.",
+    "Preserve listening examples for 32 profiles and 8 drum kits during site assembly. The goal is modern hybrid keys, including synth piano and piano+strings/pad."
   ]
 }

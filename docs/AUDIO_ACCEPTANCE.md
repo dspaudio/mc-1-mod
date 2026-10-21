@@ -1,44 +1,44 @@
-# 음질 필수 통과 기준
+# Required audio acceptance criteria
 
-2026-10-21 사용자 요구:
+User requirement dated 2026-10-21:
 
-> MC-1에서 발생했던 맥놀이 현상이나 원 음원에서 크게 벗어나는 장난감 같은 소리를 내는 문제, 배음을 다 날려버리는 문제가 발생하면 안돼
+> The beating that occurred in MC-1, toy-like sounds that stray far from the original source, and the loss of all harmonics must not occur.
 
-이 기준은 기존 용량·비무음·루프 검사에 추가되는 제품 통과 조건이다. 기능 시험·호스트 속도·타깃 링크가 통과해도 음질 실패를 상쇄하지 않는다.
+These are product acceptance conditions in addition to the existing capacity, non-silence, and loop checks. Passing functional tests, host-speed checks, or target linking does not offset a failure in audio quality.
 
-## 제작 목표: 사용할 수 있는 현대적인 사운드
+## Production goal: usable modern sounds
 
-사용자의 후속 정정: **중요한 기준은 전통적인 악기 소리를 만드는 것이 아니라 사용할 수 있는 현대적인 사운드다.** piano·guitar·strings 같은 이름은 역할과 재료를 설명하며 사실적인 전통 악기 재현을 제품 통과 조건으로 삼지 않는다. 테크노·힙합·팝·유로신스의 곡 안에서 bass·comp·hook·lead·pad가 실제로 쓰이는지가 우선이다.
+The user's subsequent correction: **The important criterion is usable modern sounds, not traditional instrument sounds.** Names such as piano, guitar, and strings describe roles and materials; realistic reproduction of traditional instruments is not a product acceptance condition. The priority is whether bass, comp, hook, lead, and pad sounds can actually serve in techno, hiphop, pop, and eurosynth songs.
 
-구체적인 기준 예시는 **synth piano, strings 사운드가 포함된 piano**다. 어택·몸통·지속 texture의 결합이 들려야 하며, plain piano만 제공해 이 요구를 충족했다고 하지 않는다. 단순 동시 적층뿐 아니라 시간에 따라 piano 어택에서 strings/pad 몸통으로 이어지는 구성도 평가한다.
+Concrete examples are **synth piano and piano containing strings sounds**. The combination of attack, body, and sustained texture must be audible; offering only plain piano does not meet this requirement. Evaluation includes not only simultaneous layering but also transitions over time from a piano attack into a strings/pad body.
 
-PCM 어택·질감, FM 배음·캐릭터, VA 몸통·움직임의 의도적인 조합과 가공을 허용한다. 녹음 PCM과 자체 수학적 PCM 중 어느 쪽도 출처 방식만으로 채택하거나 탈락시키지 않는다. 가공의 의도가 들리지 않고 빈약하거나 우연히 망가진 소리를 현대적 음색이라고 포장하지 않는다.
+Intentional combinations and processing of PCM attack/texture, FM harmonics/character, and VA body/movement are allowed. Neither recorded PCM nor original mathematical PCM is accepted or rejected solely because of its source method. Thin or accidentally damaged sounds without an audible processing intent must not be presented as modern sounds.
 
-`tools/gen_pcm.py`의 자체 수학적 bank는 구조·용량 시험용 후보이며 아직 제품 음질을 승인하지 않았다. `data/pcm-manifest.json`의 숫자와 `tests/pcm_bank.c` 통과는 음악적 유용성을 증명하지 않는다. 원본 녹음을 사용한다면 출처·해시·실제 root·사용 구간·처리를 보존하며 기존 LA 렌더러·고정 attack/body 뱅크를 재사용하지 않는다.
+The original mathematical bank in `tools/gen_pcm.py` is a candidate for structural/capacity testing and has not received product audio-quality approval. Numbers in `data/pcm-manifest.json` and passing `tests/pcm_bank.c` do not prove musical usefulness. If original recordings are used, preserve provenance, hashes, actual roots, used regions, and processing; do not reuse the legacy LA renderer or fixed attack/body bank.
 
-현재 16kHz·224KiB는 설계 예산이지 음질을 훼손해도 지켜야 하는 사용자 요구가 아니다. 존·길이·레이트·mip 배분은 비교 결과에 따라 조정한다. 실제 app/RAM/partition의 하드 한계와 8보이스·6드럼·네 FX는 유지한다. 음질과 자원이 함께 충족되지 않으면 미달로 기록하고 원본 선택·배분·실행 비용을 수정한다.
+The current 16kHz/224KiB allocation is a design budget, not a user requirement to uphold at the expense of audio quality. Adjust zones, lengths, rates, and mip allocation based on comparisons. Retain the hard limits of the actual app/RAM/partition, along with 8 voices, 6 drums, and four FX. If audio quality and resources cannot both be satisfied, record the shortfall and revise source selection, allocation, and execution cost.
 
-## 의도하지 않은 맥놀이
+## Unintended beating
 
-- PCM·FM carrier·VA는 하나의 최종 pitch에서 파생한다. 편집·bend·Analog·glide를 소스마다 독립적으로 적용하거나 중복 적용하지 않는다.
-- PCM의 실제 tuning과 root metadata를 확인한다. 같은 note 번호만 붙여 놓고 실제 주파수가 다른 PCM/FM/VA를 겹치지 않는다.
-- 같은 음정의 VA/FM 성분에 숨은 detune·unison을 넣지 않는다. preset에 의도하지 않은 주기적 음량 출렁임을 풍성함으로 취급하지 않는다.
-- loop의 샘플 연속성만 확인하지 않는다. loop 전후의 pitch·배음·포락선과 반복 뒤의 사이드밴드/음량 변화를 확인한다. 임의 길이 crossfade가 원음의 주기성을 보존한다고 가정하지 않는다.
-- 단일 소스와 실제 혼합음을 각각 긴 sustain으로 렌더해 비교한다. source mute 비교, 낮음/중간/높음 음역, bend·glide·Analog 0을 포함한다. 의도한 변조와 원음에 이미 있는 자연스러운 움직임을 새 결함과 구분한다.
+- Derive PCM, the FM carrier, and VA from one final pitch. Do not apply editing, bend, Analog, or glide independently to each source or apply them twice.
+- Check actual PCM tuning and root metadata. Do not layer PCM/FM/VA at different actual frequencies merely because they share a note number.
+- Do not add hidden detune/unison to VA/FM components at the same pitch. Do not treat periodic volume fluctuations unintended by the preset as richness.
+- Check more than sample continuity at a loop. Examine pitch, harmonics, and envelopes before/after the loop, plus sidebands/volume changes after repetition. Do not assume a crossfade of arbitrary length preserves the original signal's periodicity.
+- Render and compare individual sources and actual mixes with long sustains. Include source-mute comparisons, low/mid/high ranges, bend, glide, and Analog 0. Distinguish intentional modulation and natural movement already in the source from new defects.
 
-## 음색 의도·배음·곡 안의 유용성
+## Intended character, harmonics, and usefulness in songs
 
-- 재료의 원음/단독 소스와 완성 혼합음을 같은 음정·정렬된 어택·비슷한 지각 음량으로 비교한다. 원음과의 차이가 의도한 가공인지 불필요한 손실인지 구분하며, 원본과 비슷하다는 사실 자체를 목표로 삼지 않는다.
-- 어택과 sustain을 따로 평가한다. 필요한 transient·배음 분포·시간에 따른 변화가 사라져 의도한 역할을 하지 못하면 실패다. 전통 악기의 hammer/pick/bow를 사실적으로 재현해야 한다는 기준으로 확대하지 않는다.
-- root뿐 아니라 존 경계와 실제 지원 음역을 비교한다. 과도한 pitch 이동의 장난감 같은 소리를 정상 지원 음역으로 홍보하지 않는다.
-- FM·VA를 더했을 때 현대적인 배음·몸통·변화의 역할이 실제로 생기는지 확인한다. 단순 sine 몸통이 의도한 캐릭터를 덮거나, 낮은 공통 cutoff가 필요한 배음을 없애면 mix/filter를 수정한다.
-- anti-alias에 필요한 대역 제한과 불필요한 배음 제거를 구분한다. alias를 줄였다는 사실만으로 탁해진 음색을 통과시키지 않는다. mip별 스펙트럼·출력 레이트 변환도 실제 지원 음역에서 확인한다.
-- 짧은 루프·저차 조화파·과도한 저역통과로 예산만 맞추는 것을 완료로 판정하지 않는다.
+- Compare original material/isolated sources with the finished mix at the same pitch, with aligned attacks and similar perceived loudness. Distinguish intended processing from unnecessary losses; similarity to the original is not itself the goal.
+- Evaluate attack and sustain separately. A sound fails if required transients, harmonic distribution, or changes over time disappear and it cannot serve its intended role. Do not expand this into a requirement for realistic hammer/pick/bow reproduction.
+- Compare zone boundaries and the actual supported range, not only the root. Do not advertise toy-like sounds caused by excessive pitch shifts as part of the normal supported range.
+- Check that adding FM/VA actually contributes modern harmonics, body, or movement. Revise the mix/filter if a simple sine body masks the intended character or a low shared cutoff removes required harmonics.
+- Distinguish band limiting needed for anti-aliasing from unnecessary removal of harmonics. Reduced aliasing alone does not justify accepting a dull sound. Check per-mip spectra and output-rate conversion across the actual supported range.
+- Do not call the work complete merely because short loops, low-order harmonics, or excessive low-pass filtering meet the budget.
 
-## 증거와 판정
+## Evidence and verdicts
 
-소스 단독/혼합 WAV, 정확한 이벤트·source/mix/filter 설정, 음량 맞춤 방법, pitch/포락선/시간별 스펙트럼 비교를 보관한다. 모든 32개 음색에 장르·역할·의도한 캐릭터를 명시하고, 단음과 짧은 실제 프레이즈를 모두 렌더한다. 재료의 원음 비교는 의도하지 않은 열화를 찾는 수단이지 전통 악기 재현 점수가 아니다.
+Keep isolated-source/mixed WAVs, exact events and source/mix/filter settings, loudness-matching methods, and pitch/envelope/time-resolved spectrum comparisons. State the genre, role, and intended character of all 32 sounds, and render both single notes and short real phrases. Comparing original materials is a means of finding unintended degradation, not a score for traditional instrument reproduction.
 
-전용 GitHub Pages에 32개 전부의 개별 재생·WAV 다운로드와 드럼 8킷 청취 자료를 제공한다. 실제 동일 C 코어가 렌더한 파일을 사용하며 선택된 데모 몇 개로 전체 음색 확인을 대신하지 않는다.
+Provide individual playback and WAV downloads for all 32 sounds, plus listening materials for 8 drum kits, on the dedicated GitHub Pages site. Use files rendered by the actual same C core; a few selected demos are not a substitute for checking every sound.
 
-수치 비교는 pitch drift·불필요한 진폭 변조·고역 손실을 찾는 보조 증거다. 수치만으로 “장난감 같지 않다”거나 청취 승인을 주장하지 않는다. 실제 A/B 청취 전 상태는 음질 미승인이다. 장치 아날로그 출력·실시간 동작은 웹/호스트 청취와 별도다.
+Numerical comparisons are supporting evidence for finding pitch drift, unwanted amplitude modulation, and high-frequency loss. Numbers alone do not establish that sounds are "not toy-like" or confer listening approval. Audio quality remains unapproved until actual A/B listening takes place. Device analog output and real-time operation are separate from web/host listening.

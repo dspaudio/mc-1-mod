@@ -1,296 +1,296 @@
-# mc-1-mod 통합 Pages 디자인 계약
+# mc-1-mod Unified Pages Design Contract
 
-기준일: 2026-10-21. 이 문서는 구현 지시서이며 구현·빌드·브라우저 실행·배포·실측 완료 보고가 아니다.
-이번 작업에서 수행한 것은 원본 소스 읽기와 이 계약 작성뿐이다. UI 구현, 빌드, 배포, 외부 쓰기, 원본 저장소 변경은 수행하지 않았다.
+Reference date: 2026-10-21. This document is an implementation specification, not a report of completed implementation, builds, browser runs, deployment, or measurements.
+The work performed at that stage consisted only of reading the original sources and writing this contract. No UI implementation, builds, deployment, external writes, or changes to the original repositories were performed.
 
-경로 규약:
+Path conventions:
 
-- `에뮬레이터 원본:` = `/Users/wknam/workspace/mc-1/mc-1-web/`
-- `제품 원본:` = `/Users/wknam/workspace/mc-1/mcfm-1/`
-- `현재:` = `/Users/wknam/workspace/mc-1-mod/`
+- `Emulator original:` = `/Users/wknam/workspace/mc-1/mc-1-web/`
+- `Product original:` = `/Users/wknam/workspace/mc-1/mcfm-1/`
+- `Current:` = `/Users/wknam/workspace/mc-1-mod/`
 
-사용자 결정: mc-1-mod는 **에뮬레이터와 이 프로젝트 펌웨어 배포를 함께 올리는 신규 전용 GitHub Pages 사이트**를 가진다. 기존 `mc-1-web`(에뮬레이터 전용)과 `mcfm-1`(제품·설치기) Pages는 변경하지 않는다.
-파일 변경 목록·wasm ABI·검증 매트릭스는 `현재:build/integration-design/web.md`에 있다. 엔진·저장 계약은 `현재:build/integration-design/core.md`, 펌웨어 빌드 인벤토리는 `현재:build/integration-design/target.md`에 있다. 본 문서와 충돌하면 core.md가 우선한다.
+User decision: mc-1-mod has **a new dedicated GitHub Pages site hosting both the emulator and this project's firmware distribution**. The existing `mc-1-web` (emulator only) and `mcfm-1` (product/installer) Pages remain unchanged.
+The file change list, wasm ABI, and verification matrix are in `Current:build/integration-design/web.md`. The engine/storage contract is in `Current:build/integration-design/core.md`; the firmware build inventory is in `Current:build/integration-design/target.md`. If this document conflicts with core.md, core.md takes precedence.
 
-## 1. 분위기와 정체성
+## 1. Mood and Identity
 
-사이트는 **두 개의 면**을 가지며 섞지 않는다.
+The site has **two faces**, which must not be mixed.
 
-| 면 | 경로 | 성격 | 디자인 출처 |
+| Face | Path | Character | Design source |
 |---|---|---|---|
-| 제품 랜딩 | `/mc-1-mod/` (`index.html`) | 이 사운드 팩이 무엇인지 읽는 문서면 | `제품 원본:site/styles.css` + `site/DESIGN.md` |
-| 악기 에뮬레이터 | `/mc-1-mod/emulator.html` | 실제 C 엔진·화면이 도는 FM-1 조작면 | `에뮬레이터 원본:site/index.html` 인라인 CSS (동결) |
-| 펌웨어 다운로드 | `/mc-1-mod/install.html` | 패키지 다운로드와 빌드 출처를 읽는 정적면 | `제품 원본:site/install.html` 인라인 CSS |
+| Product landing | `/mc-1-mod/` (`index.html`) | A document surface explaining this sound pack | `Product original:site/styles.css` + `site/DESIGN.md` |
+| Instrument emulator | `/mc-1-mod/emulator.html` | An FM-1 control surface running the actual C engine and display | `Emulator original:site/index.html` inline CSS (frozen) |
+| Firmware download | `/mc-1-mod/install.html` | A static surface for package downloads and build provenance | `Product original:site/install.html` inline CSS |
 
-정체성 규칙:
+Identity rules:
 
-- 에뮬레이터는 FM-1 사용자 설명서 패널 도면을 추적한 **악기 외형**이다. 이 외형은 이번 작업의 대상이 아니며 §8의 열거된 변경 외에는 보존한다.
-- 랜딩면은 `제품 원본`의 "작은 악기를 읽을 수 있는 제품 시트로 펼친다"는 분위기를 그대로 잇는다. 어두운 기판, 큰 픽셀 화면, 과장된 워드마크, 실제 스크린샷의 넓은 행.
-- 다운로드면은 악기 위에 겹치는 오버레이가 아니라 **분리된 정적 페이지**다. 패키지 버전·바이트·해시·빌드 출처와 "장치 미검증" 상태가 항상 분명해야 한다. 브라우저에서 장치에 쓰는 기능은 제공하지 않는다.
-- mc-1-mod는 MC-1의 음색 재현 업그레이드가 아니라 **다른 사운드 팩**이다(`현재:README.md`). 랜딩 문구는 MC-1 1.2.0의 "112 LA 음색 교체" 서사를 재사용하지 않고 32 프로필·PCM/FM/VA 소스 구성으로 다시 쓴다.
-- 장치 검증이 없는 상태를 성공처럼 보이게 하는 표현(설치 완료, 실측 성능, 하드웨어 통과)을 쓰지 않는다. 없는 자산을 그린 가짜 하드웨어 사진·가짜 화면 목업도 쓰지 않는다.
+- The emulator is an **instrument exterior** traced from the panel drawing in the FM-1 user manual. This exterior is outside the work's scope and must be preserved except for the changes enumerated in §8.
+- The landing surface continues the mood of `Product original`: "unfold a small instrument into a readable product sheet." A dark circuit board, a large pixel display, an oversized wordmark, and wide rows of actual screenshots.
+- The download surface is **a separate static page**, not an overlay on the instrument. Package version, bytes, hashes, build provenance, and the "not verified on hardware" status must always be clear. It provides no browser-to-device write functionality.
+- mc-1-mod is **a different sound pack**, not an upgrade to MC-1's timbre reproduction (`Current:README.md`). Rewrite landing copy around 32 profiles and the PCM/FM/VA source configuration instead of reusing MC-1 1.2.0's "112 LA timbre replacements" narrative.
+- Do not describe the absence of device verification as success (installation complete, measured performance, hardware passed). Do not use fabricated hardware photos or screen mockups depicting assets that do not exist.
 
-## 2. 색
+## 2. Color
 
-세 개의 토큰 집합이 있다. **새로 작성하는 모든 CSS 규칙은 아래 토큰만 사용한다.** 리터럴 색을 새로 추가하는 것은 이 계약 위반이다.
+There are three token sets. **Every newly written CSS rule must use only the tokens below.** Adding new literal colors violates this contract.
 
-### 2.1 제품 랜딩 토큰 (`제품 원본:site/styles.css` `:root`, 그대로 가져옴)
+### 2.1 Product Landing Tokens (`Product original:site/styles.css` `:root`, imported unchanged)
 
-| 토큰 | 값 | 역할 |
+| Token | Value | Role |
 |---|---|---|
-| `--bg` | `#101110` | 주 기판 |
-| `--panel` | `#1c1e1b` | 교대 섹션, 화면 둘레 |
-| `--ink` | `#f1f0e9` | 본문 |
-| `--muted` | `#b7b9ae` | 보조 본문 |
-| `--line` | `#42453d` | 구조 구분선 |
-| `--orange` | `#ff6500` | 주 동작 배경, 제품 식별색 |
-| `--green` | `#63ff42` | 재생 연동 수치, 포커스 링 |
-| `--black` | `#090a08` | 화면 둘레, 주황/녹색 위 글자 |
+| `--bg` | `#101110` | Main circuit board |
+| `--panel` | `#1c1e1b` | Alternating sections, display surround |
+| `--ink` | `#f1f0e9` | Body text |
+| `--muted` | `#b7b9ae` | Secondary text |
+| `--line` | `#42453d` | Structural dividers |
+| `--orange` | `#ff6500` | Primary action background, product identity color |
+| `--green` | `#63ff42` | Playback-linked values, focus ring |
+| `--black` | `#090a08` | Display surround, text on orange/green |
 
-`color-scheme: dark` 고정. 그라디언트·글로·그림자 없음. 본문은 bg/panel 위 ink 또는 muted, 동작 글자는 orange 위 black. 밝은 테마 스킨을 추가하지 않는다.
+Fixed `color-scheme: dark`. No gradients, glow, or shadows. Body text uses ink or muted on bg/panel; action text uses black on orange. Do not add a light-theme skin.
 
-### 2.2 다운로드면 토큰 (`제품 원본:site/install.html` `:root`, 그대로 가져옴)
+### 2.2 Download Surface Tokens (`Product original:site/install.html` `:root`, imported unchanged)
 
-| 토큰 | 값 | 역할 |
+| Token | Value | Role |
 |---|---|---|
-| `--bg` | `#101114` | 페이지 |
-| `--surface` | `#1c1f24` | 함몰 섹션 |
-| `--control` | `#25282e` | 컨트롤 |
-| `--txt` | `#c9cdd4` | 본문 |
-| `--muted` | `#9aa1ab` | 보조 본문 |
-| `--border` | `#747b86` | 입력 경계 |
-| `--accent` | `#e8b84b` | 주 동작·링크·포커스 |
-| `--success` | `#63ff42` | 검증 완료 |
-| `--error` | `#ffb4ab` | 실패 |
-| `--ink` | `#101114` | 앰버 버튼 위 글자 |
+| `--bg` | `#101114` | Page |
+| `--surface` | `#1c1f24` | Recessed sections |
+| `--control` | `#25282e` | Controls |
+| `--txt` | `#c9cdd4` | Body text |
+| `--muted` | `#9aa1ab` | Secondary text |
+| `--border` | `#747b86` | Input boundaries |
+| `--accent` | `#e8b84b` | Primary actions, links, focus |
+| `--success` | `#63ff42` | Verification complete |
+| `--error` | `#ffb4ab` | Failure |
+| `--ink` | `#101114` | Text on amber buttons |
 
-상태는 항상 글자를 포함하고 색은 보조다. 정적 다운로드면에는 장치 전송 상태가 없으므로 `--success`/`--error`는 쓰이지 않는다. 그 색을 요구하는 상태를 새로 만들지 않는다.
+Status always includes text; color is supplementary. The static download surface has no device-transfer state, so `--success`/`--error` are unused. Do not create new states requiring those colors.
 
-### 2.3 에뮬레이터 faceplate (동결 자산)
+### 2.3 Emulator Faceplate (Frozen Asset)
 
-`에뮬레이터 원본:site/index.html`의 인라인 `<style>`은 **도면에서 추적한 악기 스킨**이다. 금속/실리콘 질감과 LED 글로가 리터럴 색의 조합 자체로 외형을 만들므로, 토큰화 리팩터는 외형을 바꿀 위험이 있어 채택하지 않는다. 대신 아래 규칙을 쓴다.
+The inline `<style>` in `Emulator original:site/index.html` is **an instrument skin traced from a drawing**. Its metallic/silicone textures and LED glow depend on the literal color combinations themselves, so a tokenization refactor is not adopted because it risks changing the appearance. Use these rules instead.
 
-1. 이 블록은 §8의 열거된 변경(문구·죽은 규칙 제거·버전 쿼리)만 적용하고 나머지는 바이트 그대로 가져온다.
-2. 이 블록에 **새 리터럴 색을 추가하지 않는다.** 에뮬레이터면에 새 규칙이 필요하면 §2.1/§2.2 토큰을 쓰는 별도 블록으로 추가한다.
-3. 아래 표는 의도치 않은 외형 변경(drift)을 리뷰가 탐지하기 위한 기준 인벤토리다.
+1. Apply only the changes enumerated in §8 (copy, dead-rule removal, version queries) to this block; import the rest byte for byte.
+2. **Do not add new literal colors to this block.** If the emulator surface needs new rules, add a separate block using §2.1/§2.2 tokens.
+3. The table below is the baseline inventory for reviewers to detect unintended appearance drift.
 
-| 선언 | 값 | 쓰이는 곳 |
+| Declaration | Value | Used for |
 |---|---|---|
-| `--txt` | `#c9cdd4` | 본문·버튼 글자 |
-| `--dim` | `#70757d` | 레이블(`.lab`), `h1`, `#help` |
-| `--accent` | `#e8b84b` | POWER 링, MASTER 포인터, `#manual` 강조, `#midi` 포커스 |
-| `--play` | `#63ff42` | PLAY 버튼 글자/글로, 흰건반 LED |
-| `body` 배경 | `#101114` | 페이지·`theme-color` |
-| `#device` | `linear-gradient(175deg,#24272c,#1a1c20 55%,#17191d)`, `border-radius:34px` | 케이스 |
-| `.pane` | `#141619`, `border-radius:14px` | 버튼·OCT·건반 함몰부 |
-| `.cap` | `radial-gradient(circle at 35% 30%,#3a3e46,#15161a 75%)` | 노브 캡 |
-| `.cap::before` | `repeating-conic-gradient(#2c2f35 0deg 9deg,#202329 9deg 18deg)`, `opacity:.55` | 널링 |
-| `.cap::after` | `var(--pcol,#cfd3da)` | 포인터 |
-| `.btn` | `linear-gradient(#34383f,#22252a)`, `border-radius:8px` | 패널 버튼 |
-| `.btn.down` | `linear-gradient(#2a2d33,#1d2024)` | 눌림 |
-| `.btn.lit` | `linear-gradient(#5a5341,#3c3831)` + `0 0 14px 2px rgba(240,220,160,.45)` | 점등 |
-| `.btn.play.lit` | `linear-gradient(#314d2a,#233520)` + `0 0 14px 2px rgba(99,255,66,.45)` | PLAY 점등 |
-| `.btn.glow` | `0 0 8px 0 rgba(240,220,160,.2)` | 약점등 |
-| `.pill` | `linear-gradient(#f2f0ea,#d7d4cb)`, `border:1px solid #101214` | 실리콘 건반 |
-| `.pill .slot` | `#1b1d20` | LED 창 |
-| `.pill.lit .slot` | `#ffd467` + `0 0 12px 3px rgba(255,212,103,.75)` | 점등 |
-| `.pill.wk.lit .slot` | `var(--play)` + `0 0 12px 3px rgba(99,255,66,.75)` | 시퀀서 스텝(흰건반 한정) |
-| `.pill.glow .slot` | `#6b5c2e` | 약점등 |
-| `#bezel` / `#screen` | `#000`, `border-radius:12px` / `background:#000` | 화면 베젤·캔버스 |
-| `#power` | `rgba(8,9,11,.93)`, 링 `2px solid var(--accent)` | 전원 오버레이 |
-| `#status` | `#ddd` on `#151515cc` | 상태 줄 |
-| 노브 포인터 색 | `k1 #287cff`, `k2 #1ecc70`, `k3 #ffffff`, `k4 #ff621a` | `에뮬레이터 원본:site/emu.js` `KCOL` |
+| `--txt` | `#c9cdd4` | Body/button text |
+| `--dim` | `#70757d` | Labels (`.lab`), `h1`, `#help` |
+| `--accent` | `#e8b84b` | POWER ring, MASTER pointer, `#manual` emphasis, `#midi` focus |
+| `--play` | `#63ff42` | PLAY button text/glow, white-key LEDs |
+| `body` background | `#101114` | Page/`theme-color` |
+| `#device` | `linear-gradient(175deg,#24272c,#1a1c20 55%,#17191d)`, `border-radius:34px` | Case |
+| `.pane` | `#141619`, `border-radius:14px` | Button/OCT/key recesses |
+| `.cap` | `radial-gradient(circle at 35% 30%,#3a3e46,#15161a 75%)` | Knob cap |
+| `.cap::before` | `repeating-conic-gradient(#2c2f35 0deg 9deg,#202329 9deg 18deg)`, `opacity:.55` | Knurling |
+| `.cap::after` | `var(--pcol,#cfd3da)` | Pointer |
+| `.btn` | `linear-gradient(#34383f,#22252a)`, `border-radius:8px` | Panel buttons |
+| `.btn.down` | `linear-gradient(#2a2d33,#1d2024)` | Pressed state |
+| `.btn.lit` | `linear-gradient(#5a5341,#3c3831)` + `0 0 14px 2px rgba(240,220,160,.45)` | Lit state |
+| `.btn.play.lit` | `linear-gradient(#314d2a,#233520)` + `0 0 14px 2px rgba(99,255,66,.45)` | PLAY lit state |
+| `.btn.glow` | `0 0 8px 0 rgba(240,220,160,.2)` | Dimly lit state |
+| `.pill` | `linear-gradient(#f2f0ea,#d7d4cb)`, `border:1px solid #101214` | Silicone keys |
+| `.pill .slot` | `#1b1d20` | LED window |
+| `.pill.lit .slot` | `#ffd467` + `0 0 12px 3px rgba(255,212,103,.75)` | Lit state |
+| `.pill.wk.lit .slot` | `var(--play)` + `0 0 12px 3px rgba(99,255,66,.75)` | Sequencer steps (white keys only) |
+| `.pill.glow .slot` | `#6b5c2e` | Dimly lit state |
+| `#bezel` / `#screen` | `#000`, `border-radius:12px` / `background:#000` | Display bezel/canvas |
+| `#power` | `rgba(8,9,11,.93)`, ring `2px solid var(--accent)` | Power overlay |
+| `#status` | `#ddd` on `#151515cc` | Status line |
+| Knob pointer colors | `k1 #287cff`, `k2 #1ecc70`, `k3 #ffffff`, `k4 #ff621a` | `Emulator original:site/emu.js` `KCOL` |
 
-`에뮬레이터 원본:site/emu.js`의 `KCOL` 3항 분기 중 사용되지 않는 쪽(`#4f8fe8`/`#46b96b`/`#e0c23e`/`#e08a3e`)은 단일 펌웨어이므로 제거한다. 표시되는 네 색은 유지한다.
-`에뮬레이터 원본:tests/panel.mjs`는 `--play: #63ff42`, `.btn.play.lit`의 `rgba(99,255,66`, 그리고 녹색 건반 규칙이 `.pill.wk.lit .slot` 하나뿐임을 정규식으로 검사한다. 이 세 가지는 색 계약의 기계 검증 지점이므로 선택자 이름까지 유지한다.
+Remove the unused side of the `KCOL` ternary (3-operand) branch in `Emulator original:site/emu.js` (`#4f8fe8`/`#46b96b`/`#e0c23e`/`#e08a3e`), since there is only one firmware. Preserve the four displayed colors.
+`Emulator original:tests/panel.mjs` uses regular expressions to check `--play: #63ff42`, `rgba(99,255,66` in `.btn.play.lit`, and that `.pill.wk.lit .slot` is the only green-key rule. These three are machine verification points for the color contract, so preserve their selector names as well.
 
-## 3. 타이포그래피
+## 3. Typography
 
-네트워크 폰트를 쓰지 않는다. 모든 font stack은 로컬 설치 폰트 이름과 시스템 대체만 쓴다. `에뮬레이터 원본:site/index.html:12`의 `<link rel="preconnect" href="https://fonts.gstatic.com">`은 실제로 아무 폰트도 받지 않는 죽은 참조이므로 제거한다(§8의 상대 URL 전용 규칙).
+Do not use network fonts. Every font stack uses only locally installed font names and system fallbacks. Remove `<link rel="preconnect" href="https://fonts.gstatic.com">` in `Emulator original:site/index.html:12`, since it is a dead reference that does not actually fetch any font (§8's relative-URL-only rule).
 
-| 면 | stack |
+| Face | Stack |
 |---|---|
-| 에뮬레이터 본문·컨트롤 | `"Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace` |
-| 에뮬레이터 설명(`#manual`) 본문 | `"Inter Tight", "Inter", system-ui, -apple-system, sans-serif` |
-| 에뮬레이터 설명 제목·`kbd`·`.chip` | 위 monospace stack |
-| 다운로드면 전체 | `"Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace` |
-| 랜딩 본문 | `Arial, Helvetica, sans-serif` |
-| 랜딩 기술 레이블 | `ui-monospace, SFMono-Regular, Consolas, monospace` (`--mono`) |
+| Emulator body/controls | `"Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace` |
+| Emulator instructions (`#manual`) body | `"Inter Tight", "Inter", system-ui, -apple-system, sans-serif` |
+| Emulator instruction headings/`kbd`/`.chip` | Monospace stack above |
+| Entire download surface | `"Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace` |
+| Landing body | `Arial, Helvetica, sans-serif` |
+| Landing technical labels | `ui-monospace, SFMono-Regular, Consolas, monospace` (`--mono`) |
 
-스케일(모두 원본 실측값):
+Scale (all values measured from the originals):
 
-| 역할 | 값 | 행간 | 출처 |
+| Role | Value | Line height | Source |
 |---|---|---|---|
-| 랜딩 제품명 | `clamp(6rem,15vw,13rem)` bold | `.85` | `styles.css .hero h1` |
-| 랜딩 섹션 제목 | `clamp(2rem,4vw,3.75rem)` bold | `1.05` | `styles.css h2` |
-| 랜딩 수치 | `clamp(3rem,7vw,6rem)` bold | `1` | `styles.css .spec-strip dd` |
-| 랜딩 기능 제목 | `1.5rem` (`--h3`) | `1.2` | `styles.css h3` |
-| 랜딩 리드 | `clamp(1.25rem,2vw,1.5rem)` | `1.5` | `styles.css .lead` |
-| 랜딩 본문 | `1rem` (`--body`) | `1.65` | `styles.css body` |
-| 랜딩 레이블/캡션 | `.875rem` (`--small`) | `1.5` | `styles.css .small` |
-| 다운로드면 제목 | `24px` | `1.3` | `install.html h1` |
-| 다운로드면 섹션 제목 | `16px` | `1.5` | `install.html h2` |
-| 다운로드면 본문 | `14px` | `1.6` | `install.html body` |
-| 다운로드면 메타데이터 | `12px` | `1.6` | `install.html dt` |
-| 에뮬레이터 머리글 | `15px`, `letter-spacing:3px` | — | `index.html h1` |
-| 에뮬레이터 레이블 | `11px`, `letter-spacing:2px` | — | `.lab` |
-| 에뮬레이터 버튼 | `11px`, `letter-spacing:1px` | `1.1` | `.btn` |
-| 에뮬레이터 키 힌트 | `8px` | — | `.btn kbd`, `.pill kbd`, `.pill i` |
-| 에뮬레이터 상태·도움말 | `11px` | `1.7` | `#status`, `#help` |
-| 에뮬레이터 설명 본문 | `14.5px` | `1.7` | `#manual` |
-| 에뮬레이터 설명 리드 | `16px`, `max-width:72ch` | `1.75` | `#manual .lead` |
+| Landing product name | `clamp(6rem,15vw,13rem)` bold | `.85` | `styles.css .hero h1` |
+| Landing section headings | `clamp(2rem,4vw,3.75rem)` bold | `1.05` | `styles.css h2` |
+| Landing figures | `clamp(3rem,7vw,6rem)` bold | `1` | `styles.css .spec-strip dd` |
+| Landing feature headings | `1.5rem` (`--h3`) | `1.2` | `styles.css h3` |
+| Landing lead | `clamp(1.25rem,2vw,1.5rem)` | `1.5` | `styles.css .lead` |
+| Landing body | `1rem` (`--body`) | `1.65` | `styles.css body` |
+| Landing labels/captions | `.875rem` (`--small`) | `1.5` | `styles.css .small` |
+| Download surface title | `24px` | `1.3` | `install.html h1` |
+| Download surface section headings | `16px` | `1.5` | `install.html h2` |
+| Download surface body | `14px` | `1.6` | `install.html body` |
+| Download surface metadata | `12px` | `1.6` | `install.html dt` |
+| Emulator header | `15px`, `letter-spacing:3px` | — | `index.html h1` |
+| Emulator labels | `11px`, `letter-spacing:2px` | — | `.lab` |
+| Emulator buttons | `11px`, `letter-spacing:1px` | `1.1` | `.btn` |
+| Emulator key hints | `8px` | — | `.btn kbd`, `.pill kbd`, `.pill i` |
+| Emulator status/help | `11px` | `1.7` | `#status`, `#help` |
+| Emulator instructions body | `14.5px` | `1.7` | `#manual` |
+| Emulator instructions lead | `16px`, `max-width:72ch` | `1.75` | `#manual .lead` |
 
-랜딩 본문 measure는 `62ch`(`--measure`). 해시·식별자는 `overflow-wrap: anywhere`로 가로 스크롤 없이 접히고 선택 가능해야 한다(`install.html`의 `dd`). 줄임표로 글자를 숨기지 않는다.
+Landing body measure is `62ch` (`--measure`). Hashes and identifiers must wrap without horizontal scrolling via `overflow-wrap: anywhere` and remain selectable (`dd` in `install.html`). Do not hide characters with ellipses.
 
-## 4. 간격과 레이아웃
+## 4. Spacing and Layout
 
-세 개의 좌표계가 공존하며 서로 변환하지 않는다.
+Three coordinate systems coexist; do not convert between them.
 
-### 4.1 랜딩: 4px 기반 토큰 그리드
+### 4.1 Landing: 4px-Based Token Grid
 
 `--s1 .25rem`, `--s2 .5rem`, `--s3 .75rem`, `--s4 1rem`, `--s6 1.5rem`, `--s8 2rem`, `--s12 3rem`, `--s16 4rem`, `--s24 6rem`.
-`--content: 80rem`(1280px), 거터 `clamp(2rem,7vw,6rem)`, 섹션 `padding-block: var(--s24)`(700px 미만에서 `--s16`).
-분기점은 **700px**와 **960px** 둘뿐이다. 히어로는 960px에서 `1.1fr .9fr`, 그 아래로 수직 적층. 2열 기능은 700px 미만에서 적층. 스티키 바와 내부 스크롤 없음: 문서가 수직 스크롤을 소유한다.
+`--content: 80rem` (1280px), gutter `clamp(2rem,7vw,6rem)`, section `padding-block: var(--s24)` (`--s16` below 700px).
+There are only two breakpoints: **700px** and **960px**. The hero uses `1.1fr .9fr` at 960px and stacks vertically below it. 2-column features stack below 700px. No sticky bars or internal scrolling: the document owns vertical scrolling.
 
-### 4.2 다운로드면: 단일 열 스택
+### 4.2 Download Surface: Single-Column Stack
 
 `--s1 4px` … `--s8 32px`. `main { max-width: 720px; margin: var(--s8) auto; padding: 0 var(--s4); }`.
-섹션은 `--surface` 위 `padding: var(--s6)`, `border-radius: var(--s2)`. 메타데이터 레이블과 값이 한 줄에 들어가지 않으면 단일 열로 접힌다. 콘텐츠를 덮는 고정 패널을 두지 않는다.
+Sections use `padding: var(--s6)` and `border-radius: var(--s2)` on `--surface`. Metadata labels and values collapse to a single column when they cannot fit on one line. Do not use fixed panels that cover content.
 
-### 4.3 에뮬레이터: 도면 단위 절대 배치 (동결)
+### 4.3 Emulator: Absolute Placement in Drawing Units (Frozen)
 
-`에뮬레이터 원본:site/emu.js`의 상수를 그대로 쓴다. 원점은 케이스 좌상단, 케이스는 `963 × 588` 도면 단위, `S = 1.25` px/단위 → 기본 렌더 `1203.75 × 735` px. 모든 컨트롤은 중심 좌표에 `translate(-50%,-50%)`로 놓인다.
+Use the constants from `Emulator original:site/emu.js` unchanged. The origin is the case's top-left corner; the case is `963 × 588` drawing units, `S = 1.25` px/unit → base render `1203.75 × 735` px. All controls are placed at their center coordinates using `translate(-50%,-50%)`.
 
-| 요소 | 값 |
+| Element | Value |
 |---|---|
 | `SCREEN` | `x 241, y 48, w 226, h 233` |
-| 캔버스 변 | `min(226,233) - 16 = 210` 도면 단위 = `262.5` px (캔버스 해상도는 `240 × 240`) |
+| Canvas side | `min(226,233) - 16 = 210` drawing units = `262.5` px (canvas resolution is `240 × 240`) |
 | `BTN_PANE` | `x 508, y 168, w 387, h 135` |
 | `BTN_SIZE` | `50 × 46` |
 | `BTN_GRID.cols` | `550, 611, 672, 733, 793, 854` |
 | `BTN_GRID.rows` | `y 207` (FX/SEL/ENV/LFO/EDIT/GLO), `y 268` (HOME/SAVE/ARP/SEQ/PLAY\|STOP/REC) |
 | `OCT_PANE` | `x 43, y 258, w 160, h 45` |
-| OCT 버튼 | `cx 85`·`cx 161`, `cy 280.5`, `64 × 33` |
+| OCT buttons | `cx 85`·`cx 161`, `cy 280.5`, `64 × 33` |
 | `KEY_PANE` | `x 20, y 340, w 885, h 228` |
-| 흰건반 | `y 497, w 44, h 98, x0 63, pitch 54.53`, 16개 |
-| 검은건반 | `y 396.5, w 38, h 86`, `xs 92,146,201,310,365,474,529,583,692,747,856`, 11개 |
-| 건반 radius | JS가 `width/2`를 인라인 지정(알약) |
-| 노브 지름 | `KNOB_D 46` |
-| 노브 레이블 | 중심에서 `cy - 36` |
-| 인코더 | `SELECT(0) 172,100` · `PRESETS(6) 67,203` · `ALGORITHM(1) 170,203` · `KNOB1..4(2..5) 538/647/757/866, 100` |
-| MASTER 포트 | `70,100`, 300° 가동 |
+| White keys | `y 497, w 44, h 98, x0 63, pitch 54.53`, 16 keys |
+| Black keys | `y 396.5, w 38, h 86`, `xs 92,146,201,310,365,474,529,583,692,747,856`, 11 keys |
+| Key radius | JS sets `width/2` inline (pill shape) |
+| Knob diameter | `KNOB_D 46` |
+| Knob labels | `cy - 36` from center |
+| Encoders | `SELECT(0) 172,100` · `PRESETS(6) 67,203` · `ALGORITHM(1) 170,203` · `KNOB1..4(2..5) 538/647/757/866, 100` |
+| MASTER pot | `70,100`, 300° travel |
 
-컴팩트 모드: `sFlat = min(aw/W, ah/H) < 1`이면 `body.compact`. 가용 사각형은 `safe-area-inset` 좌/우/상을 제외하고 하단은 화면 끝까지 쓴다(홈 인디케이터가 건반 위에 반투명으로 뜬다). 세로 화면에서 `ah > aw && sRot > sFlat`이면 장치를 90° 회전하고 `body.rotated`를 붙인다. 두 경우 모두 축별로 독립 스케일(`scale(aw/W, ah/H)`)하여 레터박스를 만들지 않는다.
+Compact mode: `body.compact` when `sFlat = min(aw/W, ah/H) < 1`. The available rectangle excludes the left/right/top `safe-area-inset` and extends to the bottom edge (the home indicator floats translucently over the keys). In portrait, rotate the device 90° and add `body.rotated` when `ah > aw && sRot > sFlat`. In both cases, scale each axis independently (`scale(aw/W, ah/H)`) to avoid letterboxing.
 
-### 4.4 통합 내비게이션
+### 4.4 Unified Navigation
 
-세 면은 같은 상대 링크 집합으로 연결한다: `./`(랜딩), `emulator.html`, `install.html`. 랜딩은 `styles.css`의 `.masthead`/`nav`를, 다운로드면은 기존 `nav` 규칙을, 에뮬레이터는 기존 `#help` 영역을 쓴다. 에뮬레이터면에 새 상단 바를 추가하지 않는다(`body.compact`에서 `#help`가 숨겨지고 장치가 화면 전체를 차지하는 기존 동작을 깨지 않기 위함).
+Connect the three faces with the same relative link set: `./` (landing), `emulator.html`, `install.html`. The landing uses `.masthead`/`nav` from `styles.css`, the download surface uses its existing `nav` rules, and the emulator uses the existing `#help` area. Do not add a new top bar to the emulator surface (to preserve the existing behavior where `body.compact` hides `#help` and the device fills the screen).
 
-## 5. 컴포넌트
+## 5. Components
 
-### 5.1 재사용(에뮬레이터, 동결)
+### 5.1 Reuse (Emulator, Frozen)
 
-| 프리미티브 | 계약 |
+| Primitive | Contract |
 |---|---|
-| `.pane` | 함몰 컨테이너. 버튼 그룹·OCT·건반 세 곳에만 쓴다 |
-| `.lab` | 컨트롤 이름. 노브 위 `cy-36`에 중앙 정렬 |
-| `.cap` + `.grab` | 노브. `touch-action:none`, `cursor:ns-resize`, `--rot`로 포인터 회전, `--pcol`로 포인터 색. `.grab`(`inset:-16px`)은 `body.compact`에서만 표시되는 확대 터치 타깃 |
-| `.btn` (`.down`/`.lit`/`.glow`/`.play`) | 패널 버튼. `.down`은 입력 상태, `.lit`/`.glow`는 **펌웨어가 보낸 LED 상태**이며 JS가 임의로 켜지 않는다 |
-| `.btn kbd` | 키보드 힌트. `FX 1 … SEQ 0`, `PLAY ␣`, `REC R`, `OCT- Z`, `OCT+ X` |
-| `.pill` (`.wk`/`.bk`/`.down`/`.lit`/`.glow`) | 건반. `.slot`이 LED 창이고 `.bk`는 창 위치가 다르다. `i`는 검은건반 인쇄(`OP1..OP6, PIT, GLO, MONO, POLY`) |
-| `#bezel` + `#screen` | 픽셀 디스플레이. §5.2 |
-| `#power` | 전원 오버레이. 클릭으로 AudioContext를 시작하며 실패 시 사라지지 않고 사유를 표시한다 |
-| `#fs` + `#fstip` | 전체화면 토글과 iOS 홈화면 추가 안내. standalone으로 실행되면 버튼을 숨긴다 |
-| `#status` | 하단 고정 상태 줄. 한 줄, `white-space:nowrap` |
-| `#midi` | `<details>` MIDI 포트 패널. 연결 버튼 + 입력/출력 `<select>` + `role="status"` 안내 |
-| `#manual` | 장치 아래 조작 설명. `.cards`/`.card`/`h3`/`kbd`/`.chip`/표. 컴팩트 모드에서 숨김 |
+| `.pane` | Recessed container. Used only for the button group, OCT, and keys |
+| `.lab` | Control name. Centered at `cy-36` above the knob |
+| `.cap` + `.grab` | Knob. `touch-action:none`, `cursor:ns-resize`, `--rot` rotates the pointer, `--pcol` sets its color. `.grab` (`inset:-16px`) is an enlarged touch target shown only in `body.compact` |
+| `.btn` (`.down`/`.lit`/`.glow`/`.play`) | Panel button. `.down` is input state; `.lit`/`.glow` are **LED states sent by the firmware**, not arbitrarily enabled by JS |
+| `.btn kbd` | Keyboard hints. `FX 1 … SEQ 0`, `PLAY ␣`, `REC R`, `OCT- Z`, `OCT+ X` |
+| `.pill` (`.wk`/`.bk`/`.down`/`.lit`/`.glow`) | Key. `.slot` is the LED window; `.bk` has a different window position. `i` is the black-key printing (`OP1..OP6, PIT, GLO, MONO, POLY`) |
+| `#bezel` + `#screen` | Pixel display. §5.2 |
+| `#power` | Power overlay. Clicking starts AudioContext; on failure it stays visible and displays the reason |
+| `#fs` + `#fstip` | Fullscreen toggle and iOS Add to Home Screen instructions. Hide the button when running standalone |
+| `#status` | Fixed bottom status line. Single line, `white-space:nowrap` |
+| `#midi` | `<details>` MIDI port panel. Connect button + input/output `<select>` + `role="status"` guidance |
+| `#manual` | Operating instructions below the device. `.cards`/`.card`/`h3`/`kbd`/`.chip`/tables. Hidden in compact mode |
 
-### 5.2 픽셀 디스플레이 (계약의 핵심)
+### 5.2 Pixel Display (Core Contract)
 
-- 캔버스는 고정 `240 × 240`이고 CSS 크기는 `262.5px`(§4.3). `image-rendering: pixelated` 필수.
-- 프레임버퍼는 **C가 만든 RGB565**다. `emu_fb_ptr()`의 `uint16` 240×240을 그대로 받아 메인 스레드에서 RGBA로 확장한다: `R=(v>>11&31)*255/31`, `G=(v>>5&63)*255/63`, `B=(v&31)*255/31`, `A=255`.
-- 다시 그리는 조건은 `emu_fb_gen()` 변화뿐이다. 변화가 없으면 LED만 보낸다(`{t:'leds'}`).
-- 화면 안의 글자·레이아웃·색은 모두 C `mc_ui_strip_frame`의 출력이다. HTML/CSS로 화면 내용을 다시 그리거나 보정하거나 확대 보간하지 않는다. 폰트 교체·안티에일리어싱·스케일 필터 추가는 금지한다.
-- 작은 비트맵 글자(6×9)는 접근성 부채다. 인접 HTML(`#manual`)이 같은 내용을 설명하고, 원본 해상도 캡처를 랜딩면 갤러리에 그대로 둔다(§7).
-- 랜딩면 스크린샷은 `.screen-frame`(black 둘레) 또는 `.screen-figure` 안에 `width="240" height="240"`로 넣고 자르지 않는다. 이미지는 **mc-1-mod 자신의 C 렌더러 출력**만 쓴다. MC-1 1.2.0의 기존 26장을 가져오지 않는다.
+- The canvas is fixed at `240 × 240`, with a CSS size of `262.5px` (§4.3). `image-rendering: pixelated` is required.
+- The framebuffer is **RGB565 generated by C**. Read the `uint16` 240×240 from `emu_fb_ptr()` unchanged and expand it to RGBA on the main thread: `R=(v>>11&31)*255/31`, `G=(v>>5&63)*255/63`, `B=(v&31)*255/31`, `A=255`.
+- Redraw only when `emu_fb_gen()` changes. Otherwise send only LEDs (`{t:'leds'}`).
+- All text, layout, and colors inside the display are output from C's `mc_ui_strip_frame`. Do not redraw, correct, or interpolate the display contents with HTML/CSS. Font replacement, antialiasing, and additional scaling filters are prohibited.
+- Small bitmap text (6×9) is accessibility debt. Adjacent HTML (`#manual`) explains the same content, and original-resolution captures remain unchanged in the landing gallery (§7).
+- Place landing screenshots inside `.screen-frame` (black surround) or `.screen-figure` with `width="240" height="240"`; do not crop them. Use only **output from mc-1-mod's own C renderer**. Do not import the existing 26 images from MC-1 1.2.0.
 
-### 5.3 재사용(랜딩)
+### 5.3 Reuse (Landing)
 
-`제품 원본:site/styles.css`의 프리미티브를 그대로 쓴다: `.skip`, `.shell`, `.section`, `.masthead`, `.wordmark`, `.status-dot`, `nav`, `.hero`, `.eyebrow`, `.lead`, `.actions`, `.button`/`.primary`/`.secondary`, `.hero-screen`, `.screen-frame`, `.spec-strip`, `.section-heading`, `.screen-figure`, `.screen-grid`, `.two`/`.three`, `.control-guide`, `.effects-list`, `.audio-block`, `.text-link`, `.release-note`, `.footer`.
-새 카드 그리드·새 버튼 변형·새 섹션 종류를 만들지 않는다. 범용 대시보드(통계 타일, 사이드바, 탭 셸)로 재설계하지 않는다.
+Use the primitives from `Product original:site/styles.css` unchanged: `.skip`, `.shell`, `.section`, `.masthead`, `.wordmark`, `.status-dot`, `nav`, `.hero`, `.eyebrow`, `.lead`, `.actions`, `.button`/`.primary`/`.secondary`, `.hero-screen`, `.screen-frame`, `.spec-strip`, `.section-heading`, `.screen-figure`, `.screen-grid`, `.two`/`.three`, `.control-guide`, `.effects-list`, `.audio-block`, `.text-link`, `.release-note`, `.footer`.
+Do not create new card grids, button variants, or section types. Do not redesign it as a generic dashboard (statistic tiles, sidebar, tab shell).
 
-### 5.4 재사용(다운로드면)
+### 5.4 Reuse (Download Surface)
 
-`제품 원본:site/install.html`의 **정적 부분만** 재사용한다: 유틸리티 내비게이션, 섹션(`--surface` 위 `padding: var(--s6)`, `border-radius: var(--s2)`), 44px 이상 버튼(다운로드 동작에 앰버 primary), 패키지 메타데이터 `<dl>`(`dt`는 12px `--muted`, `dd`는 `overflow-wrap: anywhere`), 각주 `footer`.
+Reuse **only the static parts** of `Product original:site/install.html`: utility navigation, sections (`padding: var(--s6)` and `border-radius: var(--s2)` on `--surface`), buttons at least 44px tall (amber primary for download actions), package metadata `<dl>` (`dt` is 12px `--muted`; `dd` uses `overflow-wrap: anywhere`), and the `footer`.
 
-mc-1-mod의 이 면은 **다운로드·빌드 출처 전용 정적면**이다(사용자 요청 범위). 따라서 다음을 두지 않는다: 연결/설치/복원 버튼, 비활성 상태의 장치 컨트롤, `<progress>`, 파일 입력, 승인 체크박스, 장치 상태용 라이브 영역, Web MIDI 호출. 공식 V15 복원도 제공하지 않고 기존 MC-1 설치기면 링크로 안내한다. 상세는 web.md §8.
+This mc-1-mod surface is **a static page exclusively for downloads and build provenance** (the user's requested scope). Therefore, do not include connect/install/restore buttons, disabled device controls, `<progress>`, file inputs, approval checkboxes, device-status live regions, or Web MIDI calls. Do not provide official V15 restoration either; link to the existing MC-1 installer surface. Details are in web.md §8.
 
-### 5.5 신규로 추가되는 것 (전부)
+### 5.5 New Additions (Complete List)
 
-1. 랜딩면 `index.html` 1개 — §5.3 프리미티브 조합.
-2. 세 면을 잇는 상대 링크(§4.4).
-3. 랜딩면의 다운로드/설치 안내 블록 1개 — `.release-note` 재사용.
-4. 다운로드면의 "장치 미검증 실험 패키지" 상태 문구 1개 — 정적 단락이며 라이브 영역이 아니다.
+1. 1 landing `index.html` — composed from §5.3 primitives.
+2. Relative links connecting the three faces (§4.4).
+3. 1 download/installation guidance block on the landing — reuse `.release-note`.
+4. 1 "experimental package not verified on hardware" status message on the download surface — a static paragraph, not a live region.
 
-프레임워크·빌드 체인·런타임 의존성은 추가하지 않는다. React/Vue/Svelte, 번들러, CSS 프레임워크, 아이콘 폰트, CDN 자원, 외부 폰트를 쓰지 않는다. JS는 기존 `emu.js`/`worklet.js`/`midi.js`와 동일한 무의존 수준을 유지하며, 다운로드면은 JS 없이 동작한다.
+Do not add frameworks, build chains, or runtime dependencies. Do not use React/Vue/Svelte, bundlers, CSS frameworks, icon fonts, CDN resources, or external fonts. JS must remain as dependency-free as the existing `emu.js`/`worklet.js`/`midi.js`; the download surface works without JS.
 
-## 6. 모션과 상호작용
+## 6. Motion and Interaction
 
-### 6.1 데스크톱 (에뮬레이터)
+### 6.1 Desktop (Emulator)
 
-- 노브: 포인터 드래그 **9px/디텐트**, 휠 1회 = ±1 디텐트, 시각 회전 `±18deg`/디텐트. `setPointerCapture`로 캡처하고 `pointerup`/`pointercancel`에서 해제한다.
-- MASTER: 디텐트당 `±32`(0..1023 범위), 포인터 각도 `-150 + 300*v/1023` deg. ADC 채널 4로 전달한다.
-- 버튼/건반: `pointerdown`에서 즉시 마스크를 세우고 `pointerup`/`pointercancel`에서 내린다. 지오메트리는 바뀌지 않고 `.down` 음영만 바뀐다.
-- 키보드: 중간 줄 `a s d f g h j k l ; '`이 C4부터의 흰건반, 윗줄 `w e t y u o p ]`이 검은건반. 숫자 `1..0`과 `z x ␣ r`이 패널 버튼. 화살표 `↑↓`=SELECT, `←→`=ALGORITHM, `[` `\`=PRESETS. `input/select/button/textarea/summary` 안에서는 가로채지 않는다. `blur`에서 모든 홀드를 해제한다.
-- 반복 키(`ev.repeat`)는 인코더만 계속 돌리고 노트/버튼은 중복 발생시키지 않는다.
+- Knobs: pointer drag **9px/detent**, 1 wheel step = ±1 detent, visual rotation `±18deg`/detent. Capture with `setPointerCapture`; release on `pointerup`/`pointercancel`.
+- MASTER: `±32` per detent (range 0..1023), pointer angle `-150 + 300*v/1023` deg. Sent to ADC channel 4.
+- Buttons/keys: set the mask immediately on `pointerdown`; clear it on `pointerup`/`pointercancel`. Geometry stays unchanged; only `.down` shading changes.
+- Keyboard: middle row `a s d f g h j k l ; '` maps to white keys starting at C4; upper row `w e t y u o p ]` maps to black keys. Digits `1..0` and `z x ␣ r` map to panel buttons. Arrows `↑↓`=SELECT, `←→`=ALGORITHM, `[` `\`=PRESETS. Do not intercept inside `input/select/button/textarea/summary`. Release all holds on `blur`.
+- Repeated keys (`ev.repeat`) continue turning encoders only; do not duplicate notes/buttons.
 
-### 6.2 모바일·소형 창 (에뮬레이터)
+### 6.2 Mobile and Small Windows (Emulator)
 
-- `fitDevice()`가 `visualViewport`/`innerWidth`/standalone `screen` 중 큰 값을 진짜 뷰포트로 보고 스케일을 정한다.
-- 터치 노브는 **14px/디텐트**(더 짧은 throw)이고 `.grab`이 `inset:-16px` 확대 타깃을 준다.
-- 세로에서 장치를 90° 회전하면 "위"가 화면 오른쪽이 되므로, 회전 상태에서는 **가로 드래그**가 노브를 돌린다(`deviceRotated`).
-- 재적합 시점: `resize`, `orientationchange`(+100ms), `visualViewport resize`, `pageshow`(+50ms), 로드 후 150/500/1200/2500ms. iOS standalone 실행이 뷰포트를 늦게 확정하기 때문이며 이 타이머 집합을 줄이지 않는다.
-- 전체화면: Fullscreen API가 있으면 실제 전체화면, iPhone에서는 `#fstip`로 홈화면 추가를 안내한다. standalone이면 버튼을 숨긴다.
-- `#midi`는 컴팩트에서 좌상단 고정(`max-width: calc(100vw - 70px)`)으로 `#fs`와 겹치지 않는다.
+- `fitDevice()` treats the largest value among `visualViewport`/`innerWidth`/standalone `screen` as the real viewport and determines the scale.
+- Touch knobs use **14px/detent** (shorter throw); `.grab` provides an enlarged `inset:-16px` target.
+- Rotating the device 90° in portrait makes "up" point toward the screen's right edge, so **horizontal dragging** turns knobs in the rotated state (`deviceRotated`).
+- Refit on `resize`, `orientationchange` (+100ms), `visualViewport resize`, `pageshow` (+50ms), and 150/500/1200/2500ms after load. iOS standalone launches finalize the viewport late; do not reduce this timer set.
+- Fullscreen: use actual fullscreen when the Fullscreen API is available; on iPhone, use `#fstip` to explain Add to Home Screen. Hide the button when standalone.
+- In compact mode, `#midi` is fixed at the top left (`max-width: calc(100vw - 70px)`) and does not overlap `#fs`.
 
-### 6.3 랜딩·다운로드면
+### 6.3 Landing and Download Surfaces
 
-자동 애니메이션·패럴랙스·스크롤 리빌 없음. 링크 hover/active는 즉시 반응하고 지오메트리를 바꾸지 않는다. `prefers-reduced-motion: reduce`에서도 같은 정적 레이아웃이다.
-다운로드면: 상태 기계가 없다. 페이지를 여는 것으로도, 어떤 상호작용으로도 장치 명령을 보내지 않는다. 유일한 동작은 패키지 파일 다운로드 링크와 외부 문서 링크다.
+No automatic animation, parallax, or scroll reveals. Link hover/active states respond immediately without geometry changes. The same static layout applies with `prefers-reduced-motion: reduce`.
+Download surface: there is no state machine. Neither opening the page nor any interaction sends device commands. Its only actions are package-file download links and external documentation links.
 
-## 7. 접근성과 검증
+## 7. Accessibility and Verification
 
-- 포커스: 랜딩 `3px solid var(--green)` / `outline-offset: 5px`, 설치기·에뮬레이터 `#midi` `2px solid var(--accent)` / `offset: 3px`. 기본 포커스 링을 제거하지 않는다.
-- 터치 타깃: 랜딩 `nav a`·`.wordmark` 최소 44px, 다운로드면 `nav a`·다운로드 버튼 최소 44px, 에뮬레이터는 도면 크기(최소 `33` 도면 단위 = 41.25px)를 쓰고 컴팩트에서 `.grab`으로 보강한다.
-- 상태: 에뮬레이터 MIDI 패널의 `role="status" aria-live="polite"`를 유지한다. 다운로드면은 정적 문단으로 상태를 적고 라이브 영역을 두지 않는다. 색은 글자를 대체하지 않는다.
-- 의미 구조: `index.html`은 `.skip` 링크 → `header/nav` → `main` → 섹션별 `aria-labelledby`. 모든 이미지에 내용을 설명하는 `alt`. `<dl>`로 수치·컨트롤 설명.
-- 에뮬레이터의 `<canvas>`는 보조기술에 읽히지 않는다. 같은 정보를 `#status`(텍스트)와 `#manual`이 제공하고, 이 사실을 §8 부채로 기록한다.
-- 측정 뷰포트: **390 × 844**(폰)와 **1440 × 900**(데스크톱)을 필수로 하고, 랜딩은 넓은 데스크톱(≥1920)도 본다. 각 폭에서 잘림·겹침·빈 화면·하단 콘텐츠 접근을 본다.
-- 스크린샷·오디오·브라우저 시험의 파일·통과 기준은 `현재:build/integration-design/web.md` §12 검증 매트릭스가 소유한다. 본 문서는 무엇을 보는지(대상·뷰포트·상태)를 정의하고, 어떻게 자동화하는지는 web.md가 정의한다.
-- 수동 점검 목록(각 뷰포트에서): 전원 오버레이 → POWER ON → 화면 비어 있지 않음 → 노브 드래그 1회가 화면 값을 바꿈 → PLAY 점등과 소리 → SAVE 2회 후 리로드 복원 → MIDI 패널 열기/닫기 → 다운로드면의 해시·실험 상태 표기 확인 → 세로/가로 회전.
+- Focus: landing `3px solid var(--green)` / `outline-offset: 5px`; installer/emulator `#midi` `2px solid var(--accent)` / `offset: 3px`. Do not remove default focus rings.
+- Touch targets: landing `nav a`/`.wordmark` at least 44px; download `nav a`/download buttons at least 44px. The emulator uses drawing dimensions (minimum `33` drawing units = 41.25px), reinforced by `.grab` in compact mode.
+- Status: preserve `role="status" aria-live="polite"` in the emulator MIDI panel. The download surface states its status in static paragraphs without a live region. Color does not replace text.
+- Semantics: `index.html` uses a `.skip` link → `header/nav` → `main` → `aria-labelledby` for each section. Every image has descriptive `alt`. Use `<dl>` for figures/control descriptions.
+- The emulator `<canvas>` is not readable by assistive technology. `#status` (text) and `#manual` provide the same information; record this as debt in §8.
+- Measurement viewports: **390 × 844** (phone) and **1440 × 900** (desktop) are required; also inspect the landing on a wide desktop (≥1920). At each width, inspect clipping, overlap, blank screens, and access to bottom content.
+- The verification matrix in `Current:build/integration-design/web.md` §12 owns screenshot/audio/browser test files and pass criteria. This document defines what to inspect (targets, viewports, states); web.md defines automation.
+- Manual checklist (at each viewport): power overlay → POWER ON → nonblank display → 1 knob drag changes the display value → PLAY lights up and produces sound → 2 SAVE presses, then reload and restore → open/close MIDI panel → check download hashes and experimental status → rotate portrait/landscape.
 
-## 8. 범위와 수용한 제약
+## 8. Scope and Accepted Constraints
 
-허용 변경(에뮬레이터 외형에 관한 **전부**):
+Allowed changes (**all** changes to the emulator exterior):
 
-1. 문구·제목·링크: `<title>`, `h1#title`, `emu.js`의 제목 대입, `#power small`, `#status`, `#help`, `#manual` 본문, `.src` 출처 문단. 프리셋 수(128 → 32 프로필), MIX 페이지, 파라미터 49..51과 읽기 전용 2를 반영한다(core.md §3).
-2. 죽은 규칙 제거: `#fw`/`body.compact #fw`/`body.compact.rotated #fw`(해당 DOM 요소가 `index.html`에 없음), `h1 .orbit-mark`(해당 클래스 사용처 없음), `fonts.gstatic.com` preconnect.
-3. 자원 버전 쿼리 `?v=1.2.0` → `?v=<VERSION>`.
-4. 식별자: wasm 파일명, AudioWorklet 프로세서 이름, IndexedDB DB/키(core.md §6의 `mc-1-mod:MOD1:s1:b1`).
-5. 사용되지 않는 `KCOL` 분기 제거.
+1. Copy, titles, links: `<title>`, `h1#title`, title assignment in `emu.js`, `#power small`, `#status`, `#help`, `#manual` body, and `.src` provenance paragraph. Reflect the preset count (128 → 32 profiles), MIX page, parameters 49..51, and read-only 2 (core.md §3).
+2. Dead-rule removal: `#fw`/`body.compact #fw`/`body.compact.rotated #fw` (no corresponding DOM element in `index.html`), `h1 .orbit-mark` (no uses of that class), `fonts.gstatic.com` preconnect.
+3. Resource version queries `?v=1.2.0` → `?v=<VERSION>`.
+4. Identifiers: wasm filename, AudioWorklet processor name, IndexedDB DB/key (`mc-1-mod:MOD1:s1:b1` in core.md §6).
+5. Remove the unused `KCOL` branch.
 
-그 외 faceplate CSS·지오메트리·입력 매핑·LED 매핑은 변경하지 않는다. 구체적 경로와 변경 단위는 web.md §3·§10이 소유한다.
+Do not change any other faceplate CSS, geometry, input mapping, or LED mapping. web.md §3/§10 owns the specific paths and change units.
 
-수용한 제약과 금지:
+Accepted constraints and prohibitions:
 
-| 항목 | 내용 |
+| Item | Details |
 |---|---|
-| 상대 URL 전용 | 사이트 기준은 `/mc-1-mod/`다. 모든 내부 자원은 상대 경로(`./`, `emulator.html`, `mod1.wasm?v=…`)로 쓴다. 절대 경로·CDN·외부 폰트·외부 스크립트를 쓰지 않는다. `canonical`/`og:url`만 예외적으로 절대 URL을 가진다 |
-| 가짜 합성 금지 | 모든 소리는 컴파일된 C가 wasm 안에서 만든다. JS 신디사이저·JS 샘플 재생·JS 시퀀서·웹 오디오 노드로 만든 대체음을 두지 않는다. 리샘플링은 출력 레이트 변환이며 합성이 아니다(web.md §6) |
-| 타이밍 주장 금지 | 이 사이트는 WL82 CPU1 타이밍·ISR 기한·하드웨어 성능을 모사하거나 주장하지 않는다. 브라우저는 단일 코어 C 경로가 기준이다. 측정 하드웨어 수치의 유일한 출처는 `현재:data/baseline-mc1-1.2.0.json`(과거 다른 이미지의 기록)이며 새 펌웨어의 증거가 아니다 |
-| 다운로드면과 에뮬레이터 분리 | 두 기능은 별도 페이지·별도 자원을 가진다. 어느 면에도 브라우저 장치 쓰기 기능을 두지 않고, 다운로드면에 악기 조작면을 두지 않는다 |
-| 펌웨어 메타데이터 범위 | `FIRMWARE.json`은 이 프로젝트가 만든 패키지만 기술한다. MC-1 1.2.0/1.0.2의 버전·바이트·SHA256을 가져오지 않는다 |
-| 미제작 자산 | 32 프로필 recipe와 PCM bank revision 1은 아직 제작되지 않았다(core.md §8). 따라서 랜딩 갤러리·오디오 예제·샘플 출처 링크는 자산이 생긴 뒤에 추가하고, 그 전에는 해당 섹션을 두지 않는다. 비어 있는 자리를 플레이스홀더로 채우지 않는다 |
-| 버전 문자열 | `VERSION` = `0.0.1`(experimental). 모든 문구·테스트는 이 파일을 단일 출처로 읽고 `src/mcfm.h`의 `MC_VERSION`도 같은 값으로 맞춘다. experimental은 장치 검증을 뜻하지 않는다 |
-| 접근성 부채 | 단일 다크 테마(악기 정체성), 캔버스 화면의 6×9 비트맵 글자. 각각 네이티브 컨트롤 유지와 인접 HTML 설명으로 완화하며 이번 범위에서 해소하지 않는다 |
-| 수행하지 않음 | 배포, 빌드 실행, 장치 플래싱, 브라우저 로그인, 원본 저장소 쓰기, 소스 import 실행, git 커밋 |
+| Relative URLs only | The site base is `/mc-1-mod/`. All internal resources use relative paths (`./`, `emulator.html`, `mod1.wasm?v=…`). Do not use absolute paths, CDNs, external fonts, or external scripts. Only `canonical`/`og:url` may use absolute URLs |
+| No fake synthesis | All sound is produced by compiled C inside wasm. Do not substitute JS synthesizers, JS sample playback, JS sequencers, or sounds made with Web Audio nodes. Resampling is output-rate conversion, not synthesis (web.md §6) |
+| No timing claims | This site does not simulate or claim WL82 CPU1 timing, ISR deadlines, or hardware performance. The browser uses the single-core C path as its reference. The only source of measured hardware figures is `Current:data/baseline-mc1-1.2.0.json` (a historical record from a different image), not evidence for the new firmware |
+| Separate download surface and emulator | The two functions have separate pages and resources. Neither surface provides browser-to-device writes; the download surface has no instrument controls |
+| Firmware metadata scope | `FIRMWARE.json` describes only packages produced by this project. Do not import versions, bytes, or SHA256 from MC-1 1.2.0/1.0.2 |
+| Assets not yet produced | The 32 profile recipes and PCM bank revision 1 have not yet been produced (core.md §8). Therefore, add the landing gallery, audio examples, and sample-source links only after those assets exist; omit those sections beforehand. Do not fill empty spaces with placeholders |
+| Version string | `VERSION` = `0.0.1` (experimental). All copy/tests read this file as the single source of truth; align `MC_VERSION` in `src/mcfm.h` to the same value. experimental does not mean hardware verification |
+| Accessibility debt | A single dark theme (instrument identity) and 6×9 bitmap text on the canvas display. Mitigate these with native controls and adjacent HTML explanations respectively; they are not resolved in this scope |
+| Not performed | Deployment, build execution, device flashing, browser login, writes to original repositories, source import execution, git commits |

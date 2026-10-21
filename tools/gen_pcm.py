@@ -223,7 +223,7 @@ def generate() -> Bundle:
         "schema": 1, "kind": "original_mathematical_pcm", "license": "GPL-3.0-only",
         "sample_rate": RATE, "families": 7, "zones": zones, "pcm_bytes": total,
         "budget_bytes": 224 * 1024,
-        "generator_sha256_scope": "소스 입력 해시에 tools/gen_pcm.py와 모든 생성 헤더를 포함한다.",
+        "generator_sha256_scope": "The source input hash includes tools/gen_pcm.py and every generated header.",
     }
     return {"files": files, "manifest": manifest}
 

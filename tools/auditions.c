@@ -427,7 +427,7 @@ int auditions(const char *dir,const char *json) {
     fprintf(f,"\n],\"render_complete\":%s}\n",failed?"false":"true");
     if(ferror(f))failed=1;
     if(fclose(f))failed=1;
-    if(failed) { fprintf(stderr,"오디션 저장 실패: %s\n",json);return 1; }
-    printf("PASS: 실제 C 오디션 저장: %s; 청취·WASM·타깃·장치 미승인\n",json);
+    if(failed) { fprintf(stderr,"Failed to write auditions: %s\n",json);return 1; }
+    printf("PASS: actual C auditions saved: %s; no listening or hardware approval implied\n",json);
     return 0;
 }

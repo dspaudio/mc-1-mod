@@ -1,4 +1,4 @@
-name: 전용 Pages
+name: Dedicated Pages
 on:
   workflow_dispatch:
   push:
@@ -19,20 +19,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: 공통 코어 회귀
+      - name: Shared core regression tests
         run: make -j2 test
-      - name: WASM 및 실제 어댑터 비교
+      - name: WASM and native adapter parity
         env:
           CLANG: clang
         run: |
           python3 tools/build_web.py
           python3 tools/verify_web.py
-      - name: 검증된 펌웨어와 전 음색 조립
+      - name: Assemble verified firmware and complete audio gallery
         run: |
           python3 tools/assemble_pages.py --firmware-dir artifacts/firmware
           node tests/gallery.mjs
           node tests/install.mjs
           node tests/demo-songs.mjs
+          node tests/site-cache.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/site
