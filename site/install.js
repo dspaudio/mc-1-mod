@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const assetQuery = new URL(document.currentScript.src).search;
 
   const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
   const isHash = value => typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
@@ -87,7 +88,7 @@
     try {
       let response;
       try {
-        response = await fetch("./FIRMWARE.json", { cache: "no-store" });
+        response = await fetch(`./FIRMWARE.json${assetQuery}`, { cache: "no-store" });
       } catch {
         throw new Error("NETWORK");
       }

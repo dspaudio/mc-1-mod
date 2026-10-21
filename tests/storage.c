@@ -78,7 +78,7 @@ static void reject(unsigned n) {
 static void wire_tests(void) {
     assert(mc_encode(&original,71,encoded,sizeof encoded)==MC_RECORD_BYTES);
     assert(!memcmp(encoded,"MCHY",4)&&encoded[4]==9&&!encoded[5]);
-    assert(!memcmp(encoded+20,"MOD1\1\0\3\0",8));
+    assert(!memcmp(encoded+20,"MOD1\1\0\4\0",8));
     assert(!memcmp(encoded+20,mc_pack_id,8));
     assert((encoded[6]|(unsigned)encoded[7]<<8)==35134);
     memcpy(other,encoded,sizeof other);
@@ -151,15 +151,15 @@ static void wire_tests(void) {
         changed.automation[0].address=0;
     }
     changed=original;changed.automation_count=1;
-    changed.patch[0]=mc_presets[MC_PRESET_REED_PULSE];
-    changed.preset[0]=MC_PRESET_REED_PULSE;
+    changed.patch[0]=mc_presets[MC_PRESET_PULSE_LEAD];
+    changed.preset[0]=MC_PRESET_PULSE_LEAD;
     changed.automation[0]=(McAutomation){0,0,MC_PARAM_FM_MIX,1};
     assert(!mc_project_valid(&changed));
     changed.automation[0].parameter=MC_PARAM_SOURCE_MASK;
     changed.automation[0].value=1;assert(!mc_project_valid(&changed));
     changed=original;
-    changed.patch[0]=mc_presets[MC_PRESET_REED_PULSE];
-    changed.preset[0]=MC_PRESET_REED_PULSE;
+    changed.patch[0]=mc_presets[MC_PRESET_PULSE_LEAD];
+    changed.preset[0]=MC_PRESET_PULSE_LEAD;
     assert(mc_encode(&changed,1,encoded,sizeof encoded)>0);
     memcpy(other,encoded,sizeof other);
     const unsigned unavailable[]={3,12,14};

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const module = new WebAssembly.Module(fs.readFileSync(process.argv[2] || 'build/mod1.wasm'));
-const identity = [77, 79, 68, 49, 1, 0, 3, 0];
+const identity = [77, 79, 68, 49, 1, 0, 4, 0];
 
 function boot(image) {
     const e = new WebAssembly.Instance(module, {}).exports;

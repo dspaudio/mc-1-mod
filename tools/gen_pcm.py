@@ -6,12 +6,12 @@
 # ///
 # Run: python3 tools/gen_pcm.py
 # Apply the file bundle printed on stdout with apply_patch. This tool writes no file itself.
-"""Original mathematical PCM material for the hybrid voice, with its reproduction report.
+"""Hybrid mathematical and CC0 recorded PCM, with its reproduction report.
 
-The nine zones are modern synthetic hybrid sources, not imitations of acoustic
-recordings and not derived from any external bank, sample or rendered preset.
-Most families use the four deterministic layers below. The ensemble hit instead
-uses a common harmonic grid with separate brass-strike and string-body decays:
+Five zones are original mathematical hybrid material. Three piano attacks and
+one ensemble impact use committed, processed CC0 VSCO 2 Community Edition
+recordings with pinned source hashes and tuning provenance. No legacy LA bank
+or reference-video audio is used. Mathematical families use these layers:
 
   * a morphing partial bed: each partial owns an onset, bloom, strike and decay
     trajectory and a second spectral weight, so the whole spectrum travels from an
@@ -34,6 +34,7 @@ closure survives decimation bit-exactly.
 """
 from __future__ import annotations
 
+import base64
 import cmath
 import hashlib
 import json
@@ -128,6 +129,7 @@ class Voicing:
     index_tau: float = 0.1
     morph_tau: float = 0.2
     sweep_bin: int = 0
+    recorded: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -306,69 +308,21 @@ def finger_body(f0: float, _cycles: int) -> Voicing:
     return Voicing(tuple(partials), 1.0, rings, bursts, morph_tau=0.016, sweep_bin=1)
 
 
-def hybrid_keys(f0: float, zone: int) -> Voicing:
-    """Family 1 - hybrid bell keys: FM-indexed core morphing from full to hollow."""
-    tilt, disp, base, stretch, index = (
-        (0.72, 0.17, 4.0, 0.00022, 5.4),
-        (0.82, 0.21, 5.4, 0.00030, 4.6),
-        (0.60, 0.26, 7.2, 0.00042, 3.6))[zone]
-    scale = (1.0, 1.22, 1.5)[zone]
-    attack_bank = ((470.0 * scale, 390.0, 1.00), (1500.0 * scale, 720.0, 0.62),
-                   (3100.0 * scale, 1250.0, 0.55), (5200.0 * scale, 1700.0, 0.26))
-    body_bank = ((330.0 * scale, 300.0, 1.15), (1150.0 * scale, 600.0, 0.50),
-                 (2300.0 * scale, 900.0, 0.30), (4600.0 * scale, 1500.0, 0.10))
-    partials = []
-    for h in range(1, 64):
-        hz = f0 * h
-        if hz >= RATE * 0.44:
-            break
-        attack = h ** -tilt * resonance(hz, attack_bank, 0.10)
-        body = h ** -(tilt + 0.35) * resonance(hz, body_bank, 0.06)
-        if h % 2 == 0:
-            attack *= 0.88
-            body *= 0.55
-        else:
-            body *= 1.22
-        partials.append(Partial(
-            ratio=float(h), amp=attack, amp2=body,
-            phase=TAU * (disp * h * h % 1.0) if h > 1 else 0.0,
-            onset=0.0006 + 0.00004 * h,
-            rise=0.0006 + 0.044 * math.exp(-((h - 5.0) / 3.2) ** 2),
-            decay=base * (1.0 + 0.052 * h),
-            strike=0.42 * attack * min(1.0, h / 10.0), strike_decay=95.0 + 3.6 * h,
-            tail=0.055 * body * h ** -0.55, tail_decay=1.9,
-            am_depth=0.05 if h >= 6 else 0.0, am_hz=3.1 + 1.7 * (h % 5),
-            am_phase=TAU * unit(0x1A00 + zone, h)))
-    # True FM sidebands over the carrier: |J_n| makes each partial bloom then fade.
-    for order in range(1, 10):
-        hz = f0 * (order + 1)
-        if hz >= RATE * 0.44:
-            break
-        partials.append(Partial(
-            ratio=float(order + 1), amp=0.58, phase=TAU * unit(0x1A40 + zone, order),
-            onset=0.0009, decay=base * 0.72, bessel=order))
-    # Stretched inharmonic sparkle, chirping down into the body: a digital tine zap
-    # that dies inside the attack.
-    sparkle = (26, 16, 8)[zone]
-    for h in range(sparkle, sparkle + 14):
-        ratio = h * (1.0 + stretch * h * h)
-        if f0 * ratio >= RATE * 0.44:
-            break
-        partials.append(Partial(
-            ratio=ratio, amp=0.16 * h ** -0.25, phase=TAU * unit(0x1A80 + zone, h),
-            onset=0.0008, decay=24.0 + 0.9 * h, tail=0.010 * h ** -0.25, tail_decay=6.0,
-            glide=0.16 + 0.10 * unit(0x1AC0 + zone, h), glide_rate=120.0 + 40.0 * (h % 3)))
-    rings = (Ring(0.58, min(3250.0 * scale, 6800.0), 520.0),
-             Ring(0.34, min(5400.0 * scale, 7000.0), 900.0, delay=0.0090),
-             Ring(0.16, min(2100.0 * scale, 6000.0), 300.0, delay=0.0210))
-    bursts = (Burst(0.46, min(1150.0 * scale, 6500.0), 2.2, 95.0, 0x201 + zone),
-              Burst(0.24, min(4200.0 * scale, 6900.0), 1.3, 300.0, 0x211 + zone, delay=0.0045),
-              Burst(0.12, min(6400.0 * scale, 6900.0), 0.9, 420.0, 0x221 + zone, delay=0.0120))
-    return Voicing(tuple(partials), (0.34, 0.40, 0.46)[zone], rings, bursts,
-                   index_floor=(0.85, 0.78, 0.70)[zone], index_depth=index,
-                   index_tau=(0.100, 0.085, 0.070)[zone],
-                   morph_tau=(0.26, 0.22, 0.17)[zone])
+def recorded_voicing(key: str) -> Voicing:
+    """Decode the committed, hash-verified CC0 attack material without network access."""
+    path = Path(__file__).resolve().parents[1] / "data/pcm-source/vsco-attacks.json"
+    corpus = json.loads(path.read_text())
+    material = corpus["materials"][key]
+    raw = base64.b64decode(material["pcm16_base64"], validate=True)
+    assert corpus["sample_rate"] == RATE and len(raw) == material["frames"] * 2
+    assert hashlib.sha256(raw).hexdigest() == material["pcm16_sha256"]
+    samples = struct.unpack(f"<{material['frames']}h", raw)
+    return Voicing((), recorded=tuple(sample / 32768.0 for sample in samples))
 
+
+def hybrid_keys(_f0: float, zone: int) -> Voicing:
+    """Family 1 - recorded upright-piano attacks, aligned to the three actual roots."""
+    return recorded_voicing(f"piano-{48 + zone * 12}")
 
 PICK_NEAR: Final = ((1900.0, 1150.0, 1.00), (4600.0, 1650.0, 0.48))
 PICK_FAR: Final = ((2600.0, 780.0, 1.00), (5600.0, 1200.0, 0.30))
@@ -436,38 +390,9 @@ def nylon_pluck(f0: float, _cycles: int) -> Voicing:
     return Voicing(tuple(partials), 0.36, rings, bursts, morph_tau=0.21)
 
 
-HIT_BRASS: Final = ((720.0, 460.0, 0.85), (1500.0, 650.0, 1.10),
-                    (2850.0, 950.0, 0.65))
-HIT_STRINGS: Final = ((1100.0, 750.0, 0.60), (3100.0, 1300.0, 0.85),
-                      (4900.0, 1400.0, 0.25))
-
-
-def tonal_hit(f0: float, _cycles: int) -> Voicing:
-    """Family 4 - one phase-coherent brass/string ensemble chordless impact."""
-    partials = []
-    for harmonic in range(1, 48):
-        hz = f0 * harmonic
-        if hz >= RATE * 0.44:
-            break
-        # Octave reinforcement shares the same harmonic grid, never a detuned
-        # duplicate. Brass speaks first; the bow-like bed blooms over 5 ms.
-        brass = harmonic ** -0.78 * resonance(hz, HIT_BRASS, 0.22)
-        strings = harmonic ** -0.95 * resonance(hz, HIT_STRINGS, 0.18)
-        octave = 1.20 if harmonic % 2 == 0 else 1.0
-        body = octave * (0.65 * brass + 0.85 * strings)
-        if harmonic == 1:
-            body = 1.45
-        partials.append(Partial(
-            ratio=float(harmonic), amp=body,
-            phase=TAU * unit(0x5410, harmonic),
-            onset=0.003, rise=0.005,
-            decay=10.0 + 0.50 * harmonic,
-            strike=0.65 * brass * octave,
-            strike_decay=32.0 + 1.1 * harmonic))
-    bursts = (Burst(1.0, 1250.0, 0.65, 105.0, 0x541),
-              Burst(0.5, 3200.0, 0.70, 145.0, 0x542, delay=0.001))
-    return Voicing(tuple(partials), 0.055, bursts=bursts)
-
+def tonal_hit(_f0: float, _cycles: int) -> Voicing:
+    """Family 4 - recorded trumpet, horn and violin sections plus a C4 foundation."""
+    return recorded_voicing("ensemble-60")
 
 STRING_CLOSE: Final = ((1150.0, 820.0, 0.62), (3000.0, 1550.0, 0.30))
 STRING_OPEN: Final = ((1900.0, 950.0, 0.80), (4300.0, 1700.0, 0.46))
@@ -511,78 +436,44 @@ def string_texture(f0: float, cycles: int) -> Voicing:
     return Voicing(tuple(partials), 0.14, rings, bursts, morph_tau=0.045, sweep_bin=1)
 
 
-VOWEL_CLOSED: Final = ((300.0, 220.0, 0.50), (640.0, 150.0, 1.00), (1150.0, 185.0, 0.78),
-                       (2750.0, 360.0, 0.44), (3900.0, 520.0, 0.22))
-VOWEL_OPEN: Final = ((420.0, 260.0, 0.62), (1000.0, 200.0, 1.00), (1900.0, 240.0, 0.70),
-                     (2900.0, 420.0, 0.52), (4300.0, 620.0, 0.30))
-
-
-def vowel_air(f0: float, cycles: int) -> Voicing:
-    """Family 6 - formant choir space: vowel opens, then one sweep keeps moving it."""
-    partials = []
-    for h in range(1, 40):
-        hz = f0 * h
-        if hz >= RATE * 0.44:
-            break
-        attack = resonance(hz, VOWEL_CLOSED, 0.075) * h ** -0.30
-        body = resonance(hz, VOWEL_OPEN, 0.065) * h ** -0.26
-        # The sweep follows the open-vowel slope, so the formant travels while the
-        # fundamental is never modulated and cannot beat.
-        sweep, sweep_phase = slope_depth(hz, VOWEL_OPEN, 0.065, 0.70, 0.34) \
-            if h >= 2 else (0.0, 0.0)
+def soft_air(_f0: float, cycles: int) -> Voicing:
+    """Family 6 - quiet broadband air around a stable, smooth tonal foundation."""
+    partials = [Partial(ratio=1.0, amp=1.0, onset=0.030, rise=0.020),
+                Partial(ratio=2.0, amp=0.10, onset=0.030, rise=0.020),
+                Partial(ratio=3.0, amp=0.045, onset=0.030, rise=0.020)]
+    for index in range(96):
+        bin_index = clear_bin(300 + round(index * 860 / 95), cycles)
         partials.append(Partial(
-            ratio=float(h), amp=attack, amp2=body,
-            phase=TAU * (0.37 * h * h % 1.0) if h > 1 else 0.0,
-            onset=0.018 + 0.0017 * h,
-            rise=0.004 + 0.042 * min(1.0, h / 15.0),
-            sweep=sweep, sweep_phase=sweep_phase,
-            am_depth=0.0 if h < 4 else 0.07 + 0.08 * unit(0x8001, h),
-            am_bin=0 if h < 4 else 2 + int(unit(0x8002, h) * 3.0),
-            am_phase=TAU * unit(0x8003, h)))
-    for index in range(80):
-        bin_index = clear_bin(120 + int(unit(0x8100, index) * 1280.0), cycles)
-        partials.append(Partial(
-            ratio=bin_index / cycles, amp=0.095 * (bin_index / 120.0) ** -0.35,
-            phase=TAU * unit(0x8200, index), onset=0.040 + 0.025 * unit(0x8201, index),
-            rise=0.022, strike=0.050 * (bin_index / 120.0) ** -0.35, strike_decay=12.0,
-            am_depth=0.30, am_bin=2 + int(unit(0x8202, index) * 4.0),
-            am_phase=TAU * unit(0x8203, index)))
-    bursts = (Burst(0.42, 3400.0, 0.9, 36.0, 0x801),
-              Burst(0.20, 1250.0, 1.5, 22.0, 0x802, delay=0.0150))
-    return Voicing(tuple(partials), 0.16, (Ring(0.09, 2650.0, 190.0, delay=0.0060),),
-                   bursts, morph_tau=0.045, sweep_bin=1)
-
+            ratio=bin_index / cycles, amp=0.045,
+            phase=TAU * unit(0x8300, index), onset=0.060, rise=0.020))
+    return Voicing(tuple(partials))
 
 ZONES: Final = (
     Zone("Finger Body", 0, 36, 4000, True,
          "Sub growl engine: formant bed morphing from open to growl, one coherent "
          "grid-locked growl sweep and a three-stage finger transient.", finger_body),
     Zone("Piano Low", 1, 48, 6400, False,
-         "Hybrid bell keys, low register: FM-indexed core morphing from full to "
-         "hollow, chirped tine sparkle and a three-stage hammer.",
+         "Recorded upright-piano low attack; source root and tuning are explicit.",
          lambda f0, c: hybrid_keys(f0, 0)),
     Zone("Piano Mid", 1, 60, 6400, False,
-         "Hybrid bell keys, mid register: faster index and morph, brighter attack "
-         "bank, tighter staged strike.", lambda f0, c: hybrid_keys(f0, 1)),
+         "Recorded upright-piano middle attack, not a synthetic tine transient.", lambda f0, c: hybrid_keys(f0, 1)),
     Zone("Piano High", 1, 72, 6400, False,
-         "Hybrid bell keys, high register: fast index decay, strong chirped "
-         "inharmonic sparkle, dominant tine ring.", lambda f0, c: hybrid_keys(f0, 2)),
+         "Recorded upright-piano high attack, retaining its actual hammer/body.", lambda f0, c: hybrid_keys(f0, 2)),
     Zone("Muted Pick", 2, 60, 3200, False,
          "Noise-click stab: comb position travelling from 0.215 to 0.340 under a "
          "four-stage click and a chirped pick edge.", muted_pick),
     Zone("Nylon Pluck", 3, 60, 5600, False,
          "Warm hybrid pluck: bright comb attack settling into a warm formant body, "
          "with a staged sheen that fades before the body.", nylon_pluck),
-    Zone("Ensemble Hit", 4, 60, 4800, False,
-         "Short brass/string ensemble impact: common harmonic fundamental, "
-         "octave reinforcement, fast brass strike and blooming string body; "
-         "no detuned unisons, inharmonic rings or pitch chirps.", tonal_hit),
+    Zone("Ensemble Hit", 4, 60, 11200, False,
+         "Recorded CC0 trumpet, horn and violin-section impact: independently "
+         "timed attacks, tuned C4 foundation and a 700 ms one-shot body.", tonal_hit),
     Zone("String Texture", 5, 60, 6400, True,
          "Granular ensemble bed: staggered swell that opens its formants, a "
          "coherent grid-locked bow sweep and a 64-bin looped air bed.", string_texture),
-    Zone("Vowel Air", 6, 60, 6400, True,
-         "Formant choir space: vowel opening from closed to open, a coherent "
-         "grid-locked formant sweep and an 80-bin looped breath bed.", vowel_air),
+    Zone("Soft Air", 6, 60, 6400, True,
+         "Smooth tonal foundation and low-level broadband air, with no vowel "
+         "formants, struck rings or fast amplitude modulation.", soft_air),
 )
 
 
@@ -699,7 +590,8 @@ def synthesize(zone: Zone) -> tuple[list[float], Voicing, float, int]:
     freeze = (zone.length - span - GUARD) if zone.loop else length
     grid_sin = [math.sin(TAU * k / span) for k in range(span)] if zone.loop else []
     grid_cos = [math.cos(TAU * k / span) for k in range(span)] if zone.loop else []
-    acc = [0.0] * length
+    acc = list(voicing.recorded) if voicing.recorded else [0.0] * length
+    assert len(acc) == length
     for partial in voicing.partials:
         if partial.ratio <= 0.0:
             continue
@@ -754,7 +646,7 @@ def synthesize(zone: Zone) -> tuple[list[float], Voicing, float, int]:
         blend = voicing.transient_mix * top
         for frame in range(length):
             acc[frame] += blend * transient[frame]
-    if not zone.loop:
+    if not zone.loop and not voicing.recorded:
         for frame in range(length - TAIL_RAMP, length):
             acc[frame] *= (length - frame) / TAIL_RAMP
     # Centre on the region that actually sustains. A loop region is analytically
@@ -962,6 +854,7 @@ class ZoneReport(TypedDict):
     occupied_bands: int
     available_bands: int
     mip_level_db: list[float]
+    recorded_signal_correlation: float | None
 
 
 class Manifest(TypedDict):
@@ -981,6 +874,8 @@ class Manifest(TypedDict):
     reference_audio_auditioned: bool
     listening_approved: bool
     generator_sha256_scope: str
+    recorded_source: str
+    recorded_source_sha256: str
 
 
 class Bundle(TypedDict):
@@ -991,6 +886,16 @@ class Bundle(TypedDict):
 def report(zone: Zone, levels: tuple[Level, ...], voicing: Voicing,
            f0: float, cycles: int, raw: bytes) -> ZoneReport:
     base = levels[0].samples
+    correlation: float | None = None
+    if voicing.recorded:
+        source_mean = sum(voicing.recorded) / len(voicing.recorded)
+        output_mean = sum(base) / len(base)
+        source_zero = [sample - source_mean for sample in voicing.recorded]
+        output_zero = [sample - output_mean for sample in base]
+        cross = math.fsum(a * b for a, b in zip(source_zero, output_zero))
+        correlation = cross * cross / (
+            math.fsum(a * a for a in source_zero) * math.fsum(b * b for b in output_zero))
+        assert correlation > 0.999999, (zone.name, "Recorded PCM waveform changed", correlation)
     window = zone.loop_span if zone.loop else min(4096, zone.length - zone.length // 4)
     start = levels[0].loop_start if zone.loop else zone.length // 4
     fundamental = goertzel(base, start, window, f0)
@@ -1008,6 +913,7 @@ def report(zone: Zone, levels: tuple[Level, ...], voicing: Voicing,
                      for item in list(voicing.rings) + list(voicing.bursts)})
     return {
         "name": zone.name, "family": zone.family, "root": zone.root, "role": zone.role,
+        "recorded_signal_correlation": round(correlation, 12) if correlation is not None else None,
         "tuning_hz_q16": round(f0 * 65536), "fundamental_hz": round(f0, 6),
         "tuning_cents_vs_equal": round(1200 * math.log2(f0 / equal), 4),
         "partials": len(audible),
@@ -1058,6 +964,8 @@ def generate() -> Bundle:
                  "/* Copyright (C) 2026 dspaudio; generated by tools/gen_pcm.py. */",
                  f"/* {zone.name}: {zone.role} */",
                  '#include "../pcm_types.h"']
+        if voicing.recorded:
+            lines.insert(2, "/* Derived CC0 VSCO 2 Community Edition material; see NOTICE.md. */")
         for mip, level in enumerate(levels):
             lines.append(f"static const int16_t mc_pcm_z{index}_m{mip}[{len(level.samples)}] = {{")
             for offset in range(0, len(level.samples), 16):
@@ -1084,8 +992,8 @@ def generate() -> Bundle:
         "#endif", ""])
     header = [
         "/* SPDX-License-Identifier: GPL-3.0-only */",
-        "/* Copyright (C) 2026 dspaudio; original mathematical PCM, not a recording",
-        "   and not an LA bank. Generated by tools/gen_pcm.py. */",
+        "/* Copyright (C) 2026 dspaudio; mathematical and CC0 recorded PCM.",
+        "   Not an LA bank. Generated by tools/gen_pcm.py; see NOTICE.md. */",
         "#ifndef MC_PCM_BANK_H", "#define MC_PCM_BANK_H", '#include "pcm_types.h"',
     ]
     header.extend(f'#include "pcm/zone_{index}.h"' for index in range(len(ZONES)))
@@ -1094,12 +1002,12 @@ def generate() -> Bundle:
     stopband = max(filter_response(step / 2048.0) for step in range(512, 1025))
     passband = min(filter_response(step / 2048.0) for step in range(0, 308))
     manifest: Manifest = {
-        "schema": 3, "kind": "original_mathematical_pcm", "license": "GPL-3.0-only",
-        "construction": "Morphing partial beds with per-partial onset/bloom/strike/decay "
-                        "trajectories and a second body weight, staged resonator-burst and "
-                        "struck-ring transients, one slope-coherent grid-locked formant "
-                        "sweep and a second grid-locked shimmer above the fundamental. No "
-                        "recording, sample, external bank or reference-video audio is used.",
+        "schema": 3, "kind": "mathematical_and_cc0_recorded_pcm", "license": "GPL-3.0-only; CC0-1.0 source material",
+        "construction": "Five original mathematical zones and four CC0 recorded attack "
+                        "zones. Piano uses upright recordings; the ensemble combines "
+                        "trumpet, horn and violin sections with a tuned foundation. "
+                        "Soft Air has no vowel formants, struck rings or fast AM. "
+                        "No legacy LA bank or reference-video audio is used.",
         "sample_rate": RATE, "families": 7, "peak_target": PEAK, "guard_frames": GUARD,
         "measurement": "centroid_hz and bright_fraction use Hann-windowed FFT frames: "
                        "a 256-sample attack frame at offset 0, then 1024-sample frames at "
@@ -1118,7 +1026,10 @@ def generate() -> Bundle:
                        "stopband_db": round(20 * math.log10(stopband), 2)},
         "zones": zones, "pcm_bytes": total, "budget_bytes": 224 * 1024,
         "reference_audio_auditioned": False, "listening_approved": False,
-        "generator_sha256_scope": "The source input hash includes tools/gen_pcm.py and every generated header.",
+        "generator_sha256_scope": "The input hash covers the generator, committed recorded material and generated headers.",
+        "recorded_source": "data/pcm-source/vsco-attacks.json",
+        "recorded_source_sha256": hashlib.sha256(
+            (Path(__file__).resolve().parents[1] / "data/pcm-source/vsco-attacks.json").read_bytes()).hexdigest(),
     }
     return {"files": files, "manifest": manifest}
 

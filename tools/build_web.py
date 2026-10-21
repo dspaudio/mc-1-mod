@@ -31,6 +31,7 @@ def source_inputs(root: Path) -> list[Path]:
     paths = {root / name for name in (
         *CORE, ADAPTER, "Makefile", "compile_flags.txt", "VERSION",
         "package.json", "tools/build_web.py", "tools/gen_pcm.py", "tools/gen_va.py",
+        "tools/render.c", "tools/auditions.c", "tools/assemble_pages.py",
         "LICENSE", "NOTICE.md",
     )}
     paths.update((root / "src").rglob("*.h"))

@@ -9,7 +9,7 @@ The completed initial POC used the MC-1 C core from a separate checkout on a rea
 - New sound generation path: this project's hybrid PCM/2op FM/1osc VA voices.
 - Reused components: original waveform/pitch tables, synthesized drums, part mixer, four shared FX, and limiter.
 
-The POC's short PCM consists of original test signals generated mathematically at initialization. Yamaha samples/patches, external recordings, and the original LA sound bank are not used as PCM sources for the new voices. Original engine sources are included in host dependencies, but the new melody path does not call the legacy LA renderer. The size of this host binary must not be reported as the size of target firmware with LA removed.
+The POC's short PCM consisted of original test signals generated mathematically at initialization. The revised product uses original mathematical material and the independently sourced CC0 attacks described below, never the original LA sound bank. The new melody path does not call the legacy LA renderer. The size of a host binary must not be reported as the size of target firmware with LA removed.
 
 ## Firmware foundation
 
@@ -28,6 +28,10 @@ The JieLi compiler and SDK checkout are external build dependencies and are not 
 `FM-1_900` and `FELUCCA-LOADER-1` are update protocol identifiers, not mc-1-mod versions or hardware verification results. Target compilation, offline loader tests, and web audio operation are distinct from verification of boot, real-time deadlines, and USB on a physical device.
 
 ## Sound sources and distribution
+
+Three upright-piano attacks and one offline-combined trumpet, F horn and violin-section impact derive from VS Chamber Orchestra: Community Edition, `sgossner/VSCO-2-CE`, commit `440300901dfe9275fd84e0b7763af1f8443ae62e`. Its CC0 1.0 Universal text is preserved in `LICENSES/CC0-1.0-VSCO.txt`. Credits: Sam Gossner and Simon Dalzell; sample cutting by Elan Hickler / Soundemote. The upright piano was sampled by Simon Dalzell of Ivy Audio in Winter 2015-16; its source notice encourages credit to him and Versilian Studios LLC.
+
+`data/pcm-source/vsco-attacks.json` contains the processed mono inputs, pinned original paths and SHA-256 values, official piano and SFZ key mappings, measured tuning, used frame counts, section gains/delays and processing. The ensemble includes an explicitly documented mathematical C4 foundation. These inputs are committed for independent offline reproduction; the generator does not download recordings. Runtime still reads a single PCM stream per voice. No audio from the user's reference videos is incorporated.
 
 The legacy LA renderer and LA sample bank are not included in the new product sound path. Provenance, processing settings, and hashes for new PCM assets are recorded separately in the generated assets' manifest. Recording provenance from the existing MC-1 is not presented as provenance for new assets that do not use those recordings. Yamaha/Roland ROMs, samples, patches, and logos are not included.
 

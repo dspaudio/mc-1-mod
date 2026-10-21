@@ -114,7 +114,8 @@
     gallery.append(details);
   }
 
-  fetch("./auditions.json")
+  const assetQuery = new URL(document.currentScript.src).search;
+  fetch(`./auditions.json${assetQuery}`, { cache: "no-store" })
     .then((response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();

@@ -6,7 +6,7 @@
 #define MC_PCM_FAMILIES 7u
 #define MC_PCM_ZONES 9u
 #define MC_PCM_PEAK 26000
-#define MC_PCM_PAYLOAD 196852u
+#define MC_PCM_PAYLOAD 222252u
 typedef struct { const int16_t *data; uint16_t length,loop_start,loop_end; } McPcmMip;
 typedef struct { uint8_t family,root,levels; uint32_t tuning_hz_q16; const McPcmMip *mip; } McPcmZone;
 #endif

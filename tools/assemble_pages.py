@@ -23,7 +23,8 @@ def target_fingerprint() -> str:
     inputs = [p for folder in ("src", "firmware") for p in (ROOT / folder).rglob("*")
               if p.is_file() and p.suffix in (".c", ".h", ".S", ".ld")]
     inputs += [ROOT / p for p in ("tools/build_target.py", "tools/gen_pcm.py", "tools/gen_va.py",
-                                  "tools/target_abi.c", "data/pcm-manifest.json")]
+                                  "tools/target_abi.c", "data/pcm-manifest.json",
+                                  "data/pcm-source/vsco-attacks.json")]
     result = hashlib.sha256()
     for path in sorted(inputs):
         result.update(path.relative_to(ROOT).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")

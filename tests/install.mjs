@@ -19,7 +19,7 @@ async function run(response,cause) {
         assert(tag,`missing DOM node ${id}`);
         node.hidden=/\bhidden\b/.test(tag);
     }
-    let release,finish;
+    let release,finish,actualRequest;
     const request=new Promise(resolve=>{release=resolve;});
     const completed=new Promise(resolve=>{finish=resolve;});
     nodes['manifest-slot'].setAttribute=(name,value)=>{
@@ -27,8 +27,13 @@ async function run(response,cause) {
         if(name==='aria-busy'&&value==='false')finish();
     };
     const context=vm.createContext({
-        document:{querySelector:selector=>nodes[selector.slice(1)],createElement:()=>new Element()},
-        fetch:async()=>{await request;return response();},
+        document:{currentScript:{src:'https://example.invalid/mc-1-mod/install.js?v=package-build-B'},
+            querySelector:selector=>nodes[selector.slice(1)],createElement:()=>new Element()},
+        URL,
+        fetch:async(url,options)=>{
+            actualRequest={url:String(url),cache:options?.cache};
+            await request;return response();
+        },
     });
     vm.runInContext(source,context);
     assert.equal(nodes['manifest-loading'].hidden,false);
@@ -39,6 +44,7 @@ async function run(response,cause) {
     release();
     try { await Promise.race([completed,deadline]); }
     finally { clearTimeout(timer); }
+    assert.deepEqual(actualRequest,{url:'./FIRMWARE.json?v=package-build-B',cache:'no-store'});
     assert.equal(nodes['manifest-loading'].hidden,true);
     assert.equal(nodes['manifest-slot']['aria-busy'],'false');
     assert.equal(nodes['fetch-error'].hidden,!cause);

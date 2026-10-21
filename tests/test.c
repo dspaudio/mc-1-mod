@@ -503,9 +503,16 @@ static void source_profiles(void) {
             assert(zone&&zone->family==r->pcm_family);
             mc_render(&a,x,4096);for(unsigned n=0;n<4096;n+=64)mc_render(&b,y+n*2,64);
             assert(!memcmp(x,y,sizeof x));
-            render_n(&a,MC_RATE*2);const McPcmMip *m=&zone->mip[a.voice[0].sample_level];
-            if(m->loop_end)assert(a.voice[0].pcm_pos<((uint32_t)m->loop_end<<16));
-            else assert(a.voice[0].hybrid.ended_mask&HY_PCM);
+            const McPcmMip *m=&zone->mip[a.voice[0].sample_level];
+            if(m->loop_end) {
+                render_n(&a,MC_RATE*2);
+                assert(a.voice[0].pcm_pos<((uint32_t)m->loop_end<<16));
+            } else {
+                uint32_t remaining=((uint32_t)m->length<<16)-a.voice[0].pcm_pos;
+                unsigned frames=(remaining+a.voice[0].sample_step-1u)/a.voice[0].sample_step;
+                render_n(&a,frames+1u);
+                assert(a.voice[0].hybrid.ended_mask&HY_PCM);
+            }
             mc_off(&a,0,note);render_n(&a,MC_RATE);assert(!a.voice[0].active&&!a.clips);
         }
     }

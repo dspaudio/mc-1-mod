@@ -20,20 +20,27 @@ let finished;
 const done=new Promise(resolve=>finished=resolve);
 Object.defineProperty(status,'textContent',{set(value){this.value=value;finished();}});
 const handlers={};
+let actualRequest;
 const context=vm.createContext({
     document:{
+        currentScript:{src:'https://example.invalid/mc-1-mod/gallery.js?v=audio-build-A'},
         querySelector:selector=>({'#gallery':gallery,'#gallery-status':status,'#gallery-error':error})[selector],
         createElement:tag=>tag==='audio'?new Audio():new Element(tag),
         querySelectorAll:tag=>walk(gallery).filter(node=>node.tagName===tag),
         addEventListener:(event,handler)=>{handlers[event]=handler;},
     },
     HTMLAudioElement:Audio,
-    fetch:async()=>({ok:true,json:async()=>manifest}),
+    URL,
+    fetch:async(url,options)=>{
+        actualRequest={url:String(url),cache:options?.cache};
+        return {ok:true,json:async()=>manifest};
+    },
 });
 vm.runInContext(fs.readFileSync('site/gallery.js','utf8'),context);
 let timer;
 try { await Promise.race([done,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('gallery completion deadline')),5000);})]); }
 finally { clearTimeout(timer); }
+assert.deepEqual(actualRequest,{url:'./auditions.json?v=audio-build-A',cache:'no-store'});
 assert.equal(error.hidden,undefined,'valid manifest must not expose the error state');
 const audios=walk(gallery).filter(node=>node instanceof Audio);
 assert.equal(audios.length,manifest.files.length,'every rendered audition has a control');

@@ -2,7 +2,58 @@
 
 2026-10-21. This record covers local builds and web verification. The firmware was not installed/flashed on an FM-1, and the new image's boot, analog output, CPU1 timing, and real-time deadlines were not measured. Sound quality also remains unapproved by listening.
 
-## Revision 3 candidate: current local evidence
+## Revision 4 candidate: current local evidence
+
+All checks below used the final revision-4 source and generated PCM. The sound
+bank remains unapproved by listening, and no device was flashed.
+
+- The complete C suite passed with `/usr/bin/cc` and separately with LLVM 23
+  ASan/UBSan, using the explicit macOS 15.1 SDK configuration recorded below.
+  Changed C implementation and test files had no clangd errors.
+- Nine PCM zones and all 11 generated headers plus the manifest reproduce
+  offline. Four recorded zones retain squared source correlation above
+  0.999999. Recorded pitch probes use a 200 ms window with the unchanged
+  512:1 power-rejection threshold; mathematical zones retain their spectral
+  coverage and evolution checks. PCM payload is 222,252 bytes, with 223,404
+  descriptor/data bytes against the 229,376-byte budget.
+- The ensemble combines C4 brass and C6 violin strokes with a documented C4
+  foundation. Its stored attack has harmonic/interstitial ratio 430.0,
+  upper-harmonic fraction 0.378 and peak block at 55 ms. Its one-shot is
+  700 ms at its root, not at every played pitch.
+- Piano regression covers 120 note/velocity/mask cases: PCM-only output for
+  frames 0..1023 and a 2048-frame synth fade, while all source clocks continue.
+  Sustained bass, smooth organ/brass, distinct dry pads and short Pulse Arp
+  articulation passed the role-specific mechanical checks.
+- Native/WASM PCM agrees for all 32 profiles and four-bank FX choices.
+  Both full songs also match, including 2,513,700 and 2,881,200 frames.
+  Serial/parallel rendering matches 5,118,823 frames and the entire
+  113,208-byte engine state. Revision-1/2/3 save rejection remains atomic.
+- The actual pi32v2 app/FWSC, offline OTA/RAM-loader checks and VA regeneration
+  passed. The app is 347,904 bytes; FWSC is 610,089 bytes; globals and pool are
+  unchanged at 55,708 and 304,184 bytes. McPatch/McVoice/McSynthJob remain
+  15/140/1,264 bytes. WASM is 371,699 bytes.
+- All 140 public MP3 files and local canonical WAVs match their declared
+  bytes/SHA-256. MP3s decode to the exact canonical frame counts:
+  578,656,960 WAV bytes become 31,318,190 MP3 bytes, 94.588% smaller.
+  No decoded sample-equality claim is made. Gallery/install/cache contracts
+  passed, including versioned, no-store JSON fetches.
+- Actual WebKit at 1440 and 390 CSS pixels loaded 140 audio controls and four
+  download links without horizontal overflow. The song and changed preset
+  MP3s 08/19/27/28 advanced playback. Both emulator sizes reached audio ready
+  with the real 240x240 C canvas. Panel PLAY produced nonzero AudioWorklet
+  output at 44.1 kHz. Captures and logs are local under
+  `build/sound-quality/voice-revision4/`.
+
+Current app SHA-256:
+`47c7166016e3e5b7aaf49f87a1ec22ba79eaf5257d88ea832d4f220a46772a9a`
+
+Current FWSC SHA-256:
+`40fc3851e15cb31c7a7e6d54b9ed3e3d2a89e356cda0b0e020c71ba7c4112223`
+
+Current target-input SHA-256:
+`3b8d22d44d867ab9e51e64cfe042b7946b4196fcbab19c249cfddff9992b0f32`
+
+## Revision 3 candidate: historical local evidence
 
 The following results supersede the earlier candidate figures below. Listening
 approval and physical-device verification remain pending.
@@ -66,7 +117,7 @@ Current target-input SHA-256:
 
 The remaining sections record earlier builds and browser passes. Their counts,
 hashes, ABI sizes, WAV delivery and publication status are historical, not claims
-about revision 3.
+about revision 4.
 
 ## Checks Performed
 

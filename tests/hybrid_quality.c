@@ -235,8 +235,9 @@ static void transitions(void) {
 }
 static void reviewed_roles(void) {
     const unsigned notes[]={36,43,48};
-    const double floor_ratio[8]={0.0008,0.18,0.025,0.004,0.025,0.025,0.07,0.08};
-    const double floor_rms[8]={400,60,150,175,275,240,115,160};
+    const double floor_ratio[8]={0.006,0.18,0.025,0.025,0.09,0.03,0.07,0.3};
+    const double floor_rms[8]={400,110,150,240,380,290,180,300};
+    const double floor_fraction[8]={0.02,0.3,0.4,0.6,0.09,0.4,0.5,0.45};
     for(unsigned id=0;id<8;id++)for(unsigned ni=0;ni<3;ni++) {
         unsigned note=notes[ni];
         capture(id,mc_presets[id].source_mask,note,mixed,0,0);
@@ -253,17 +254,22 @@ static void reviewed_roles(void) {
             printf("ROLE_BASS id=%u note=%u start_ms=%u rms=%.6f mid_low=%.9f mid=%.6f fundamental=%.6f\n",
                 id,note,window?600:150,rms,mid/(low+1e-30),sqrt(mid),fundamental);
             CHECK(mid/(low+1e-30)>floor_ratio[id],id,note,"sustained_midrange_not_empty");
-            CHECK(rms>floor_rms[id]&&fundamental>60,id,note,"bass_body_and_fundamental");
+            CHECK(rms>floor_rms[id]&&fundamental>100,id,note,"bass_body_and_fundamental");
+            CHECK(brightness(mixed,start,hz)>floor_fraction[id],id,note,
+                "retained_bass_harmonics_not_only_more_fundamental");
             if(id==5)CHECK(brightness(mixed,start,hz)>0.15,id,note,"finger_sustained_harmonic_body");
         }
     }
     for(unsigned id=16;id<=17;id++) {
         capture(id,mc_presets[id].source_mask,60,mixed,0,0);
         double early=sqrt(energy(mixed,0,MC_RATE/200));
+        double key_window=sqrt(energy(mixed,MC_RATE/50,MC_RATE/50));
         double body=sqrt(energy(mixed,MC_RATE/5,MC_RATE/10));
         printf("ROLE_START id=%u early5=%.6f body200=%.6f late1000=%.6f\n",
             id,early,body,sqrt(energy(mixed,MC_RATE,MC_RATE/10)));
         CHECK(early<body*0.2&&body>120,id,60,"smooth_start_strong_body");
+        CHECK(key_window<body*0.5,id,60,"no_keyboard_strike_in_20_to_40_ms");
+        CHECK(hy_profile(id)->fm_body_q15==32768,id,60,"held_comp_has_no_FM_strike_decay");
     }
     const unsigned pads[]={24,26,27,30};
     for(unsigned p=0;p<4;p++) {
@@ -289,7 +295,8 @@ static void reviewed_roles(void) {
         CHECK(early<body*0.1&&body>150&&late>150&&late>body*0.75,
             id,48,"dry_pad_smooth_onset_full_held_chord");
         CHECK(release>body*0.4&&end<1,id,48,"dry_pad_release_not_cut_or_reverb");
-        CHECK(!(mc_presets[id].source_mask&HY_PCM),id,48,"no_default_bowed_or_vowel_PCM");
+        CHECK(!(mc_presets[id].source_mask&HY_PCM)||hy_profile(id)->pcm_family==6,
+            id,48,"no_default_bowed_PCM_in_synthetic_pads");
         if(id==30)CHECK(fabs(colour1-colour3)>0.005,id,48,"intrinsic_sweep_colour_motion");
     }
     capture(27,mc_presets[27].source_mask,60,mixed,0,0);
@@ -309,13 +316,15 @@ static void reviewed_roles(void) {
         early,pop,tail,upper/(lower+1e-30));
     CHECK(early<pop*0.2&&pop>75&&tail<1,28,60,"rounded_compact_pop");
     CHECK(upper/(lower+1e-30)<0.06,28,60,"pop_not_metal_ring");
-    capture(28,mc_presets[28].source_mask,74,mixed,0,0);
-    hz=(double)mc_frequency[74]*MC_RATE/4294967296.0;
-    double fundamental=harmonic(mixed,MC_RATE/20,2048,hz);
-    double third=harmonic(mixed,MC_RATE/20,2048,3*hz);
-    double fifth=harmonic(mixed,MC_RATE/20,2048,5*hz);
-    CHECK(fundamental>50&&third<fundamental*0.22&&fifth<fundamental*0.10,
-        28,74,"foreground_pop_has_round_filtered_body");
+    capture(28,mc_presets[28].source_mask,79,mixed,0,0);
+    hz=(double)mc_frequency[79]*MC_RATE/4294967296.0;
+    double fundamental=harmonic(mixed,MC_RATE/100,512,hz);
+    double third=harmonic(mixed,MC_RATE/100,512,3*hz);
+    double fifth=harmonic(mixed,MC_RATE/100,512,5*hz);
+    CHECK(fundamental>50&&third>fundamental*0.14&&third<fundamental*0.25&&
+        fifth>fundamental*0.02&&fifth<fundamental*0.09,
+        28,79,"foreground_pop_has_reference_register_odd_harmonics");
+    CHECK(energy(mixed,MC_RATE/10,MC_RATE/10)==0,28,79,"foreground_pop_ends_before_100_ms");
 }
 int main(void) {
     setvbuf(stdout,NULL,_IONBF,0);

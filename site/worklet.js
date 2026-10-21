@@ -18,7 +18,7 @@ class Mc1ModProcessor extends AudioWorkletProcessor {
         this.e.emu_init();
         if (!this.e.emu_resample_init(options.processorOptions.outputRate)) throw new Error('Unsupported audio output rate.');
         const pack = new Uint8Array(this.e.memory.buffer, this.e.emu_pack_ptr(), this.e.emu_pack_bytes());
-        const expectedPack = [77,79,68,49,1,0,3,0];
+        const expectedPack = [77,79,68,49,1,0,4,0];
         if (pack.length !== expectedPack.length || pack.some((byte,i) => byte !== expectedPack[i])) throw new Error('mc-1-mod pack identity mismatch.');
         const saved = this.e.emu_store_status();
         if (saved === 3) this.port.postMessage({t:'storage-reset',message:'Another pack’s save was preserved. SAVE is locked.'});

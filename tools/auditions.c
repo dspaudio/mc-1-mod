@@ -210,6 +210,22 @@ static int aud_phrase(AudResult *r,unsigned id) {
     if(aud_until(r,6u*MC_RATE))return -1;
     uint32_t start=r->frame;
     static const unsigned offsets[8]={0,0,7,10,12,7,3,7};
+    if(id==MC_PRESET_GLASS_PLUCK) {
+        for(unsigned step=0;step<16;step++) {
+            if(aud_until(r,start+step*MC_RATE/4u)||
+               aud_event(r,0,base+offsets[step%8],step%4?90u:110u,0,MC_RATE/10u,0))return -1;
+        }
+        return aud_until(r,r->frames);
+    }
+    if(id==MC_PRESET_CHORD_PLUCK) {
+        for(unsigned step=0;step<8;step++) {
+            if(aud_until(r,start+MC_RATE/4u+step*MC_RATE/2u))return -1;
+            unsigned root=60+(step>=4?5u:0u);
+            for(unsigned k=0;k<3;k++)
+                if(aud_event(r,0,root+(k==1?3u:k==2?7u:0u),100,0,MC_RATE*3u/25u,0))return -1;
+        }
+        return aud_until(r,r->frames);
+    }
     for(unsigned step=0;step<8;step++) {
         if(aud_until(r,start+step*MC_RATE/2u))return -1;
         if(chord) {
