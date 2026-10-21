@@ -1,0 +1,583 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 dspaudio */
+#include "mcfm.h"
+#include "store.h"
+#include "ui.h"
+#include "hybrid.h"
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+static McEngine e,a,b;
+static int16_t x[4096*2],y[4096*2];
+static uint8_t flash[MC_STORE_BYTES*2], backup[MC_STORE_BYTES*2];
+static int cut=-1;
+static uint32_t unreadable;
+static int read_store(uint32_t off,void *p,unsigned n) {
+    if(off==unreadable||off<MC_STORE_A||off>MC_STORE_END||n>MC_STORE_END-off) return -1;
+    memcpy(p,flash+(off-MC_STORE_A),n);return 0;
+}
+static int write_byte(unsigned off,uint8_t v,int erase) {
+    if(cut==0) return -1;
+    if(cut>0) cut--;
+    if(!erase&&(flash[off]&v)!=v) return -1;
+    flash[off]=erase?255:v;return 0;
+}
+static int erase_store(uint32_t off) {
+    if(off<MC_STORE_A||off>=MC_STORE_END||off%MC_SECTOR) return -1;
+    for(unsigned i=0;i<4096;i++) if(write_byte(off-MC_STORE_A+i,255,1)) return -1;
+    return 0;
+}
+static int program_store(uint32_t off,const void *p,unsigned n) {
+    const uint8_t *q=p;
+    if(off<MC_STORE_A||off>MC_STORE_END||n>MC_STORE_END-off) return -1;
+    for(unsigned i=0;i<n;i++) if(write_byte(off-MC_STORE_A+i,q[i],0)) return -1;
+    return 0;
+}
+static const McStorage io={read_store,erase_store,program_store};
+static uint64_t energy(const int16_t *v,unsigned n) {
+    uint64_t en=0;for(unsigned i=0;i<n;i++) en+=(uint64_t)((int32_t)v[i]*v[i]);return en;
+}
+static void render_n(McEngine *s,unsigned frames) {
+    while(frames) { unsigned n=frames>4096?4096:frames;mc_render(s,x,n);frames-=n; }
+}
+static void engines(void) {
+    uint32_t hashes[MC_PRESETS];
+    for(unsigned p=0;p<MC_PRESETS;p++) {
+        mc_init(&e);mc_preset(&e,0,p);assert(mc_project_valid(&e.project));
+        uint8_t record[MC_RECORD_BYTES];McProject decoded;uint32_t seq;
+        assert(mc_encode(&e.project,1,record,sizeof record)>0);assert(!mc_decode(&decoded,&seq,record,sizeof record));
+        assert(!memcmp(&decoded.patch[0],&mc_presets[p],sizeof(McPatch)));mc_note(&e,0,60,110,0,MC_RATE);
+        /* Shared real attacks may match during the first 93 ms. Compare the
+         * complete one-second note, including the distinct synthesized sustain. */
+        uint32_t hash=2166136261u;uint64_t power=0;
+        for(unsigned at=0;at<MC_RATE;) {
+            unsigned n=MC_RATE-at;if(n>4096)n=4096;
+            mc_render(&e,x,n);power+=energy(x,n*2);
+            for(unsigned i=0;i<n*2;i++) {
+                unsigned sample=(uint16_t)x[i];
+                hash=(hash^(sample&255))*16777619u;
+                hash=(hash^(sample>>8))*16777619u;
+            }
+            at+=n;
+        }
+        assert(power>10000);hashes[p]=hash;
+        render_n(&e,MC_RATE*5);for(unsigned i=0;i<MC_VOICES;i++) assert(!e.voice[i].active);
+        assert(!e.clips);
+    }
+    for(unsigned i=0;i<MC_PRESETS;i++) for(unsigned j=i+1;j<MC_PRESETS;j++) assert(hashes[i]!=hashes[j]);
+    for(unsigned sound=0;sound<MC_DRUMS;sound++) {
+        mc_init(&e);mc_drum(&e,sound,120);mc_render(&e,x,4096);assert(energy(x,8192)>10000);
+        render_n(&e,MC_RATE*4);for(unsigned i=0;i<MC_DRUM_VOICES;i++) assert(!e.drum[i].env);
+    }
+    mc_init(&e);mc_drum(&e,3,100);mc_drum(&e,2,100);
+    for(unsigned i=0;i<MC_DRUM_VOICES;i++) assert(!e.drum[i].env||e.drum[i].sound!=3);
+    /* Acid can run on each melodic part; slide keeps one voice and preserves phase/envelope. */
+    for(unsigned part=0;part<3;part++) {
+        mc_init(&e);mc_preset(&e,part,MC_PRESET_SLIDE_BASS);mc_note(&e,part,45,100,0,0);mc_render(&e,x,1024);
+        int32_t env=e.voice[0].envelope;uint32_t phase=e.voice[0].phase,inc=e.voice[0].increment;
+        mc_note(&e,part,57,100,MC_SLIDE,0);assert(e.voice[0].envelope==env&&e.voice[0].phase==phase);
+        assert(e.voice[0].increment==inc&&e.voice[0].target>inc);mc_render(&e,x,128);
+        assert(e.voice[0].increment>inc&&e.voice[0].increment<e.voice[0].target);
+        for(unsigned i=1;i<MC_VOICES;i++) assert(!e.voice[i].active);
+    }
+    mc_init(&e);mc_preset(&e,0,MC_PRESET_STAGE_PIANO);
+    for(unsigned i=0;i<30;i++) { mc_note(&e,0,40+i,100,0,0);mc_render(&e,x,1); }
+    assert(e.steals==22);
+    puts("PASS: 32 distinct profiles, 16 drums, release, choke, shared voice cap and per-part acid slides");
+}
+static void knob_audio(void) {
+    McUi ua,ub;
+    /* Every displayed melodic performance knob must alter rendered sound.
+       PCM is tested at note attack; glide requires a legato destination note. */
+    for(unsigned engine=0;engine<2;engine++) for(unsigned knob=0;knob<4;knob++) {
+        mc_init(&a);mc_ui_init(&ua);mc_preset(&a,0,engine?MC_PRESET_SLIDE_BASS:MC_PRESET_STAGE_PIANO);
+        if(!engine&&knob==2) {
+            /* Observe decay itself, after an immediate attack toward a lower sustain. */
+            a.project.patch[0].attack=0;a.project.patch[0].sustain=64;
+        }
+        b=a;ub=ua;
+        mc_ui_encoder(&a,&ua,knob+3,-127);mc_ui_encoder(&b,&ub,knob+3,127);
+        mc_note(&a,0,48,110,0,0);mc_note(&b,0,48,110,0,0);
+        if(!engine&&knob<2) {
+            /* 공통 필터가 PCM 어택 뒤 혼합 몸통에도 적용된다. */
+            render_n(&a,MC_RATE/2);render_n(&b,MC_RATE/2);
+        }
+        if(engine&&knob==3) {
+            render_n(&a,512);render_n(&b,512);
+            mc_note(&a,0,72,110,MC_SLIDE,0);mc_note(&b,0,72,110,MC_SLIDE,0);
+        }
+        mc_render(&a,x,4096);mc_render(&b,y,4096);
+        assert(memcmp(x,y,sizeof x));
+        uint64_t difference=0;
+        for(unsigned i=0;i<8192;i++) { int32_t d=x[i]-y[i];difference+=(uint64_t)((int64_t)d*d); }
+        if(difference<=100000)printf("Performance knob engine=%u knob=%u difference=%llu\n",engine,knob,(unsigned long long)difference);
+        assert(difference>100000);assert(!a.clips&&!b.clips);
+    }
+    /* 최대 공통 resonance가 전체 음역과 cutoff 양끝에서 유계다. */
+    for(unsigned note=12;note<=108;note+=12) for(unsigned cut=0;cut<=127;cut+=127) {
+        mc_init(&e);mc_preset(&e,0,MC_PRESET_STAGE_PIANO);e.project.patch[0].resonance=127;
+        e.project.patch[0].cutoff=(uint8_t)cut;mc_note(&e,0,note,127,0,4096);
+        render_n(&e,MC_RATE*2);assert(!e.clips);
+        for(unsigned v=0;v<MC_VOICES;v++) assert(!e.voice[v].active);
+    }
+    for(unsigned k=0;k<4;k++) {
+        mc_init(&a);mc_ui_init(&ua);ua.page=1;b=a;ub=ua;
+        mc_ui_encoder(&a,&ua,k+3,-127);mc_ui_encoder(&b,&ub,k+3,127);
+        mc_note(&a,0,60,100,0,MC_RATE/4);mc_note(&b,0,60,100,0,MC_RATE/4);
+        uint32_t ha=0,hb=0;
+        for(unsigned t=0;t<16;t++) { mc_render(&a,x,4096);mc_render(&b,y,4096);ha^=mc_crc(x,sizeof x);hb^=mc_crc(y,sizeof y); }
+        assert(ha!=hb);
+    }
+    mc_init(&a);mc_ui_init(&ua);a.selected=3;b=a;ub=ua;
+    mc_ui_encoder(&a,&ua,6,-127);mc_ui_encoder(&b,&ub,6,127);
+    mc_drum(&a,0,100);mc_drum(&b,0,100);mc_render(&a,x,4096);mc_render(&b,y,4096);
+    assert(!energy(x,8192)&&energy(y,8192)>10000);
+    puts("PASS: hybrid/mono performance and envelope knobs, drum level, shared resonance stability");
+}
+static void sequence(void) {
+    mc_init(&a);b=a;mc_start(&a);mc_start(&b);
+    mc_render(&a,x,4096);
+    for(unsigned i=0;i<4096;i+=64) mc_render(&b,y+i*2,64);
+    assert(!memcmp(x,y,sizeof x));assert(a.clock==b.clock&&a.step==b.step);
+    mc_init(&e);e.project.bpm=120;e.project.swing=0;mc_start(&e);mc_queue(&e,2);
+    render_n(&e,MC_RATE*2-1);assert(e.pattern==0&&e.step==15);
+    render_n(&e,1);assert(e.pattern==2&&e.step==0&&e.queued==255&&e.events==17);
+    mc_init(&e);e.project.bpm=120;e.project.swing=45;
+    memset(e.project.fx_send,0,sizeof e.project.fx_send); /* mute must be exactly silent without a reverb tail */
+    mc_start(&e);
+    render_n(&e,MC_RATE*60);assert(e.events==481&&e.step==0);
+    for(unsigned p=0;p<4;p++) mc_mute(&e,p);
+    mc_render(&e,x,4096);assert(energy(x,8192)==0);
+    mc_stop(&e);unsigned before=e.events;render_n(&e,MC_RATE);assert(e.events==before);
+    puts("PASS: block-independent DSP, exact bar switching, 60-second swing clock and mute/stop");
+}
+static void persistence(void) {
+    uint8_t blob[MC_RECORD_BYTES];McProject p,q;uint32_t seq;
+    mc_factory(&p);assert(mc_encode(&p,123,blob,sizeof blob)==sizeof blob);
+    assert(mc_decode(&q,&seq,blob,sizeof blob)==0&&seq==123&&!memcmp(&p,&q,sizeof p));
+    /* 구 format은 자동 import하지 않고 destination과 sequence를 보존한다. */
+    McProject unchanged=q;uint32_t unchanged_seq=seq;
+    for(unsigned version=1;version<MC_PROJECT_VERSION;version++) {
+        blob[4]=(uint8_t)version;
+        uint32_t crc=mc_crc(blob,16);
+        for(unsigned j=0;j<4;j++)blob[16+j]=(uint8_t)(crc>>(j*8));
+        assert(mc_decode(&q,&seq,blob,sizeof blob)<0);
+        assert(!memcmp(&q,&unchanged,sizeof q)&&seq==unchanged_seq);
+    }
+    p.fx[0]=51;p.fx[1]=62;p.fx[2]=13;p.fx[3]=37;p.demo=1;
+    assert(mc_encode(&p,123,blob,sizeof blob)>0&&mc_decode(&q,&seq,blob,sizeof blob)==0&&!memcmp(&p,&q,sizeof p));
+    mc_factory(&p);assert(mc_encode(&p,123,blob,sizeof blob)>0);
+    for(unsigned n=0;n<sizeof blob;n++) assert(mc_decode(&q,&seq,blob,n)<0);
+    for(unsigned i=0;i<sizeof blob;i++) {
+        blob[i]^=1;assert(mc_decode(&q,&seq,blob,sizeof blob)<0);blob[i]^=1;
+    }
+    McProject invalid=p;invalid.patch[2].profile=255;assert(!mc_project_valid(&invalid));
+    invalid=p;invalid.bpm=0;assert(mc_encode(&invalid,1,blob,sizeof blob)<0);
+    memset(flash,255,sizeof flash);assert(mc_store_load(&io,&q,&seq)<0);
+    assert(mc_store_save(&io,&p)==0);assert(mc_store_load(&io,&q,&seq)==0&&seq==1);
+    memcpy(backup,flash,sizeof flash);p.bpm=142;
+    for(int n=0;n<(int)(MC_STORE_BYTES+MC_RECORD_BYTES);n+=257) {
+        memcpy(flash,backup,sizeof flash);cut=n;
+        assert(mc_store_save(&io,&p)<0);cut=-1;
+        assert(mc_store_load(&io,&q,&seq)==0&&seq==1&&q.bpm==118);
+    }
+    memcpy(flash,backup,sizeof flash);cut=-1;assert(mc_store_save(&io,&p)==0);
+    assert(mc_store_load(&io,&q,&seq)==1&&seq==2&&q.bpm==142);
+    flash[MC_STORE_BYTES+50]^=1;assert(mc_store_load(&io,&q,&seq)==0&&q.bpm==118);
+    /* Sequence rollover and valid-CRC malicious semantic payload. */
+    assert(mc_encode(&p,0xffffffffu,flash,MC_RECORD_BYTES)>0);
+    assert(mc_encode(&p,0,flash+MC_STORE_BYTES,MC_RECORD_BYTES)>0);
+    assert(mc_store_load(&io,&q,&seq)==1&&seq==0);
+    memcpy(backup,flash,sizeof flash);
+    unreadable=MC_STORE_A;assert(mc_store_load(&io,&q,&seq)==1);
+    assert(mc_store_save(&io,&p)<0&&!memcmp(flash,backup,sizeof flash));
+    unreadable=MC_STORE_B;assert(mc_store_load(&io,&q,&seq)==0);
+    assert(mc_store_save(&io,&p)<0&&!memcmp(flash,backup,sizeof flash));unreadable=0;
+    printf("PASS: portable project format, truncation/corruption, validation, rollover and %u sampled power cuts\n",(MC_STORE_BYTES+MC_RECORD_BYTES+256)/257);
+}
+static void screen(const McEngine *engine,const McUi *ui,uint16_t *pixels) {
+    for(unsigned row=0;row<240;row+=8) mc_ui_strip(engine,ui,row,8,pixels+row*240);
+}
+static void phrase_grid(void) {
+    McUi u;mc_ui_init(&u);mc_init(&e);mc_demo_load(&e,1);mc_start(&e);
+    static uint16_t previous[240*240],current[240*240];screen(&e,&u,previous);
+    for(unsigned pattern=1;pattern<4;pattern++) {
+        for(unsigned frame=0;e.pattern!=pattern&&frame<MC_RATE*2;frame++) render_n(&e,1);
+        assert(e.pattern==pattern&&e.step==0);screen(&e,&u,current);
+        int changed=memcmp(previous+59*240,current+59*240,81*240*sizeof(uint16_t))!=0;
+        fprintf(stderr,"Demo pattern %u: acid note %u, melodic grid changed %d\n",pattern+1,e.project.step[pattern][1][0].note[0],changed);
+        assert(changed);memcpy(previous,current,sizeof previous);
+    }
+    mc_init(&e);mc_ui_init(&u);memset(e.project.step,0,sizeof e.project.step);
+    e.project.step[0][0][0]=(McStep){.note={48,60,72},.velocity=100};
+    screen(&e,&u,current);
+    assert(current[61*240+32]==0x0841&&current[69*240+32]==0x0841&&current[76*240+32]==0x0841);
+    assert(current[62*240+32]==0xfb20);
+    e.project.step[0][0][0].note[0]=0;screen(&e,&u,current);
+    assert(current[62*240+32]==0xfb20);
+    mc_start(&e);screen(&e,&u,previous);mc_queue(&e,2);screen(&e,&u,current);
+    assert(e.pattern==0&&e.queued==2);
+    assert(!memcmp(previous+173*240,current+173*240,7*240*sizeof(uint16_t)));
+    assert(memcmp(previous+14*240+163,current+14*240+163,7*240*sizeof(uint16_t)));
+    memcpy(previous,current,sizeof previous);
+    for(unsigned frame=0;e.pattern!=2&&frame<MC_RATE*3;frame++) render_n(&e,1);
+    screen(&e,&u,current);assert(e.pattern==2&&e.queued==255);
+    assert(memcmp(previous+173*240,current+173*240,7*240*sizeof(uint16_t)));
+    u.message="SAVED";screen(&e,&u,previous);e.pattern=3;screen(&e,&u,current);
+    assert(!memcmp(previous+171*240,current+171*240,12*240*sizeof(uint16_t)));
+    u.message=0;e.selected=3;u.sound=15;e.project.step[3][3][0].drums=32768;e.project.step[3][3][0].velocity=100;
+    screen(&e,&u,previous);assert(previous[177*240+32]==0xfb20);
+    assert(previous[182*240+32]==0x67e8);
+    mc_queue(&e,0);screen(&e,&u,current);
+    assert(!memcmp(previous+174*240,current+174*240,9*240*sizeof(uint16_t)));
+    assert(!memcmp(previous+173*240,current+173*240,7*240*sizeof(uint16_t)));
+    assert(memcmp(previous+14*240+163,current+14*240+163,7*240*sizeof(uint16_t)));
+    puts("PASS: demo pattern progression changes pitch grid; chord and non-leading notes rendered");
+    puts("PASS: home PATTERN/NEXT status follows queued bar transition; messages retain priority");
+}
+static void mixer(void) {
+    McUi u;mc_init(&e);mc_ui_init(&u);mc_ui_button(&e,&u,UI_GLO);assert(u.page==5);
+    uint8_t levels[4];memcpy(levels,e.project.level,sizeof levels);
+    for(unsigned part=0;part<4;part++) {
+        mc_ui_encoder(&e,&u,part+3,-1000);assert(e.project.level[part]==0);
+        for(unsigned other=part+1;other<4;other++) assert(e.project.level[other]==levels[other]);
+        mc_ui_encoder(&e,&u,part+3,1000);assert(e.project.level[part]==127);
+    }
+    static uint16_t pixels[240*240];screen(&e,&u,pixels);assert(pixels[120*240+26]==0xfb20);
+    const char *hint="SELECT-ARP to mute";
+    for(unsigned letter=0;hint[letter];letter++) {
+        unsigned ink=0;
+        for(unsigned row=0;row<9;row++) for(unsigned col=0;col<6;col++)
+            if(pixels[(173+row)*240+14+letter*7+col]!=0x0841) ink++;
+        assert(hint[letter]==' '?ink==0:ink>0);
+    }
+    unsigned hint_ink=0;
+    for(unsigned row=0;row<9;row++)for(unsigned x=60;x<130;x++)
+        if(pixels[(173+row)*240+x]==0xdefb)hint_ink++;
+    assert(hint_ink);
+    u.message="SAVED";screen(&e,&u,pixels);
+    for(unsigned row=0;row<9;row++)for(unsigned x=60;x<130;x++)assert(pixels[(173+row)*240+x]==0x0841);
+    u.message=0;
+    mc_ui_button(&e,&u,UI_ARP);screen(&e,&u,pixels);assert(pixels[120*240+26]==0x4208);
+    mc_ui_encoder(&e,&u,3,-127);screen(&e,&u,pixels);assert(pixels[120*240+26]==0x2104);
+    uint8_t blob[MC_RECORD_BYTES];McProject project;uint32_t sequence;
+    assert(mc_encode(&e.project,1,blob,sizeof blob)>0&&!mc_decode(&project,&sequence,blob,sizeof blob));
+    assert(!memcmp(project.level,e.project.level,sizeof levels));
+    mc_ui_button(&e,&u,UI_GLO);assert(u.page==2);mc_ui_button(&e,&u,UI_GLO);assert(u.page==4);
+    mc_ui_button(&e,&u,UI_GLO);assert(u.page==7);mc_ui_button(&e,&u,UI_GLO);assert(u.page==9);
+    mc_ui_button(&e,&u,UI_GLO);assert(u.page==10);mc_ui_button(&e,&u,UI_GLO);assert(u.page==11);
+    mc_ui_button(&e,&u,UI_GLO);assert(u.page==5);
+    mc_ui_button(&e,&u,UI_HOME);assert(u.page==0);
+    for(unsigned part=0;part<4;part++) {
+        mc_init(&a);b=a;mc_ui_init(&u);mc_ui_button(&a,&u,UI_GLO);mc_ui_encoder(&a,&u,part+3,-127);
+        if(part<3) { mc_note(&a,part,60,100,0,0);mc_note(&b,part,60,100,0,0); }
+        else { mc_drum(&a,0,100);mc_drum(&b,0,100); }
+        mc_render(&a,x,4096);mc_render(&b,y,4096);assert(!energy(x,8192)&&energy(y,8192)>10000);
+    }
+    puts("PASS: GLO mixer levels, independent knobs, clamp, mute pixels, persistence and page cycle");
+}
+static void panel(void) {
+    McUi u;mc_init(&e);mc_ui_init(&u);e.selected=3;
+    mc_ui_encoder(&e,&u,3,15);assert(u.sound==15);
+    mc_ui_encoder(&e,&u,4,7);assert(e.edit_step==7);
+    mc_ui_encoder(&e,&u,5,1);assert(e.project.step[0][3][7].drums&32768);
+    mc_ui_encoder(&e,&u,5,-1);assert(!(e.project.step[0][3][7].drums&32768));
+    mc_ui_encoder(&e,&u,6,1000);assert(e.project.drum_level[15]==127);
+    mc_ui_button(&e,&u,UI_SAVE);assert(!u.save_request&&u.save_pending);
+    mc_ui_button(&e,&u,UI_SAVE);assert(u.save_request);
+    u.save_request=0;mc_start(&e);mc_ui_button(&e,&u,UI_SAVE);assert(!u.save_request);
+    mc_stop(&e);e.selected=0;mc_ui_button(&e,&u,UI_GLO);mc_ui_button(&e,&u,UI_GLO);
+    mc_ui_encoder(&e,&u,3,1000);assert(e.project.bpm==240);
+    mc_ui_encoder(&e,&u,4,1000);assert(e.project.swing==45);
+    mc_ui_encoder(&e,&u,5,1);assert(e.pattern==1);
+    uint8_t level=e.project.level[0];
+    mc_ui_encoder(&e,&u,6,1000);assert(e.project.metronome==1&&e.project.level[0]==level);
+    mc_ui_encoder(&e,&u,6,-1000);assert(!e.project.metronome&&e.project.level[0]==level);
+    mc_ui_button(&e,&u,UI_HOME);mc_ui_button(&e,&u,UI_EDIT);
+    mc_ui_encoder(&e,&u,3,1);unsigned step=e.edit_step;
+    mc_ui_encoder(&e,&u,4,-1000);assert(e.project.step[e.pattern][0][step].velocity==0);
+    mc_ui_encoder(&e,&u,5,1000);assert(e.project.step[e.pattern][0][step].gate==100);
+    mc_ui_encoder(&e,&u,6,3);assert(e.project.step[e.pattern][0][step].flags<4);
+    mc_ui_key(&e,&u,4,1);assert(e.project.step[e.pattern][0][step].note[0]==57);
+    uint16_t pixels[240*8+2];pixels[0]=123;pixels[240*8+1]=456;
+    for(unsigned part=0;part<4;part++) for(unsigned page=0;page<12;page++) for(unsigned row=0;row<240;row+=8) {
+        e.selected=(uint8_t)part;u.page=(uint8_t)page;mc_ui_strip(&e,&u,row,8,pixels+1);
+        assert(pixels[0]==123&&pixels[240*8+1]==456);
+    }
+    puts("PASS: drum-grid controls, save confirmation and all screen strip bounds");
+}
+static void effects_demo(void) {
+    static McEffects state;
+    for(unsigned fx=0;fx<4;fx++) {
+        mc_init(&e);memset(&state,0,sizeof state);e.project.fx[fx]=127;uint64_t tail=0,changed=0;int32_t endpeak=0;
+        for(unsigned i=0;i<MC_RATE*5;i++) {
+            int32_t dry=i<64?12000:0,l=dry,r=dry;
+            mc_effects_process_typed(&state,e.project.bpm,e.project.fx,e.project.fx_type,e.project.filter,&l,&r);
+            assert(l>-60000&&l<60000&&r>-60000&&r<60000);
+            if(l!=dry||r!=dry)changed++;
+            if(i>=64)tail+=(uint64_t)((int64_t)l*l+(int64_t)r*r);
+            if(i>MC_RATE*4) { int32_t peak=abs(l)+abs(r);if(peak>endpeak)endpeak=peak; }
+        }
+        assert(changed>0);if(fx!=2)assert(tail>0);assert(endpeak<32);
+    }
+    mc_demo_load(&a,1);assert(a.project.demo&&a.project.fx[0]&&mc_project_valid(&a.project));b=a;
+    mc_start(&a);mc_start(&b);assert(a.pattern==0&&a.mute==2);
+    mc_render(&a,x,4096);for(unsigned i=0;i<4096;i+=64)mc_render(&b,y+i*2,64);
+    assert(!memcmp(x,y,sizeof x));
+    render_n(&a,MC_RATE*60);assert(!a.playing&&a.events>=512&&a.clips==0);
+    McUi u;mc_ui_init(&u);mc_init(&e);memset(e.project.fx_send,0,sizeof e.project.fx_send);mc_ui_button(&e,&u,UI_FX);assert(u.page==3);
+    for(unsigned k=0;k<2;k++) { mc_ui_encoder(&e,&u,k+3,50);assert(e.project.fx_send[0][k]==50); }
+    for(unsigned k=0;k<4;k++)assert(!e.project.fx[k]&&!e.project.track_fx[0][k]);
+    mc_ui_button(&e,&u,UI_GLO);mc_ui_button(&e,&u,UI_GLO);mc_ui_button(&e,&u,UI_GLO);assert(u.page==4);
+    mc_start(&e);mc_ui_encoder(&e,&u,6,1);assert(!u.load_request);
+    mc_stop(&e);mc_ui_encoder(&e,&u,6,1);assert(u.load_request==2);
+    mc_demo_load(&e,u.load_request-1);assert(e.project.demo&&e.project.bpm==140);
+    puts("PASS: four effect impulse/decay tests, native demo end, block identity and FX/demo UI");
+}
+static void stress(void) {
+    clock_t begin=clock();mc_init(&e);e.project.bpm=240;e.project.swing=45;
+    for(unsigned p=0;p<4;p++)e.project.fx_send[p][0]=e.project.fx_send[p][1]=127;
+    e.project.fx_bus_type[0]=4;e.project.fx_bus_type[1]=4;
+    for(unsigned p=0;p<3;p++) { mc_preset(&e,p,MC_PRESET_STAGE_PIANO);e.project.patch[p].resonance=127;e.project.patch[p].cutoff=127; }
+    for(unsigned i=0;i<8;i++) mc_note(&e,i%3,84+i*3,127,MC_ACCENT,0);
+    for(unsigned i=0;i<16;i++) mc_drum(&e,i,127);
+    mc_start(&e);render_n(&e,MC_RATE*10);
+    printf("PASS: 10s stress; engine %zu B, project %zu B, %.3fs host CPU, peak %u, clips %u\n",sizeof e,sizeof e.project,(double)(clock()-begin)/CLOCKS_PER_SEC,e.peak,e.clips);
+}
+static void record_crc(uint8_t *record,unsigned body) {
+    uint32_t crc=mc_crc(record+20,body);
+    for(unsigned j=0;j<4;j++)record[12+j]=(uint8_t)(crc>>(j*8));
+    crc=mc_crc(record,16);for(unsigned j=0;j<4;j++)record[16+j]=(uint8_t)(crc>>(j*8));
+}
+static void cascaded_gain(void) {
+    for(unsigned bpm=40;bpm<=240;bpm+=40) {
+        mc_init(&e);e.master=MC_MASTER_MAX;e.project.bpm=(uint16_t)bpm;
+        for(unsigned p=0;p<4;p++) {
+            e.project.level[p]=127;e.project.pan[p]=0;
+            e.project.fx_send[p][0]=e.project.fx_send[p][1]=127;
+            if(p<3) {
+                mc_preset(&e,p,MC_PRESET_DEEP_SUB);
+                McPatch *patch=&e.project.patch[p];patch->wave=MC_WAVE_SINE;
+                patch->level=127;patch->attack=0;patch->sustain=127;patch->resonance=0;patch->cutoff=127;
+            }
+        }
+        for(unsigned v=0;v<MC_VOICES;v++)mc_note(&e,v%3,12,127,MC_ACCENT,0);
+        for(unsigned d=0;d<MC_DRUMS;d++)mc_drum(&e,d,127);
+        render_n(&e,MC_RATE*2);assert(e.limiter_hits>0&&!e.clips&&e.peak<=MC_OUTPUT_CEILING);
+        for(unsigned i=0;i<8192;i++)assert(abs(x[i])<=MC_OUTPUT_CEILING);
+    }
+    puts("PASS: track FX and maximum master volume engage linked limiter without clipping at six tempos");
+}
+static void kits_and_tracks(void) {
+    uint32_t hashes[MC_KITS][MC_DRUMS];McUi u;uint8_t record[MC_RECORD_BYTES];McProject q;uint32_t seq;
+    for(unsigned kit=0;kit<MC_KITS;kit++) {
+        for(unsigned sound=0;sound<MC_DRUMS;sound++) {
+            mc_init(&e);e.project.drum_kit=(uint8_t)kit;mc_drum(&e,sound,120);
+            mc_render(&e,x,4096);assert(energy(x,8192)>10000&&!e.clips);hashes[kit][sound]=mc_crc(x,sizeof x);
+            render_n(&e,MC_RATE*4);for(unsigned i=0;i<MC_DRUM_VOICES;i++)assert(!e.drum[i].env);
+        }
+        mc_init(&e);e.project.drum_kit=(uint8_t)kit;mc_drum(&e,3,100);mc_drum(&e,2,100);
+        for(unsigned i=0;i<MC_DRUM_VOICES;i++)assert(!e.drum[i].env||e.drum[i].sound!=3);
+        assert(mc_encode(&e.project,7,record,sizeof record)>0&&record[31]==kit);
+        assert(!mc_decode(&q,&seq,record,sizeof record)&&q.drum_kit==kit);
+    }
+    for(unsigned s=0;s<MC_DRUMS;s++)for(unsigned k=0;k<MC_KITS;k++)for(unsigned j=k+1;j<MC_KITS;j++)assert(hashes[k][s]!=hashes[j][s]);
+    mc_init(&e);mc_ui_init(&u);e.selected=3;mc_ui_encoder(&e,&u,2,-1);assert(e.project.drum_kit==7&&e.pattern==0);
+    mc_ui_encoder(&e,&u,1,1);assert(e.pattern==1&&e.project.drum_kit==7);
+    mc_ui_encoder(&e,&u,2,1);assert(e.project.drum_kit==0);
+    for(unsigned p=0;p<3;p++) {
+        e.selected=(uint8_t)p;McPatch original=e.project.patch[p];mc_ui_encoder(&e,&u,1,1);
+        assert(!memcmp(&original,&e.project.patch[p],sizeof original));mc_ui_encoder(&e,&u,2,1);
+        assert(!memcmp(&e.project.patch[p],&mc_presets[u.preset[p]],sizeof original));
+    }
+    mc_init(&a);mc_drum(&a,0,120);b=a;b.project.drum_kit=7;mc_render(&a,x,4096);mc_render(&b,y,4096);assert(!memcmp(x,y,sizeof x));
+    for(unsigned p=0;p<4;p++)for(unsigned fx=0;fx<2;fx++) {
+        mc_init(&a);a.project.fx_bus_type[0]=6;b=a;a.project.fx_send[p][fx]=127;
+        if(p<3) { mc_note(&a,p,60,110,0,MC_RATE);mc_note(&b,p,60,110,0,MC_RATE); }
+        else { mc_drum(&a,0,120);mc_drum(&b,0,120); }
+        unsigned changed=0;for(unsigned n=0;n<12;n++) { mc_render(&a,x,4096);mc_render(&b,y,4096);changed|=memcmp(x,y,sizeof x)!=0; }
+        assert(changed&&!a.clips);a.mute=(uint8_t)(1u<<p);mc_render(&a,x,4096);
+        /* 전송 트랙을 뮤트해도 공용 버스의 기존 꼬리는 끝까지 처리한다. */
+        for(unsigned n=0;n<400&&energy(x,8192);n++)mc_render(&a,x,4096);
+        assert(energy(x,8192)==0);
+        a.project.fx_send[p][fx]=0;mc_render(&a,x,1);
+        assert(fx?a.shared_fx.cf_active:a.shared_fx.rd_active);
+        mc_init(&a);b=a;a.project.fx_send[(p+1)%4][fx]=127;
+        if(p<3) { mc_note(&a,p,60,110,0,MC_RATE);mc_note(&b,p,60,110,0,MC_RATE); }
+        else { mc_drum(&a,0,120);mc_drum(&b,0,120); }
+        mc_render(&a,x,4096);mc_render(&b,y,4096);assert(!memcmp(x,y,sizeof x));
+    }
+    mc_init(&e);memset(e.project.fx_send,0,sizeof e.project.fx_send);mc_ui_init(&u);mc_ui_button(&e,&u,UI_FX);assert(u.page==3&&!u.fx_page);
+    for(unsigned p=0;p<4;p++)for(unsigned fx=0;fx<2;fx++) { e.selected=(uint8_t)p;mc_ui_encoder(&e,&u,fx+3,(int)(p*16+fx+1)); }
+    mc_ui_button(&e,&u,UI_FX);assert(u.page==3&&e.selected==3);mc_ui_encoder(&e,&u,3,37);assert(e.project.fx_send[3][0]==86&&!e.project.fx[0]);
+    mc_ui_button(&e,&u,UI_HOME);mc_ui_button(&e,&u,UI_FX);assert(u.page==3&&!u.fx_page);
+    e.project.fx[0]=37; /* 비활성 master 값도 현재 format 왕복에서 보존한다. */
+    e.project.drum_kit=7;assert(mc_encode(&e.project,9,record,sizeof record)>0&&record[4]==MC_PROJECT_VERSION);
+    assert(!mc_decode(&q,&seq,record,sizeof record)&&!memcmp(&q,&e.project,sizeof q));
+    record[31]=8;record_crc(record,MC_PROJECT_BYTES);McProject before=q;assert(mc_decode(&q,&seq,record,sizeof record)<0&&!memcmp(&q,&before,sizeof q));
+    assert(mc_encode(&e.project,9,record,sizeof record)>0);
+    record[20+89+MC_PATTERNS*MC_PARTS*MC_STEPS*8]=128;
+    record_crc(record,MC_PROJECT_BYTES);assert(mc_decode(&q,&seq,record,sizeof record)<0);
+    assert(!memcmp(&q,&before,sizeof q));
+    assert(mc_encode(&e.project,9,record,sizeof record)>0);
+    record[4]=2;record_crc(record,MC_PROJECT_BYTES);
+    assert(mc_decode(&q,&seq,record,sizeof record)<0&&!memcmp(&q,&before,sizeof q));
+    puts("PASS: 128 audible unique kit lanes, all-kit choke/decay, stable active voices, ALGORITHM patterns/PRESETS sounds");
+    puts("PASS: 16 isolated track FX paths, mute tails, dry buffer reset, track/master UI, old-format rejection and current wire validation");
+}
+static void sorted_bank(void) {
+    uint8_t record[MC_RECORD_BYTES];
+    mc_factory(&e.project);
+    static const uint8_t initial[3]={0,10,20};
+    for(unsigned part=0;part<3;part++) {
+        assert(e.project.preset[part]==initial[part]);
+        assert(!memcmp(&e.project.patch[part],&mc_presets[initial[part]],sizeof(McPatch)));
+    }
+    for(unsigned id=0;id<MC_PRESETS;id++) {
+        const McHybridProfile *r=hy_profile(id);
+        assert(r&&mc_presets[id].profile==id);
+        assert(!(mc_presets[id].source_mask&~r->available_mask));
+        mc_init(&a);mc_preset(&a,0,id);
+        McPatch unchanged=a.project.patch[0];
+        assert(mc_parameter_set(&a,0,MC_PARAM_PROFILE,(int)id)<0);
+        assert(!memcmp(&unchanged,&a.project.patch[0],sizeof unchanged));
+        static const uint8_t gain_param[3]={3,MC_PARAM_FM_MIX,MC_PARAM_VA_MIX};
+        for(unsigned s=0;s<3;s++) {
+            int rc=mc_parameter_set(&a,0,gain_param[s],127);
+            assert((r->available_mask&(1u<<s))?rc==0:rc<0);
+            assert(!mc_parameter_set(&a,0,gain_param[s],0));
+            assert(mc_parameter_set(&a,0,gain_param[s],128)<0);
+        }
+        assert(!mc_parameter_set(&a,0,MC_PARAM_SOURCE_MASK,0));
+        assert(!mc_parameter_set(&a,0,MC_PARAM_SOURCE_MASK,r->available_mask));
+        assert(mc_parameter_set(&a,0,MC_PARAM_SOURCE_MASK,8)<0);
+        for(unsigned bit=HY_PCM;bit<=HY_VA;bit<<=1)
+            if(!(r->available_mask&bit))assert(mc_parameter_set(&a,0,MC_PARAM_SOURCE_MASK,(int)bit)<0);
+    }
+    assert(!hy_profile(MC_PRESETS));
+    for(unsigned demo=0;demo<2;demo++) {
+        McProject roundtrip;uint32_t sequence;
+        mc_demo_load(&e,demo);assert(mc_project_valid(&e.project));
+        assert(e.project.preset[2]==(demo?15:8));
+        if(demo)assert(e.project.preset[0]==2&&e.project.preset[1]==1);
+        assert(mc_encode(&e.project,1,record,sizeof record)>0);
+        assert(!mc_decode(&roundtrip,&sequence,record,sizeof record)&&sequence==1);
+        assert(!memcmp(&roundtrip,&e.project,sizeof roundtrip));
+    }
+    McUi u;for(unsigned part=0;part<3;part++) {
+        mc_init(&e);e.selected=(uint8_t)part;mc_preset(&e,part,31);mc_ui_init(&u);
+        McPatch other[3];memcpy(other,e.project.patch,sizeof other);
+        for(unsigned p=0;p<MC_PRESETS;p++) {
+            mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==p&&!memcmp(&e.project.patch[part],&mc_presets[p],sizeof(McPatch)));
+            for(unsigned t=0;t<3;t++)if(t!=part)assert(!memcmp(&other[t],&e.project.patch[t],sizeof(McPatch)));
+        }
+        mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==0);mc_ui_encoder(&e,&u,2,-1);assert(u.preset[part]==31);
+        assert(mc_encode(&e.project,1,record,sizeof record)>0);mc_init(&e);uint32_t seq;
+        assert(!mc_decode(&e.project,&seq,record,sizeof record));e.selected=(uint8_t)part;mc_ui_init(&u);
+        mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==0);
+    }
+    puts("PASS: 32 profile availability, initial 0/10/20, demo mappings/roundtrip and per-part wrap");
+}
+static void source_profiles(void) {
+    unsigned families=0;
+    for(unsigned p=0;p<MC_PRESETS;p++) {
+        const McHybridProfile *r=hy_profile(p);assert(r);
+        for(unsigned bit=HY_PCM;bit<=HY_VA;bit<<=1)if(r->available_mask&bit) {
+            mc_init(&a);mc_preset(&a,0,p);memset(a.project.fx_send,0,sizeof a.project.fx_send);
+            a.project.patch[0].source_mask=r->available_mask;b=a;
+            b.project.patch[0].source_mask=(uint8_t)(r->available_mask&~bit);
+            mc_note(&a,0,60,110,0,0);mc_note(&b,0,60,110,0,0);
+            mc_render(&a,x,4096);mc_render(&b,y,4096);assert(memcmp(x,y,sizeof x));
+            mc_off(&a,0,60);mc_off(&b,0,60);render_n(&a,MC_RATE*3);render_n(&b,MC_RATE*3);
+            assert(!a.voice[0].active&&!b.voice[0].active&&!a.clips&&!b.clips);
+        }
+        if(!(r->available_mask&HY_PCM))continue;
+        families|=1u<<r->pcm_family;
+        for(unsigned note=36;note<=84;note+=24) {
+            mc_init(&a);mc_preset(&a,0,p);a.project.patch[0].source_mask=r->available_mask;
+            a.project.patch[0].sustain=127;a.project.patch[0].release=0;
+            mc_note(&a,0,note,127,0,0);b=a;
+            const McPcmZone *zone=hy_pcm_zone(a.voice[0].hybrid.pcm_zone);
+            assert(zone&&zone->family==r->pcm_family);
+            mc_render(&a,x,4096);for(unsigned n=0;n<4096;n+=64)mc_render(&b,y+n*2,64);
+            assert(!memcmp(x,y,sizeof x));
+            render_n(&a,MC_RATE*2);const McPcmMip *m=&zone->mip[a.voice[0].sample_level];
+            if(m->loop_end)assert(a.voice[0].pcm_pos<((uint32_t)m->loop_end<<16));
+            else assert(a.voice[0].hybrid.ended_mask&HY_PCM);
+            mc_off(&a,0,note);render_n(&a,MC_RATE);assert(!a.voice[0].active&&!a.clips);
+        }
+    }
+    assert(families==127);
+    mc_init(&e);e.project.patch[0].source_mask=HY_PCM;
+    uint8_t record[MC_RECORD_BYTES];assert(mc_encode(&e.project,1,record,sizeof record)<0);
+    clock_t begin=clock();mc_init(&e);
+    for(unsigned p=0;p<3;p++)mc_preset(&e,p,MC_PRESET_STAGE_PIANO);
+    for(unsigned fx=0;fx<MC_FX_BANKS;fx++)for(unsigned p=0;p<4;p++)e.project.fx_send[p][fx]=127;
+    for(unsigned n=0;n<8;n++)mc_note(&e,n%3,108-n,127,MC_ACCENT,0);
+    render_n(&e,MC_RATE*10);
+    printf("PASS: source contribution/optional PCM, 7 families, block identity, end/release; 10s triple-source stress %.3fs host CPU\n",(double)(clock()-begin)/CLOCKS_PER_SEC);
+}
+static void source_mix_transitions(void) {
+    static const uint8_t mix[6]={127,0,127,63,0,127};
+    static const int16_t bend[3]={0,4096,-4096};
+    for(unsigned p=0;p<MC_PRESETS;p++) {
+        const McHybridProfile *r=hy_profile(p);if(!(r->available_mask&HY_PCM))continue;
+        for(unsigned note=36;note<=84;note+=24) {
+            mc_init(&a);mc_preset(&a,0,p);a.project.patch[0].sustain=127;
+            a.project.patch[0].source_mask=r->available_mask;
+            b=a;a.project.patch[0].pcm_mix=127;b.project.patch[0].pcm_mix=126;
+            mc_note(&a,0,note,100,0,0);mc_note(&b,0,note,100,0,0);
+            for(unsigned step=0;step<6;step++) {
+                assert(!mc_parameter_set(&a,0,3,mix[step]));
+                assert(!mc_parameter_set(&b,0,3,mix[step]==127?126:mix[step]));
+                a.midi.bend[0]=b.midi.bend[0]=bend[step%3];
+                e=a;
+                mc_render(&a,x,4096);mc_render(&b,y,4096);
+                for(unsigned n=0;n<4096;n+=64)mc_render(&e,y+n*2,64);
+                assert(!memcmp(x,y,sizeof x)&&!memcmp(&a,&e,sizeof a));
+                assert(a.voice[0].phase==b.voice[0].phase);
+                assert(a.voice[0].phase2==b.voice[0].phase2);
+                assert(a.voice[0].envelope==b.voice[0].envelope);
+                assert(a.voice[0].age==b.voice[0].age);
+                /* 127/126 ramp는 정지 frame이 다르다. cursor는 각 소스의 범위를 검사한다. */
+                for(unsigned which=0;which<2;which++) {
+                    const McVoice *v=which?&b.voice[0]:&a.voice[0];
+                    const McPcmZone *zone=hy_pcm_zone(v->hybrid.pcm_zone);assert(zone);
+                    const McPcmMip *m=&zone->mip[v->sample_level];
+                    if(m->loop_end)assert(v->pcm_pos<((uint32_t)m->loop_end<<16));
+                    else assert((uint64_t)v->pcm_pos<=((uint64_t)m->length<<16)+v->sample_step);
+                }
+            }
+            mc_off(&a,0,note);mc_off(&b,0,note);mc_off(&e,0,note);
+            render_n(&a,MC_RATE*3);render_n(&b,MC_RATE*3);render_n(&e,MC_RATE*3);
+            assert(!a.voice[0].active&&!b.voice[0].active&&!e.voice[0].active);
+        }
+    }
+    puts("PASS: live PCM gain transitions preserve shared phase, pitch bend, loop/end and release");
+}
+static void q15_truncation(void) {
+    static const int32_t state[]={-24000,-61,-31,-1,0,1,31,61,24000};
+    static const uint8_t cutoff[]={0,1,63,127};
+    for(unsigned c=0;c<sizeof cutoff;c++)for(unsigned i=0;i<sizeof state/sizeof *state;i++) {
+        mc_init(&e);mc_note(&e,0,60,100,0,0);
+        McVoice *v=&e.voice[0];
+        v->patch=mc_presets[MC_PRESET_SLIDE_BASS];v->patch.source_mask=0;
+        memset(&v->hybrid,0,sizeof v->hybrid);
+        v->stage=1;v->envelope=0;v->patch.sustain=0;
+        v->patch.cutoff=cutoff[c];v->patch.resonance=0;
+        v->phase=v->phase2=v->increment=v->target=0;
+        v->filter[0]=state[i];v->filter[1]=-state[i];
+        int32_t coefficient=250+cutoff[c]*cutoff[c]/2;
+        int32_t first=state[i]+(-state[i]*coefficient)/32768;
+        int32_t second=-state[i]+((first+state[i])*coefficient)/32768;
+        mc_render(&e,x,1);
+        assert(v->filter[0]==first&&v->filter[1]==second);
+    }
+    puts("PASS: Q15 filter products preserve zero-directed truncation for both signs");
+}
+int main(void) {
+    assert(sizeof(McPatch)==15&&sizeof(McStep)==8&&MC_PROJECT_BYTES==35134&&MC_RECORD_BYTES==35154);
+    phrase_grid();mixer();engines();knob_audio();sequence();persistence();panel();effects_demo();kits_and_tracks();cascaded_gain();sorted_bank();source_profiles();source_mix_transitions();q15_truncation();stress();puts("ALL TESTS PASSED");return 0;
+}

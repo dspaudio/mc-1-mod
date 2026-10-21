@@ -1,0 +1,50 @@
+name: 전용 Pages
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 공통 코어 회귀
+        run: make -j2 test
+      - name: WASM 및 실제 어댑터 비교
+        env:
+          CLANG: clang
+        run: |
+          python3 tools/build_web.py
+          python3 tools/verify_web.py
+      - name: 검증된 펌웨어와 전 음색 조립
+        run: |
+          python3 tools/assemble_pages.py --firmware-dir artifacts/firmware
+          node tests/gallery.mjs
+          node tests/install.mjs
+          node tests/demo-songs.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

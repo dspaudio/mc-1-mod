@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#101114">
+  <title>펌웨어 다운로드 0.0.1 experimental — mc-1-mod</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --surface: #1c1f24;
+      --control: #25282e;
+      --txt: #c9cdd4;
+      --muted: #9aa1ab;
+      --border: #747b86;
+      --accent: #e8b84b;
+      --success: #63ff42;
+      --error: #ffb4ab;
+      --ink: #101114;
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s6: 24px;
+      --s8: 32px;
+      font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+      background: var(--bg);
+      color: var(--txt);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 0; font-size: 14px; line-height: 1.6; word-break: keep-all; }
+    a { color: var(--accent); text-underline-offset: .2em; }
+    a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .skip { position: absolute; left: var(--s4); top: -5rem; padding: var(--s2) var(--s4); background: var(--accent); color: var(--ink); }
+    .skip:focus { top: var(--s2); }
+    header { border-bottom: 1px solid var(--border); }
+    nav { max-width: 720px; margin: 0 auto; padding: var(--s2) var(--s4); display: flex; flex-wrap: wrap; gap: var(--s2) var(--s6); align-items: center; }
+    nav a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+    nav .brand { color: var(--txt); font-weight: 700; margin-right: auto; }
+    main { max-width: 720px; margin: var(--s8) auto; padding: 0 var(--s4); }
+    h1 { font-size: 24px; line-height: 1.3; margin: 0 0 var(--s2); overflow-wrap: anywhere; }
+    h2 { font-size: 16px; line-height: 1.5; margin: 0 0 var(--s3); }
+    p { margin: 0 0 var(--s3); }
+    .intro { margin-bottom: var(--s6); }
+    .eyebrow, dt { color: var(--muted); font-size: 12px; }
+    .eyebrow { margin-bottom: var(--s1); }
+    .panel { background: var(--surface); padding: var(--s6); border-radius: var(--s2); margin-top: var(--s4); }
+    dl { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr); gap: var(--s2) var(--s4); margin: 0; }
+    dt, dd { margin: 0; min-width: 0; }
+    dd { overflow-wrap: anywhere; }
+    .file { padding: var(--s3) 0; border-top: 1px solid var(--border); }
+    .file:first-child { border-top: 0; padding-top: 0; }
+    .file:last-child { padding-bottom: 0; }
+    .file-name { font-weight: 700; overflow-wrap: anywhere; }
+    .file-meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: var(--s2) var(--s4); margin-top: var(--s2); background: var(--accent); color: var(--ink); font-weight: 700; text-decoration: none; }
+    .button:hover { text-decoration: underline; }
+    .button:active { background: var(--txt); color: var(--ink); }
+    #manifest-slot { min-height: 100vh; }
+    .notice { border-left: 3px solid var(--accent); padding-left: var(--s3); }
+    .error { color: var(--error); }
+    [hidden] { display: none !important; }
+    footer { max-width: 720px; margin: 0 auto; padding: 0 var(--s4) var(--s8); color: var(--muted); font-size: 12px; }
+    @media (max-width: 480px) {
+      main { margin: var(--s6) auto; }
+      .panel { padding: var(--s4); }
+      dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      dd { margin-bottom: var(--s2); }
+      nav { gap: var(--s1) var(--s4); }
+    }
+  </style>
+  <script src="./install.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">본문으로 건너뛰기</a>
+  <header>
+    <nav aria-label="주요 메뉴">
+      <a class="brand" href="./">mc-1-mod</a>
+      <a href="./">홈</a>
+      <a href="./emulator.html">에뮬레이터</a>
+      <a href="./#auditions">갤러리</a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">정적 패키지 배포</p>
+      <h1 id="page-title">펌웨어 다운로드</h1>
+      <p>FM-1 대상 FWSC 패키지와 빌드 출처를 확인하세요. 이 페이지는 브라우저에서 장치에 펌웨어를 쓰지 않습니다.</p>
+    </section>
+    <section class="panel" aria-labelledby="status-title">
+      <h2 id="status-title">0.0.1 experimental · 장치 미검증</h2>
+      <p>FWSC는 FM-1 타깃용으로 컴파일하고 오프라인 검사를 마친 실험 패키지입니다. 실제 장치에서 테스트하지 않았으며, 하드웨어 검증이나 청취 승인을 의미하지 않습니다.</p>
+      <p class="notice">다른 사운드 팩과 저장 데이터의 호환성은 보장하지 않습니다. 별도 설치기를 사용하기 전 현재 데이터를 백업하세요. 자동 하드웨어 쓰기는 제공하지 않습니다.</p>
+    </section>
+    <div id="manifest-slot" aria-busy="true">
+    <p id="manifest-loading" class="panel">펌웨어 패키지 정보와 다운로드 목록을 불러오는 중입니다.</p>
+    <section id="manifest-section" class="panel" aria-labelledby="package-title" hidden>
+      <h2 id="package-title">패키지 정보</h2>
+      <dl id="metadata"></dl>
+      <h2 style="margin-top:24px">다운로드 파일</h2>
+      <div id="files"></div>
+      <h2 style="margin-top:24px">빌드 산출물</h2>
+      <dl id="build-metadata"></dl>
+      <h2 style="margin-top:24px">제한 사항</h2>
+      <ul id="limitations"></ul>
+    </section>
+    <p id="fetch-error" class="panel error" role="status" hidden>펌웨어 매니페스트를 불러오지 못했습니다. 나중에 다시 시도하거나 소스 저장소에서 배포 상태를 확인하세요.</p>
+    </div>
+  </main>
+  <footer>
+    <p>펌웨어는 다운로드 전용이며 장치 설치 기능을 포함하지 않습니다.</p>
+    <p><a href="https://github.com/dspaudio/mc-1-mod">mc-1-mod 소스 저장소</a></p>
+  </footer>
+</body>
+</html>

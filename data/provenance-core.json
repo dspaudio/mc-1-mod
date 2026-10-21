@@ -1,0 +1,227 @@
+{
+  "upstream_root": "/Users/wknam/workspace/mc-1/mcfm-1",
+  "files": [
+    {
+      "path": "src/mcfm.h",
+      "upstream_relative_path": "src/mcfm.h",
+      "source_sha256": "3aab1744e99b280abe30dfafe3282435aac16d3b37b56d225dfa79081a6b9169",
+      "transformed": false
+    },
+    {
+      "path": "src/engine.c",
+      "upstream_relative_path": "src/engine.c",
+      "source_sha256": "7337affa887542cb0e0171642b1548950675ab9152e0a5bdbb87d5a4fe3ebe57",
+      "transformed": false
+    },
+    {
+      "path": "src/effects.c",
+      "upstream_relative_path": "src/effects.c",
+      "source_sha256": "7dd5358b0b5ff281b6975492095994cd81462fafd344e17af3eed6b67b9a9cdb",
+      "transformed": false
+    },
+    {
+      "path": "src/demo.c",
+      "upstream_relative_path": "src/demo.c",
+      "source_sha256": "11ea318dcb673d7c5f98c3bb6bd1c88db071066f47419507550f5ac9c36bea66",
+      "transformed": false
+    },
+    {
+      "path": "src/factory.c",
+      "upstream_relative_path": "src/factory.c",
+      "source_sha256": "f8136324a7656333638ca7fa06421fb1a5cbf9b61e6b445224c40a5f4c781494",
+      "transformed": false
+    },
+    {
+      "path": "src/midi.c",
+      "upstream_relative_path": "src/midi.c",
+      "source_sha256": "79fc69ceabe23301c4d7a21531522c9be64c2619869cfdc311a74fffeefe4473",
+      "transformed": false
+    },
+    {
+      "path": "src/midi.h",
+      "upstream_relative_path": "src/midi.h",
+      "source_sha256": "4c902d39d573541b9469c16931e86093c8c095323ea5bf9cd0ea1aef2bda7343",
+      "transformed": false
+    },
+    {
+      "path": "src/project.c",
+      "upstream_relative_path": "src/project.c",
+      "source_sha256": "6a19b2c4f954767e7074f1cbf4d48653b319fad4b5820072ae37a50ae1821ec2",
+      "transformed": false
+    },
+    {
+      "path": "src/store.c",
+      "upstream_relative_path": "src/store.c",
+      "source_sha256": "be00b894365ce9ec771ba0762d0bff03da46127ab7247635a04fac936f0d3c98",
+      "transformed": false
+    },
+    {
+      "path": "src/store.h",
+      "upstream_relative_path": "src/store.h",
+      "source_sha256": "ce79a51fff1d3cf9b31b62c3ff61398613abe3d30f6323b6253b2bc290aba8d1",
+      "transformed": false
+    },
+    {
+      "path": "src/fixed.h",
+      "upstream_relative_path": "src/fixed.h",
+      "source_sha256": "17b3218568707007510b9e802c1b9da657d0c42e32f16366f7855cd7d8cda36c",
+      "transformed": false
+    },
+    {
+      "path": "src/parallel.h",
+      "upstream_relative_path": "src/parallel.h",
+      "source_sha256": "3bd70d74cd724c8e8d94dcba1c6be888e87ed7b7056e2c4513097a3a8dd53e9f",
+      "transformed": false
+    },
+    {
+      "path": "src/presets.h",
+      "upstream_relative_path": "src/presets.h",
+      "source_sha256": "4a0067dcaed8e43a529212589d38d61ac1766749e5f3d0123d0ec5c09eb5cb23",
+      "transformed": false
+    },
+    {
+      "path": "src/ui.c",
+      "upstream_relative_path": "src/ui.c",
+      "source_sha256": "4c40694aa54060cf62f64785e7bc3d7b14a3c6f5d26d8c0faa3ff65d203500bd",
+      "transformed": false
+    },
+    {
+      "path": "src/ui.h",
+      "upstream_relative_path": "src/ui.h",
+      "source_sha256": "371f1c4447ac409684ded56430b842a83839746b86d027f0a7e7dbdb5815dfbf",
+      "transformed": false
+    },
+    {
+      "path": "tests/analog.c",
+      "upstream_relative_path": "tests/analog.c",
+      "source_sha256": "48363d8e16cf5e570658789d26ec7bae7762bf5bd6786bf17b04e9d519ed4bbd",
+      "transformed": false
+    },
+    {
+      "path": "tests/dualcore.c",
+      "upstream_relative_path": "tests/dualcore.c",
+      "source_sha256": "f464fe757aa2aec4b01c825579abaf138fc579690f57243a148c7aa1d4d07316",
+      "transformed": false
+    },
+    {
+      "path": "tests/effects_modes.c",
+      "upstream_relative_path": "tests/effects_modes.c",
+      "source_sha256": "f427754a9db04866326b0adf7a1c7f4bc34ce24cdf871548c836cc2dc5b70213",
+      "transformed": false
+    },
+    {
+      "path": "tests/env_graph.c",
+      "upstream_relative_path": "tests/env_graph.c",
+      "source_sha256": "00999624096db1c0341d867805039f366049e9ae68b68990f0bd3a192cbcb8cc",
+      "transformed": false
+    },
+    {
+      "path": "tests/fixed.c",
+      "upstream_relative_path": "tests/fixed.c",
+      "source_sha256": "94e21fa159f47a9e025623f6e19b9c57cce6fdec6d9fd092cd1ce74bfc90eb70",
+      "transformed": false
+    },
+    {
+      "path": "tests/metronome.c",
+      "upstream_relative_path": "tests/metronome.c",
+      "source_sha256": "1b121e087e605bcac8ee81204afce32f05bcb0314af57bd41787f6b7db03aff4",
+      "transformed": false
+    },
+    {
+      "path": "tests/midi.c",
+      "upstream_relative_path": "tests/midi.c",
+      "source_sha256": "684bf033b7e368363de11ef27184d5eee2ea147022b0c8c730fb6caaf09fbaab",
+      "transformed": false
+    },
+    {
+      "path": "tests/mixer_pan.c",
+      "upstream_relative_path": "tests/mixer_pan.c",
+      "source_sha256": "03fcdf5e60750b0b3c9f7ced88f87ffbb98c5cf73bedcd736a186e31518efc26",
+      "transformed": false
+    },
+    {
+      "path": "tests/output.c",
+      "upstream_relative_path": "tests/output.c",
+      "source_sha256": "51a1aa02ae4569c6b9c96709dfb26dd00453fb2e2fabde76bef44ed3704df4c2",
+      "transformed": false
+    },
+    {
+      "path": "tests/pattern_title.c",
+      "upstream_relative_path": "tests/pattern_title.c",
+      "source_sha256": "63358f77fc0df894bef05a321c60da7b701ef6354c266ac4e1f451ffb0eab149",
+      "transformed": false
+    },
+    {
+      "path": "tests/patterns.c",
+      "upstream_relative_path": "tests/patterns.c",
+      "source_sha256": "5b4a01e9082a9d696acde3b352a0ebd88a9f1135f1cb7d77a5d6fc7ebdd4b4d8",
+      "transformed": false
+    },
+    {
+      "path": "tests/pcm_cache.c",
+      "upstream_relative_path": "tests/pcm_cache.c",
+      "source_sha256": "25d6d6cabecb546c16ea15b29d22866baa41161da68aa1f49cf384faa9e09e12",
+      "transformed": false
+    },
+    {
+      "path": "tests/performance.c",
+      "upstream_relative_path": "tests/performance.c",
+      "source_sha256": "aefc517856e9bc2889e8586d56979d648ed180b84d68c1c93d50eabeb56645cb",
+      "transformed": false
+    },
+    {
+      "path": "tests/routing.c",
+      "upstream_relative_path": "tests/routing.c",
+      "source_sha256": "15f001449817e910e2fc5376d940ce44de20e75b91fa0aecc0a3b085300d5eae",
+      "transformed": false
+    },
+    {
+      "path": "tests/song.c",
+      "upstream_relative_path": "tests/song.c",
+      "source_sha256": "cf2690840d4509b15a4b4facdb13a3a80d30f1b70e662a30a23834ba2198bf0c",
+      "transformed": false
+    },
+    {
+      "path": "tests/storage.c",
+      "upstream_relative_path": "tests/storage.c",
+      "source_sha256": "73ffe6dbca953e515129aaa23999098678fd94d9847b2db65dfe39953329742c",
+      "transformed": false
+    },
+    {
+      "path": "tests/test.c",
+      "upstream_relative_path": "tests/test.c",
+      "source_sha256": "8fd266901bb6816b830fdc86ce202a6f8a26f6da39fab6ce355ff3882252629e",
+      "transformed": false
+    },
+    {
+      "path": "tests/ui_input.c",
+      "upstream_relative_path": "tests/ui_input.c",
+      "source_sha256": "2823f24d1798452906f333b2256f9f9a042a1ccf3a877e94e99b75f23261dec6",
+      "transformed": false
+    },
+    {
+      "path": "tools/host.c",
+      "upstream_relative_path": "tools/host.c",
+      "source_sha256": "e82d924b2adddc4af35a98fb93d2a5f23a98e0eae0595905d876752630232a7a",
+      "transformed": false
+    },
+    {
+      "path": "tests/presets_012.h",
+      "upstream_relative_path": "tests/presets_012.h",
+      "source_sha256": "2189e4fdb81c0eccfee0c7f00ea164491be364aa11317b26c7d2d7af133876d8",
+      "transformed": false
+    },
+    {
+      "path": "src/tables.h",
+      "upstream_relative_path": "src/tables.h",
+      "source_sha256": "9754b4e09ccfb7c9861f26176065a708a2809f854ad10c524dc83fd7c289d6fe",
+      "transformed": true
+    },
+    {
+      "path": "src/tables.c",
+      "upstream_relative_path": "src/tables.h",
+      "source_sha256": "9754b4e09ccfb7c9861f26176065a708a2809f854ad10c524dc83fd7c289d6fe",
+      "transformed": true
+    }
+  ]
+}

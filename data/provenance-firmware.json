@@ -1,0 +1,425 @@
+{
+  "manifest_version": 1,
+  "imported_at": "2026-10-21",
+  "source_root": "/Users/wknam/workspace/mc-1/mcfm-1",
+  "target_root": "/Users/wknam/workspace/mc-1-mod",
+  "source_commit": null,
+  "source_commit_note": "펌웨어 빌드나 Git 커밋을 만들지 않았다. 빌드 도구는 HEAD 조회 실패 시 JSON null을 기록한다.",
+  "source_input_sha256": "641f3db9cd4dca259eafcd13a2ece6376b8f6644215b6d717e3b5def4c8a82ca",
+  "source_input_sha256_scope": "build_target.py와 src/** 및 firmware/**의 .c/.h/.S/.ld 입력 77개를 경로 NUL 바이트 NUL 방식으로 해시함",
+  "source_input_snapshot": "main 혼합 코어 DAG 시작 전 검증된 foundation snapshot",
+  "source_input_sha256_note": "이 해시는 foundation 시점의 입력이다. 이후 main이 의도적으로 반영하는 mixed-core 변경은 import 손상으로 분류하지 않는다.",
+  "ownership_handoff": {
+    "mixed_core_owner": "main",
+    "forbidden_write_paths": [
+      "src/**",
+      "firmware/perf_fixture.h",
+      "firmware/panel_modes.h"
+    ],
+    "interpretation": "후속 혼합 코어 수정은 의도된 변경이며 foundation import 불일치가 아니다."
+  },
+  "import_summary": {
+    "file_count": 60,
+    "byte_identical_count": 58,
+    "documented_change_count": 2
+  },
+  "documented_changes": [
+    {
+      "path": "firmware/app.c",
+      "change": "C4: hybrid.c는 비분리 단일 TU에서만 포함하고 tables.c는 항상 app TU에서 정확히 한 번 포함"
+    },
+    {
+      "path": "tools/build_target.py",
+      "change": "C4: split DSP 목록에 hybrid.c를 추가하고 tables.c는 별도 object로 중복 링크하지 않음. C6: Git 조회 실패 시 source_commit/source_dirty는 null이며 입력 해시는 계속 계산"
+    }
+  ],
+  "defaults": {
+    "dual_core": true,
+    "perf_probe": true,
+    "melodic_voices": 8,
+    "worker_voices": 3,
+    "hal_app_optimization": "-Os",
+    "dsp_optimization": "-O2",
+    "dsp_split": true
+  },
+  "preserved_flash_ranges": {
+    "app_persistence": "0x99000..0xAB000",
+    "ota_staging": "0xE0000..0xE5000",
+    "header_read": "0x00000..0x04000"
+  },
+  "checks": {
+    "source_paths": "60개 upstream 경로 읽기 확인",
+    "raw_sha256": "원본/대상 120개 경로 해시; 58쌍 일치, firmware/app.c와 tools/build_target.py는 문서화된 C4/C6 변경",
+    "build_target_python_syntax": "통과: C4 반영 후 메모리 compile() 검사",
+    "full_target_build": "실행 안 함; 혼합 코어 통합 후속",
+    "flash": "실행 안 함",
+    "independent_host_tests": "C4 반영 후 통과: connections.c 기본/OTA, panel_leds, perf_probe, perf_hardware, stage_probe, memory",
+    "ota_loader": "ota_test.c와 ldr_test.c 컴파일 통과; FWSC 입력 부재로 실행 안 함"
+  },
+  "files": [
+    {
+      "path": "firmware/app.c",
+      "source_sha256": "ced5bd8a400fc63e304645b127816b84f2b58fe618a8ca648da90c80f9fb803e",
+      "target_sha256": "6cde0d34553223e5236e9f0516013795449db7ca1b392353a572726f64dba3e3",
+      "byte_identical": false
+    },
+    {
+      "path": "firmware/app.ld",
+      "source_sha256": "427ba4a93d7c95dd91411ea4a9ef26268fcc8662fd6685a2df4e0f02d94ecec1",
+      "target_sha256": "427ba4a93d7c95dd91411ea4a9ef26268fcc8662fd6685a2df4e0f02d94ecec1",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/crt0.S",
+      "source_sha256": "2212471c4a70e94022ba24ef65a4b208fadd5f7e33f80745c5f5e8b9f4aa840c",
+      "target_sha256": "2212471c4a70e94022ba24ef65a4b208fadd5f7e33f80745c5f5e8b9f4aa840c",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/connection/midi_uart.c",
+      "source_sha256": "6e227a287cc6576a3b189ef14d2568be4cd73a0b6df9fdf62d585239bb408d1e",
+      "target_sha256": "6e227a287cc6576a3b189ef14d2568be4cd73a0b6df9fdf62d585239bb408d1e",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/connection/routing.c",
+      "source_sha256": "e5be1f9246cd9f2788408109cd50e6b8ab55ba7f091b6fd64e5880e99232123b",
+      "target_sha256": "e5be1f9246cd9f2788408109cd50e6b8ab55ba7f091b6fd64e5880e99232123b",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_adc.h",
+      "source_sha256": "1917870bd802de9134d33335efbcf886b296705dff06688925fd7325589c0c1a",
+      "target_sha256": "1917870bd802de9134d33335efbcf886b296705dff06688925fd7325589c0c1a",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_audio.h",
+      "source_sha256": "22351440699748546e932098e3016c618d6137dd0ae34557e08a107641d4e62e",
+      "target_sha256": "22351440699748546e932098e3016c618d6137dd0ae34557e08a107641d4e62e",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_cc.h",
+      "source_sha256": "46c533a0926ba9298ae36705f857ed609a61b95511ba7f0d1800857b4760dd73",
+      "target_sha256": "46c533a0926ba9298ae36705f857ed609a61b95511ba7f0d1800857b4760dd73",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_cpu1.S",
+      "source_sha256": "bd0bf5bed7ae61f72a0305fbdc7005dedaa222fe22dc3dd69282f33576921cbc",
+      "target_sha256": "bd0bf5bed7ae61f72a0305fbdc7005dedaa222fe22dc3dd69282f33576921cbc",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_cpu1.h",
+      "source_sha256": "264ad7292dd9740f53909e5915c47836b4ea07b2f38d4f2f7ac24b4b5df4e761",
+      "target_sha256": "264ad7292dd9740f53909e5915c47836b4ea07b2f38d4f2f7ac24b4b5df4e761",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_flash.h",
+      "source_sha256": "ff2c7dacafc775c810f2cb1ffae38b96ced8c515355cae8487b8f4e56af81d4f",
+      "target_sha256": "ff2c7dacafc775c810f2cb1ffae38b96ced8c515355cae8487b8f4e56af81d4f",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_gpio.h",
+      "source_sha256": "5e3937e32a3b4b9b9ae622c5b42c8819ec8a16f2d76dbddec91654703c77a216",
+      "target_sha256": "5e3937e32a3b4b9b9ae622c5b42c8819ec8a16f2d76dbddec91654703c77a216",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_guard.h",
+      "source_sha256": "1a5544e8446723b1316f2cb8a36c954862bae745c4ba09b08463c97e1a60d6ba",
+      "target_sha256": "1a5544e8446723b1316f2cb8a36c954862bae745c4ba09b08463c97e1a60d6ba",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_input.h",
+      "source_sha256": "59b9308009824c6634fa3c6e7c568e9273e56a76e0d0ed98d82cc48e1ea7dc43",
+      "target_sha256": "59b9308009824c6634fa3c6e7c568e9273e56a76e0d0ed98d82cc48e1ea7dc43",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_irq.h",
+      "source_sha256": "9966b15bdd1c2595204147979acb0c497ca6500198dfdf5c98b6432b9aa56f88",
+      "target_sha256": "9966b15bdd1c2595204147979acb0c497ca6500198dfdf5c98b6432b9aa56f88",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_isr.S",
+      "source_sha256": "5e45c960577354184efa3bf984a1c14bffb0c5967cbdb643e1f4c9cc196105c5",
+      "target_sha256": "5e45c960577354184efa3bf984a1c14bffb0c5967cbdb643e1f4c9cc196105c5",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_lcd_hw.h",
+      "source_sha256": "4fc3318a703fd55200153442acac4eb33ef56ff8e2eb82ba18ed0a3b9e655c1e",
+      "target_sha256": "4fc3318a703fd55200153442acac4eb33ef56ff8e2eb82ba18ed0a3b9e655c1e",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_sys.h",
+      "source_sha256": "5d56781274406b0a1bf816c66d86c0b0b23b49757cc6f5644df566127827a9a7",
+      "target_sha256": "5d56781274406b0a1bf816c66d86c0b0b23b49757cc6f5644df566127827a9a7",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_time.h",
+      "source_sha256": "e83c725eae2ec5a163771ca2b8f1c0779354456f2e20a32febc7b6755758a97d",
+      "target_sha256": "e83c725eae2ec5a163771ca2b8f1c0779354456f2e20a32febc7b6755758a97d",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_timer.h",
+      "source_sha256": "1ec236ce4a75a5b94b9c16999dcdf7d71e4e0c5e0d2f14dbfb87bbaf025e1004",
+      "target_sha256": "1ec236ce4a75a5b94b9c16999dcdf7d71e4e0c5e0d2f14dbfb87bbaf025e1004",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_uart.h",
+      "source_sha256": "838d1f6695045734b24287c5d1dab34556dbc47795312e25846b66043e037023",
+      "target_sha256": "838d1f6695045734b24287c5d1dab34556dbc47795312e25846b66043e037023",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_usb.h",
+      "source_sha256": "667289a678a027221343b6496b61870222eb80394a696d7dd896dbc2ffe303d4",
+      "target_sha256": "667289a678a027221343b6496b61870222eb80394a696d7dd896dbc2ffe303d4",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_vec.S",
+      "source_sha256": "8f9e787871332f522157d561dc3cfe8906ed0abf160139ed5819cfdeab66f01a",
+      "target_sha256": "8f9e787871332f522157d561dc3cfe8906ed0abf160139ed5819cfdeab66f01a",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/hal/fm1_xip.h",
+      "source_sha256": "dcba6ddb9cd2403e1d97c4db49d836110ef2805d2369db7ed323e3fbe26c56ed",
+      "target_sha256": "dcba6ddb9cd2403e1d97c4db49d836110ef2805d2369db7ed323e3fbe26c56ed",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/lcd.c",
+      "source_sha256": "54ce3eb58051a739ff76cec47a5ff72df00dfb71abe633c889805f32a76e62f6",
+      "target_sha256": "54ce3eb58051a739ff76cec47a5ff72df00dfb71abe633c889805f32a76e62f6",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/libc.c",
+      "source_sha256": "a3b9c06c2da84f401b8d982a46aaf2b754f26c4f90244a95f05badcc887c46f0",
+      "target_sha256": "a3b9c06c2da84f401b8d982a46aaf2b754f26c4f90244a95f05badcc887c46f0",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/panel_leds.h",
+      "source_sha256": "c4bee060108d643b45b1c2e09a1f007b52c928e9f65ce26e52f69ca2ed2a8c0c",
+      "target_sha256": "c4bee060108d643b45b1c2e09a1f007b52c928e9f65ce26e52f69ca2ed2a8c0c",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/panel_modes.h",
+      "source_sha256": "fb31b2a69140e7b39bbede0f17f5fb60148b2c0468c17cc48641239561c94ffc",
+      "target_sha256": "fb31b2a69140e7b39bbede0f17f5fb60148b2c0468c17cc48641239561c94ffc",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/panel_refresh.c",
+      "source_sha256": "694f7c8b90505a61ef56818d8dacaa7c7f28fbaf5fc296a87866b81870ae1ab0",
+      "target_sha256": "694f7c8b90505a61ef56818d8dacaa7c7f28fbaf5fc296a87866b81870ae1ab0",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/update/ota.c",
+      "source_sha256": "08adbd478f103fe9101ad4e599c2cd9283489c11543b67feea6a4a554fdaca82",
+      "target_sha256": "08adbd478f103fe9101ad4e599c2cd9283489c11543b67feea6a4a554fdaca82",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/update/ota_flash.c",
+      "source_sha256": "222d22da7ce152986172ed30aca0f67ca1feb611498fee1ccdc9656c515c4117",
+      "target_sha256": "222d22da7ce152986172ed30aca0f67ca1feb611498fee1ccdc9656c515c4117",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/update/ota_flash.h",
+      "source_sha256": "684ac1e3cace56087ff23af1856decceb2e1d8ccdc014d7372b810548098906f",
+      "target_sha256": "684ac1e3cace56087ff23af1856decceb2e1d8ccdc014d7372b810548098906f",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/update/ota_app.c",
+      "source_sha256": "c17366609851e6d11f480b78e6d28daa55018e2a696a26c05fcc5195858c656c",
+      "target_sha256": "c17366609851e6d11f480b78e6d28daa55018e2a696a26c05fcc5195858c656c",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/update/ota_entry.c",
+      "source_sha256": "b36dc6413f2317f1b2c68fa4cbdfb4f1b17ed613f34f6f4580214bb8e2a4c1b0",
+      "target_sha256": "b36dc6413f2317f1b2c68fa4cbdfb4f1b17ed613f34f6f4580214bb8e2a4c1b0",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/update/usb.c",
+      "source_sha256": "8673a121b451f26b0df2a590f876b3017b1e87ebf737c03c15f14127a299140c",
+      "target_sha256": "8673a121b451f26b0df2a590f876b3017b1e87ebf737c03c15f14127a299140c",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/loader/crt0_ldr.S",
+      "source_sha256": "bd4149b97520d1dcc271f730c5a046b0dbf97909e48e968e0ba18304ffc37841",
+      "target_sha256": "bd4149b97520d1dcc271f730c5a046b0dbf97909e48e968e0ba18304ffc37841",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/loader/ldr_core.c",
+      "source_sha256": "3a42e797ca1822c0a1c3a4f8b3857ad2b581dc3f2cf55cf972c61698cc655978",
+      "target_sha256": "3a42e797ca1822c0a1c3a4f8b3857ad2b581dc3f2cf55cf972c61698cc655978",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/loader/loader.c",
+      "source_sha256": "5b49d5b7bbfab95f3e67ad4887f3b76b7b66a1652f491922373a8f840a8af0b8",
+      "target_sha256": "5b49d5b7bbfab95f3e67ad4887f3b76b7b66a1652f491922373a8f840a8af0b8",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/loader/loader.ld",
+      "source_sha256": "4acae8c9a16cf9a70f53a546f9175b5a86d2bc5cb6bce39513a2ff3c4fdba4ae",
+      "target_sha256": "4acae8c9a16cf9a70f53a546f9175b5a86d2bc5cb6bce39513a2ff3c4fdba4ae",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/perf_fixture.h",
+      "source_sha256": "c3cdb945c4d35561633eca53738d49f24d899f06d9825390dd5a871fb94ff1a5",
+      "target_sha256": "c3cdb945c4d35561633eca53738d49f24d899f06d9825390dd5a871fb94ff1a5",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/perf_probe.h",
+      "source_sha256": "20d32fbbb0ab7bba1b694bc7c10d7002fa02759a4e65b8e5f385e66dba37f71b",
+      "target_sha256": "20d32fbbb0ab7bba1b694bc7c10d7002fa02759a4e65b8e5f385e66dba37f71b",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/perf_hardware.h",
+      "source_sha256": "70d8ac040a298ce4f423da6a67dbc61723448ed5fcc616b17162444e4e34d52c",
+      "target_sha256": "70d8ac040a298ce4f423da6a67dbc61723448ed5fcc616b17162444e4e34d52c",
+      "byte_identical": true
+    },
+    {
+      "path": "firmware/stage_probe.h",
+      "source_sha256": "3e99ed41bc042edc6d58b9ce51c5524b527ce33dbf91dbc41f6b31aadeb7182a",
+      "target_sha256": "3e99ed41bc042edc6d58b9ce51c5524b527ce33dbf91dbc41f6b31aadeb7182a",
+      "byte_identical": true
+    },
+    {
+      "path": "tools/build_target.py",
+      "source_sha256": "0e32c4b0f06307c90ae9263fbd6d9914845f9c7334bef1a9f8dff69d131518a3",
+      "target_sha256": "4bf5a621705fcb12e75e34872d83f86aff40728c7e368678e8753ecca968fc9d",
+      "byte_identical": false
+    },
+    {
+      "path": "tools/build_package.py",
+      "source_sha256": "6adaba7d507ed08c0c180ff3ee7a4cacaab941bafae4d3c35dd2ad26475497c7",
+      "target_sha256": "6adaba7d507ed08c0c180ff3ee7a4cacaab941bafae4d3c35dd2ad26475497c7",
+      "byte_identical": true
+    },
+    {
+      "path": "tools/fm1pkg_make.py",
+      "source_sha256": "284fa4553d3194d6c374b7cb3ff169ac11a5d3f496861ed17f7bae28e79d7ea3",
+      "target_sha256": "284fa4553d3194d6c374b7cb3ff169ac11a5d3f496861ed17f7bae28e79d7ea3",
+      "byte_identical": true
+    },
+    {
+      "path": "tools/lz4blk.py",
+      "source_sha256": "bede501ca8774ba6942b35ad2c43823e9f48f13d0fb001ef9b73cdaf41460e16",
+      "target_sha256": "bede501ca8774ba6942b35ad2c43823e9f48f13d0fb001ef9b73cdaf41460e16",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/ota_test.c",
+      "source_sha256": "1a30854cd15796706362d5d78979bb9578c0650e7aaf9232a27a00f9b7f84e90",
+      "target_sha256": "1a30854cd15796706362d5d78979bb9578c0650e7aaf9232a27a00f9b7f84e90",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/ldr_test.c",
+      "source_sha256": "21411c8c1026dd9f2d6e6aec8abe623b4b02092f310877fd8aa2eb22cde7fd30",
+      "target_sha256": "21411c8c1026dd9f2d6e6aec8abe623b4b02092f310877fd8aa2eb22cde7fd30",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/ota_entry_test.c",
+      "source_sha256": "a1235e25a63a41cee78ff023ebc558cd784c84f2bd3528bd979c780ebb5b8490",
+      "target_sha256": "a1235e25a63a41cee78ff023ebc558cd784c84f2bd3528bd979c780ebb5b8490",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/connections.c",
+      "source_sha256": "9a817f3c9040aca24f2f5e5a03a0f4aa7dcab7b07d595566119fe8ee9a0dbc98",
+      "target_sha256": "9a817f3c9040aca24f2f5e5a03a0f4aa7dcab7b07d595566119fe8ee9a0dbc98",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/connection_routing.c",
+      "source_sha256": "4753161f31ea7ba3b55f837a7ea7a34a27d236d87a96a1b42cdfa30ad02c3d52",
+      "target_sha256": "4753161f31ea7ba3b55f837a7ea7a34a27d236d87a96a1b42cdfa30ad02c3d52",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/panel_leds.c",
+      "source_sha256": "351c9827e3dd31e0d72782c469a4193ba79cf09311ee6e5071ab2894ee97990a",
+      "target_sha256": "351c9827e3dd31e0d72782c469a4193ba79cf09311ee6e5071ab2894ee97990a",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/panel_modes.c",
+      "source_sha256": "af62d8d7e149505adbfc1cb2b61b331d02e71ee5e2a4dc059c322639dbcfc915",
+      "target_sha256": "af62d8d7e149505adbfc1cb2b61b331d02e71ee5e2a4dc059c322639dbcfc915",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/panel_refresh.c",
+      "source_sha256": "036a41e679d77297999fe0a62af27b28509ef3dc4fa140da845ce01b9992eeed",
+      "target_sha256": "036a41e679d77297999fe0a62af27b28509ef3dc4fa140da845ce01b9992eeed",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/encoder_input.c",
+      "source_sha256": "f882c2d5130dd91c2c799e4e15d99edbb33b63e781503df54b144261996d982c",
+      "target_sha256": "f882c2d5130dd91c2c799e4e15d99edbb33b63e781503df54b144261996d982c",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/perf_probe.c",
+      "source_sha256": "ca8c62daeb4eceb12b97e97fe98f48061a3801b915aa7766f60b9c866b1747fe",
+      "target_sha256": "ca8c62daeb4eceb12b97e97fe98f48061a3801b915aa7766f60b9c866b1747fe",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/perf_hardware.c",
+      "source_sha256": "b8c083562bc167ec1648441a4381b9ff86a18d7e8a2258518eea8c3554251a32",
+      "target_sha256": "b8c083562bc167ec1648441a4381b9ff86a18d7e8a2258518eea8c3554251a32",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/stage_probe.c",
+      "source_sha256": "7fec2b7b88e5fe99df417457e4a722e0c24594a988ddf31d2a28daf6b4cb0c12",
+      "target_sha256": "7fec2b7b88e5fe99df417457e4a722e0c24594a988ddf31d2a28daf6b4cb0c12",
+      "byte_identical": true
+    },
+    {
+      "path": "tests/memory.c",
+      "source_sha256": "56c41f370f3e5d985b6a562207a71b7f2622ccfc7a29691cde3024ef92fda760",
+      "target_sha256": "56c41f370f3e5d985b6a562207a71b7f2622ccfc7a29691cde3024ef92fda760",
+      "byte_identical": true
+    }
+  ],
+  "c4_linkage": {
+    "hybrid": "MC_DSP_SPLIT=1이면 별도 -O2 object, 아니면 app TU 포함",
+    "tables": "src/tables.c는 app TU에 한 번 포함하며 별도 object 없음"
+  }
+}

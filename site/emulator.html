@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>MC-1 MOD 0.0.1 experimental — FM-1 emulator</title>
+<meta name="theme-color" content="#101114">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MC-1 MOD">
+<style>
+:root {
+    --txt: #c9cdd4;
+    --dim: #70757d;
+    --accent: #e8b84b;
+    --play: #63ff42;
+    /* safe-area insets, readable from JS (fitDevice) */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+html, body { background: #101114; color: var(--txt); font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace; }
+body { display: flex; flex-direction: column; align-items: center; padding: 18px 10px 40px; }
+
+h1 { font-size: 15px; letter-spacing: 3px; color: var(--dim); margin-bottom: 12px; font-weight: normal; }
+h1 b { color: var(--txt); }
+
+/* the device: every control is absolutely positioned from the FM-1 user
+   manual's panel drawing (page 1), normalized to the case outline */
+#device {
+    position: relative;
+    background: linear-gradient(175deg, #24272c, #1a1c20 55%, #17191d);
+    border: 1px solid #000;
+    border-radius: 34px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.07), inset 0 -2px 6px rgba(0,0,0,.4);
+}
+
+.pane {                       /* recessed containers (buttons, OCT, keybed) */
+    position: absolute; transform: translate(-50%, -50%); background: #141619;
+    border: 1px solid #000; border-radius: 14px;
+    box-shadow: inset 0 1px 5px rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.05);
+}
+
+.lab { position: absolute; font-size: 11px; letter-spacing: 2px; color: var(--dim); text-align: center; transform: translate(-50%, -50%); white-space: nowrap; }
+
+.cap {
+    position: absolute; border-radius: 50%; transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 35% 30%, #3a3e46, #15161a 75%);
+    border: 1px solid #000; cursor: ns-resize; touch-action: none;
+    box-shadow: 0 3px 8px rgba(0,0,0,.6), inset 0 1px 1px rgba(255,255,255,.1);
+}
+.cap::before {                /* knurled edge */
+    content: ""; position: absolute; inset: 7%; border-radius: 50%;
+    background: repeating-conic-gradient(#2c2f35 0deg 9deg, #202329 9deg 18deg);
+    opacity: .55;
+}
+.cap::after {                 /* pointer */
+    content: ""; position: absolute; left: 50%; top: 7%; width: 6%; height: 28%;
+    margin-left: -3%; border-radius: 3px; background: var(--pcol, #cfd3da); z-index: 1;
+    transform-origin: 50% 154%; transform: rotate(var(--rot, 0deg));
+}
+.cap .grab {                  /* enlarged touch target (compact only) */
+    position: absolute; inset: -16px; border-radius: 50%;
+    touch-action: none; display: none;
+}
+body.compact .cap .grab { display: block; }
+
+#bezel {
+    position: absolute; background: #000; border-radius: 12px;
+    border: 1px solid #000;
+    box-shadow: inset 0 0 14px rgba(0,0,0,.95), 0 1px 0 rgba(255,255,255,.05);
+    display: flex; align-items: center; justify-content: center;
+}
+#screen { image-rendering: pixelated; display: block; background: #000; }
+
+.btn {
+    position: absolute; transform: translate(-50%, -50%);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 11px; letter-spacing: 1px; line-height: 1.1;
+    background: linear-gradient(#34383f, #22252a);
+    border: 1px solid #000; border-radius: 8px; cursor: pointer; color: var(--txt);
+    box-shadow: 0 2px 4px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+    touch-action: none;
+}
+.btn.down { box-shadow: 0 1px 2px rgba(0,0,0,.5); background: linear-gradient(#2a2d33, #1d2024); }
+.btn.lit { color: #fff; box-shadow: 0 0 14px 2px rgba(240,220,160,.45), inset 0 1px 0 rgba(255,255,255,.1); background: linear-gradient(#5a5341, #3c3831); }
+.btn.play { color: var(--play); }
+.btn.play.lit { box-shadow: 0 0 14px 2px rgba(99,255,66,.45), inset 0 1px 0 rgba(255,255,255,.1); background: linear-gradient(#314d2a, #233520); }
+.btn.glow { box-shadow: 0 0 8px 0 rgba(240,220,160,.2), 0 2px 4px rgba(0,0,0,.5); }
+.btn kbd { position: absolute; top: 1px; right: 4px; font-size: 8px; color: #565b63; }
+
+/* silicone pill keys; the slot is the LED window, as on the device */
+.pill {
+    position: absolute; transform: translate(-50%, -50%);
+    background: linear-gradient(#f2f0ea, #d7d4cb);
+    border: 1px solid #101214; cursor: pointer; touch-action: none;
+    box-shadow: 0 3px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.55);
+}
+.pill .slot {
+    position: absolute; left: 50%; top: 14%; width: 14%; height: 36%;
+    transform: translateX(-50%); border-radius: 999px; background: #1b1d20;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.8);
+}
+.pill.bk .slot { top: 12%; height: 40%; }
+.pill i { position: absolute; bottom: 6%; left: 0; right: 0; text-align: center; font-size: 8px; color: #8a877d; font-style: normal; letter-spacing: 0; }
+.pill.down { background: linear-gradient(#d2cfc8, #c1beb5); }
+.pill.lit .slot { background: #ffd467; box-shadow: 0 0 12px 3px rgba(255,212,103,.75), inset 0 0 2px rgba(120,80,0,.6); }
+.pill.wk.lit .slot { background: var(--play); box-shadow: 0 0 12px 3px rgba(99,255,66,.75), inset 0 0 2px rgba(20,80,0,.6); }
+.pill.glow .slot { background: #6b5c2e; box-shadow: 0 0 5px 1px rgba(255,212,103,.25); }
+.pill kbd { position: absolute; top: 4%; left: 6%; font-size: 8px; color: #a5a299; }
+.pill.bk kbd { color: #a5a299; }
+
+#power {
+    position: absolute; inset: 0; z-index: 10; border-radius: 34px;
+    background: rgba(8,9,11,.93); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px; cursor: pointer;
+}
+#power span { font-size: 26px; letter-spacing: 8px; color: var(--txt); }
+#power small { color: var(--dim); font-size: 11px; letter-spacing: 1px; }
+#power .ring {
+    width: 74px; height: 74px; border-radius: 50%; border: 2px solid var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--accent);
+}
+
+/* compact mode (phones / small windows): the device is scaled — and in
+   portrait rotated 90° — to fill the viewport; emu.js sets the transform */
+body.compact { padding: 0; height: 100vh; height: 100dvh; overflow: hidden; }
+body.compact h1, body.compact #help { display: none; }
+body.compact #device { position: fixed; left: 50%; top: 50%; }
+
+/* fullscreen toggle — only on phones that support the Fullscreen API */
+#fs {
+    position: fixed; z-index: 20; display: none;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+    width: 42px; height: 42px; padding: 0;
+    align-items: center; justify-content: center;
+    font-size: 20px; line-height: 1; color: var(--txt); cursor: pointer;
+    background: rgba(32, 35, 40, .72); border: 1px solid rgba(0,0,0,.6);
+    border-radius: 11px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,.45);
+}
+#fs:active { background: rgba(52, 56, 63, .85); }
+body.compact.fs-ok #fs { display: flex; }
+
+/* iOS tip overlay (no Fullscreen API on iPhone → Add to Home Screen) */
+#fstip {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center; padding: 24px;
+    background: rgba(8, 9, 11, .88); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+#fstip.show { display: flex; }
+#fstip .card {
+    max-width: 320px; text-align: center; line-height: 1.6;
+    background: #1c1f24; border: 1px solid #000; border-radius: 16px;
+    padding: 24px 22px; box-shadow: 0 16px 40px rgba(0,0,0,.6);
+}
+#fstip h2 { font-size: 15px; letter-spacing: 2px; color: var(--txt); font-weight: normal; margin-bottom: 12px; }
+#fstip p { font-size: 13px; color: var(--dim); }
+#fstip b { color: var(--accent); font-weight: normal; }
+#fstip .ok {
+    margin-top: 18px; display: inline-block; padding: 9px 22px; cursor: pointer;
+    font-size: 12px; letter-spacing: 1px; color: var(--txt);
+    background: #2a2e34; border: 1px solid #000; border-radius: 9px;
+}
+
+#help { max-width: 1200px; margin-top: 18px; font-size: 11px; color: var(--dim); line-height: 1.7; text-align: center; }
+#help b { color: var(--txt); font-weight: normal; }
+#help a { color: var(--accent); }
+
+/* the manual under the device (per firmware; hidden in compact mode) */
+#manual {
+    max-width: 1140px; width: 100%; margin-top: 34px;
+    font-family: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 14.5px; line-height: 1.7; color: #b7bdc6;
+    font-weight: 400;
+}
+body.compact #manual { display: none; }
+
+#manual h2 {
+    font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+    font-size: 14px; letter-spacing: 4px; font-weight: normal; color: var(--accent);
+    display: flex; align-items: center; gap: 14px;
+    margin: 36px 0 18px;
+}
+#manual h2::before { content: ""; width: 26px; height: 2px; background: var(--accent); border-radius: 2px; }
+#manual h2::after { content: ""; flex: 1; height: 1px; background: #23262c; }
+
+#manual .lead {
+    font-size: 16px; line-height: 1.75; color: #ccd1d8; max-width: 72ch;
+    margin-bottom: 20px;
+}
+
+#manual .cards {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 14px; margin-bottom: 14px;
+}
+#manual .card {
+    background: linear-gradient(170deg, #1c1f24, #171a1e);
+    border: 1px solid #0c0d0f; border-radius: 14px;
+    padding: 18px 20px 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.04);
+}
+#manual .card.wide { grid-column: 1 / -1; }
+#manual .card.note { border-left: 3px solid var(--accent); }
+#manual h3 {
+    font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 3px; font-weight: normal; color: #8d939c;
+    margin: 0 0 10px;
+}
+#manual p, #manual ul { margin-bottom: 10px; }
+#manual p:last-child, #manual ul:last-child { margin-bottom: 0; }
+#manual ul { padding-left: 0; list-style: none; }
+#manual li { margin-bottom: 8px; padding-left: 16px; position: relative; }
+#manual li::before { content: ""; position: absolute; left: 0; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: #4a4f57; }
+#manual b, #manual strong { color: #eceef1; font-weight: 500; }
+#manual a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(232,184,75,.35); }
+#manual a:hover { border-bottom-color: var(--accent); }
+#manual .src { font-size: 12.5px; color: #80868f; margin-top: 16px; }
+
+#manual kbd {
+    font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+    background: linear-gradient(#32363d, #24272c); border: 1px solid #000; border-radius: 5px;
+    padding: 1px 7px 2px; font-size: 11px; color: #e4e7eb;
+    box-shadow: 0 1px 0 rgba(255,255,255,.07) inset, 0 1px 2px rgba(0,0,0,.4);
+    white-space: nowrap;
+}
+#manual .chip {
+    font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+    display: inline-block; min-width: 46px; text-align: center;
+    background: linear-gradient(#3b3526, #2b2820); border: 1px solid #000; border-radius: 6px;
+    padding: 3px 9px; font-size: 11px; letter-spacing: 1px; color: var(--accent);
+    box-shadow: 0 1px 0 rgba(255,255,255,.06) inset;
+    white-space: nowrap;
+}
+#manual .kn {
+    font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+    font-size: 11.5px; color: #9aa1ab; letter-spacing: .5px;
+}
+
+#manual table { border-collapse: collapse; width: 100%; }
+#manual th, #manual td { padding: 10px 12px; text-align: left; vertical-align: top; }
+#manual th {
+    font-family: "Terminus (TTF)", "DejaVu Sans Mono", ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 2px; font-weight: normal; color: #80868f;
+    border-bottom: 1px solid #2a2e34; padding-top: 0;
+}
+#manual td { border-bottom: 1px solid #202329; color: #b7bdc6; }
+#manual tr:last-child td { border-bottom: none; }
+#manual td:first-child { white-space: nowrap; }
+#status {position:fixed;bottom:5px;left:50%;transform:translateX(-50%);z-index:25;font-size:11px;color:#ddd;background:#151515cc;padding:4px 9px;white-space:nowrap;}
+#midi {max-width:900px; margin:18px auto; display:flex; flex-wrap:wrap; gap:12px; align-items:center; color:#ddd;}
+#midi button, #midi select {font:inherit; color:#eee; background:#25282e; border:1px solid #747b86; border-radius:5px; padding:8px; max-width:240px;}
+#midi :focus-visible {outline:2px solid var(--accent); outline-offset:3px;}
+#midi-status {flex-basis:100%; font-size:13px;}
+body.compact #midi {position:fixed; top:8px; left:8px; z-index:30; margin:0; padding:8px; background:#171a1ef2; max-width:calc(100vw - 70px);}
+body.compact #midi:not([open]) {padding:6px;}
+#midi summary {cursor:pointer; color:var(--accent);}
+#midi .ports {display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; align-items:center;}
+</style>
+<style>
+body.compact #status {white-space:normal;max-width:calc(100vw - 16px);width:max-content;text-align:center;}
+</style>
+</head>
+<body>
+<h1 id="title">MC-1 MOD 0.0.1 experimental · FM-1 emulator</h1>
+<button id="fs" aria-label="Toggle fullscreen">⛶</button>
+<div id="fstip"><div class="card"><h2>FULLSCREEN</h2><p>Use Share → Add to Home Screen on iPhone.</p><span class="ok">GOT IT</span></div></div>
+<div id="device"><div id="power"><div class="ring">⏻</div><span>POWER ON</span><small>MC-1 MOD 0.0.1 experimental · 64 patterns · 32 profiles · actual C engine and screen · sound on</small></div></div>
+<div id="help"><b>MC-1 MOD</b> · Drag or scroll knobs · Space: PLAY · R: REC · 1–0: panel buttons · Z/X: octave · Arrow keys: part/profile<br>
+
+<a href="./">프로젝트 홈</a> · <a href="./install.html">펌웨어 다운로드</a> · <a href="./#auditions">전체 음색 듣기</a> · <a href="https://github.com/dspaudio/mc-1-mod">소스</a></div>
+<details id="midi"><summary>MIDI ports</summary><div class="ports">
+<button id="midi-connect" type="button">Connect MIDI</button>
+<label>Input <select id="midi-input" disabled><option value="">None</option></select></label>
+<label>Output <select id="midi-output" disabled><option value="">None</option></select></label>
+<p id="midi-status" role="status" aria-live="polite">Connect OS MIDI ports. POWER ON for audio.</p></div></details>
+<span id="status">MC-1 MOD 0.0.1 experimental · POWER ON to start</span>
+<section id="manual"><h2>PLAY MC-1 MOD</h2><div class="cards">
+<div class="card note wide"><h3>빠른 댄스 데모 2곡</h3><p>정지 상태에서 GLO를 세 번 눌러 DEMO LIBRARY를 열고 KNOB1으로 곡을 고르세요. <b>HIPHOP POCKET</b>은 128 BPM·24마디 클럽 힙합, <b>TECHNO DRIVE</b>는 144 BPM·32마디 테크노입니다. KNOB4를 시계 방향으로 돌려 불러온 뒤 PLAY를 누르면 인트로부터 마무리까지 SONG으로 재생합니다. 현재 작업 프로젝트를 교체하므로 필요한 내용은 먼저 저장하세요. <a href="./#beat-songs">두 곡의 전체 WAV 듣기·다운로드</a></p></div>
+<div class="card note wide"><h3>음질 검증 상태</h3><p>0.0.1 experimental 빌드입니다. PCM은 직접 수학적으로 생성한 후보 자산이며 <b>청취 승인을 받지 않았습니다</b>. 실제 악기의 복제보다 synth piano, piano+strings/pad 같은 현대적인 음색을 목표로 합니다. 같은 C 코어로 렌더한 <b>전체 32음색과 드럼 8킷</b>, 소스별 분리 비교, 데모와 최대 부하 예제를 <a href="./#auditions">오디오 갤러리</a>에서 재생하거나 WAV로 받을 수 있습니다. 기계 검사 통과를 곡 안의 유용성이나 실기 성공으로 취급하지 않습니다. <a href="https://github.com/dspaudio/mc-1-mod/blob/main/docs/AUDIO_ACCEPTANCE.md">청취 기준</a></p></div>
+<div class="card"><h3>NEON SPIRAL / EFFECTS</h3><p>While stopped: press GLO three times, turn KNOB4 clockwise to load NEON SPIRAL, then PLAY. Loading replaces the working project. HOME then FX opens SENDS for the selected track; SELECT changes tracks. Knobs 1-4 set R/D1, C/F1, R/D2 and C/F2 sends (0-127, zero is dry). ENV switches SENDS / TYPES. TYPES sets the four global shared banks for all four tracks, 0-7 each: each R/D bank offers ROOM1-3, HALL1-2, PLATE, DELAY and PANNING DLY; each C/F bank offers CHORUS1-4, FB CHORUS, FLANGER, SHORT DLY and FB SHORT DLY. These are original approximations, not Roland algorithms. The master has volume and limiter only.</p></div>
+<div class="card"><h3>PARTS AND SOUNDS</h3><p>SELECT chooses three melodic parts or drums. PRESETS opens a 32-profile or eight-kit list that closes after 0.5 seconds without input. Turn slowly for fine changes and quickly for larger jumps. ALGORITHM queues any of 64 patterns, each with 16 steps and four parts. Modified sounds retain their profile name with *. GLO cycles MIXER / GROOVE / DEMO / AUTOMATION / MIDI / ANALOG / MIX. ANALOG knob 1 sets independent melodic-part variance from 0-127; zero is off and drums are excluded. In MIXER: SELECT-ARP to mute. Orange marks selection; bright green underlines flow below populated rows during playback. Small screen text is 6x9. All menu and OCT buttons are lit; selected menus blink at 2 Hz, PLAY pulses at the sequencer tempo and HOME stays lit while playing.</p></div>
+<div class="card"><h3>프로필과 MIX</h3><p>한 보이스가 PCM 스트림(P), 2오퍼레이터 FM(F), VA 오실레이터(V) 중 필요한 소스만 실행합니다. 합산 뒤 공통 필터와 진폭 엔벌로프를 한 번 적용합니다. HOME에서 GLO를 일곱 번 누르면 MIX가 열립니다. 네 노브는 PCM/FM/VA 게인(0–127)과 소스 마스크를 조정합니다. 제공하지 않는 소스는 건너뛰며 드럼에서는 비활성입니다. 저장·자동화 파라미터는 PCM 3, FM 49, VA 50, 마스크 51입니다. MIDI CC 16/17/18/19도 각각 연결됩니다. 프로필 파라미터 2는 읽기 전용이며 PRESETS나 Program Change로 선택합니다. ANALOG를 0으로 두면 의도하지 않은 소스별 detune은 적용하지 않습니다.</p></div>
+<div class="card"><h3>ARP / RECORDING</h3><p>ARP opens the melodic arpeggiator: MODE / RATE / OCT / GATE; LFO toggles latch. Choose UP, DOWN, UPDOWN, ORDER, RANDOM or CHORD. REC with PLAY records generated notes and sound, mixer and effect knob changes on the 16-step grid. GLO → GROOVE → KNOB4 toggles METRO: clicks only with PLAY and REC, even when all tracks are muted. GLO's AUTOMATION page shows event capacity; EDIT clears the current pattern's automation.</p></div>
+<div class="card"><h3>STEP EDIT / DRUMS</h3><p>EDIT toggles note entry; keys enter a note at the selected step. Drum knobs select SOUND / STEP / HIT / LEVEL. ENV adjusts melodic ADSR. REC records live notes quantized to the current step.</p></div>
+<div class="card"><h3>SONG / MIDI</h3><p>SEQ toggles SONG mode. Press EDIT to unlock the arrangement; four knobs set POS / PATTERN / REPEAT / LENGTH. LFO toggles LOOP. An empty song needs LENGTH before PLAY. GLO five times opens MIDI: the four knobs set track channels; LFO cycles INTERNAL / USB / TRS clock. Browser MIDI input uses USB. Open MIDI ports above to connect an OS input/output; REC with PLAY captures incoming notes. Incoming messages are not echoed.</p></div>
+<div class="card"><h3>SAVE AND LIMITS</h3><p>SAVE twice while stopped writes the actual C A/B project format to emulated flash, persisted in IndexedDB. Reload restores it. Browser storage can be cleared by your browser. This sound pack stores under its own identity and will not read or convert an MC-1 save; a project written by other firmware is protected, not overwritten. FM-1 hardware supports dual-core synthesis/FX processing. This browser runs the same synth/UI semantics in one AudioWorklet; it does not emulate WL82 CPU1 timing or failures. Web MIDI uses OS-exposed ports with your permission. Audio uses the browser’s stereo output. No direct USB audio device emulation, direct BLE connection, calibration or hardware timing guarantees.</p></div></div>
+<p class="src">FM-1 faceplate, input and AudioWorklet infrastructure adapted from <a href="https://github.com/dspaudio/orbit-web-emu">ORBIT web emulator</a>, originally <a href="https://github.com/sabliran/sloop-web-emu">SLOOP web emulator</a>. Code: GPL-3.0-only. Synthesis, UI and storage C is adapted from <a href="https://github.com/dspaudio/mc-1">MC-1</a>; this is a separate sound pack, not an MC-1 tone update. Only this project's firmware is included; no Roland ROMs or samples. Not affiliated with Roland or M-VAVE.</p></section>
+<script src="midi.js?v=0.0.1"></script>
+<script src="emu.js?v=0.0.1"></script></body></html>

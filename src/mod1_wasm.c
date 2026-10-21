@@ -1,0 +1,164 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 dspaudio
+ * Browser HAL using the FM-1 interface of sabliran/sloop-web-emu and
+ * dspaudio/orbit-web-emu.
+ * 이 프로젝트 트리의 공유 C DSP/UI/저장 코드를 그대로 컴파일한다.
+ * 패널 동작과 project flash만 모사하며 pi32v2 CPU는 모사하지 않는다. */
+#include "mcfm.h"
+#include "ui.h"
+#include "store.h"
+#include "../firmware/panel_modes.h"
+#include <stdint.h>
+#ifdef __wasm__
+#define API(n) __attribute__((export_name(n), used))
+#else
+#define API(n)
+#endif
+static McEngine engine;
+static McUi ui;
+static uint16_t fb[240*240];
+static int16_t pcm[1024];
+static float audio[1024];
+static int16_t resample_pair[4];
+static unsigned output_rate=MC_RATE,resample_phase,resample_ready;
+static uint32_t resample_input_frames,resample_output_frames;
+static uint8_t flash[MC_STORE_END-MC_STORE_A],leds[11],dims[11],held_part[27],held_note[27];
+static uint32_t flash_gen,fb_gen,notes,buttons,ui_time;
+static int master=1023;
+static const uint8_t step_keys[MC_STEPS]={0,2,4,6,7,9,11,12,14,16,18,19,21,23,24,26};
+static const int8_t matrix[6][11]={
+ {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+ {5,11,4,10,3,9,2,8,-1,-1,-1},
+ {34,35,36,37,38,40,39,13,7,6,12},
+ {23,24,25,26,27,28,29,30,31,32,33},
+ {0,1,15,14,17,16,19,18,20,21,22},
+ {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}};
+static int bounds(uint32_t off,unsigned n){return off>=MC_STORE_A && off<=MC_STORE_END && n<=MC_STORE_END-off;}
+static int rd(uint32_t off,void *out,unsigned n){if(!bounds(off,n))return -1;uint8_t *p=out;for(unsigned i=0;i<n;i++)p[i]=flash[off-MC_STORE_A+i];return 0;}
+static int erase(uint32_t off){if(off%MC_SECTOR||!bounds(off,MC_SECTOR))return -1;for(unsigned i=0;i<MC_SECTOR;i++)flash[off-MC_STORE_A+i]=255;flash_gen++;return 0;}
+static int prog(uint32_t off,const void *in,unsigned n){if(!bounds(off,n))return -1;const uint8_t *p=in;for(unsigned i=0;i<n;i++)flash[off-MC_STORE_A+i]&=p[i];flash_gen++;return 0;}
+static const McStorage storage={rd,erase,prog};
+static void service(void){
+ if(ui.load_request&&!engine.playing){unsigned d=ui.load_request-1;mc_demo_load(&engine,d);mc_ui_init(&ui);ui.message="DEMO LOADED - PLAY";}
+ if(ui.save_request){
+ ui.save_request=0;
+ int status=mc_store_status(&storage);
+ if(status==MC_STORE_UNSUPPORTED)ui.message="OTHER PACK: SAVE LOCKED";
+ else if(status==MC_STORE_IO_ERROR)ui.message="FLASH READ FAILED";
+ else ui.message=mc_store_save(&storage,&engine.project)==0?"SAVED":"SAVE FAILED";
+ }
+}
+API("emu_frame") void emu_frame(void){
+ engine.master=(uint32_t)((uint64_t)(unsigned)master*(unsigned)master*MC_MASTER_MAX/(1023u*1023u));
+ service();
+ mc_ui_prepare_frame(&engine,&ui);
+ McUiFrame frame;mc_ui_capture_frame(&engine,&frame);
+ for(unsigned y=0;y<240;y+=8)mc_ui_strip_frame(&engine,&ui,&frame,y,8,fb+y*240);
+ unsigned modes=mc_panel_led_mask(&engine,&ui,ui_time);
+ for(unsigned c=0;c<11;c++){leds[c]=dims[c]=0;for(unsigned r=1;r<5;r++){
+ int key=matrix[r][c];int on=(key>=0&&key<14&&((modes>>key)&1u))||(engine.playing&&key==14+step_keys[engine.step])||(key>=14&&((notes>>(key-14))&1u));
+ if(on)leds[c]|=(uint8_t)(1u<<r);
+ }}fb_gen++;
+}
+API("emu_resample_init") unsigned emu_resample_init(unsigned rate){
+ if(rate!=44100&&rate!=48000&&rate!=96000)return 0;
+ output_rate=rate;resample_phase=resample_ready=0;
+ resample_input_frames=resample_output_frames=0;return 1;
+}
+API("emu_init") void emu_init(void){
+ mc_init(&engine);mc_ui_init(&ui);notes=buttons=ui_time=0;
+ (void)emu_resample_init(output_rate);
+ uint32_t seq;int status=mc_store_status(&storage);
+ (void)mc_store_load(&storage,&engine.project,&seq);
+ if(status==MC_STORE_UNSUPPORTED)ui.message="OTHER PACK: SAVE LOCKED";
+ else if(status==MC_STORE_CORRUPT_OWN)ui.message="SAVE DATA CORRUPT";
+ else if(status==MC_STORE_IO_ERROR)ui.message="FLASH READ FAILED";
+ emu_frame();
+}
+API("emu_start") void emu_start(void){emu_frame();}
+API("emu_render") void emu_render(unsigned n){if(n>512)n=512;mc_render(&engine,pcm,n);for(unsigned i=0;i<n*2;i++)audio[i]=(float)pcm[i]/32768.0f;}
+API("emu_out_frames_max") unsigned emu_out_frames_max(void){return 512;}
+API("emu_render_out") void emu_render_out(unsigned n){
+ if(n>512)n=512;
+ if(!n)return;
+ if(output_rate==MC_RATE){
+ emu_render(n);resample_input_frames+=n;resample_output_frames+=n;return;
+ }
+ /* 입력 한 샘플의 lookahead를 보존하며 호출 분할과 무관한 정수 위상을 쓴다. */
+ unsigned needed=(resample_phase+n*MC_RATE)/output_rate;
+ unsigned position=0;
+ if(!resample_ready)needed+=2;
+ mc_render(&engine,pcm,needed);resample_input_frames+=needed;
+ if(!resample_ready){
+ for(unsigned i=0;i<4;i++)resample_pair[i]=pcm[i];
+ position=2;resample_ready=1;
+ }
+ for(unsigned frame=0;frame<n;frame++){
+ for(unsigned ch=0;ch<2;ch++){
+ int32_t first=resample_pair[ch],difference=(int32_t)resample_pair[ch+2]-first;
+ int32_t value=first+(int32_t)((int64_t)difference*resample_phase/output_rate);
+ audio[frame*2+ch]=(float)value/32768.0f;
+ }
+ resample_phase+=MC_RATE;
+ if(resample_phase>=output_rate){
+ resample_phase-=output_rate;
+ for(unsigned ch=0;ch<2;ch++){
+ resample_pair[ch]=resample_pair[ch+2];resample_pair[ch+2]=pcm[position*2+ch];
+ }
+ position++;
+ }
+ }
+ resample_output_frames+=n;
+}
+API("emu_input") void emu_input(uint32_t nn,uint32_t bb){
+ static const uint8_t map[14]={12,13,0,1,2,3,4,5,6,7,8,9,10,11};
+ for(unsigned i=0;i<14;i++)if((bb^buttons)&(1u<<i))mc_ui_button_state(&engine,&ui,map[i],(int)((bb>>i)&1u));
+ for(unsigned i=0;i<27;i++)if((nn^notes)&(1u<<i)){
+ if(nn&(1u<<i)){held_part[i]=engine.selected;int n=53+(int)i+ui.octave*12;held_note[i]=(uint8_t)(n<12?12:n>108?108:n);mc_ui_key(&engine,&ui,i,1);if(ui.pattern_keys&(1u<<i))held_part[i]=255;}
+ else {ui.preset_popup=ui.encoder_active=0;if(ui.pattern_keys&(1u<<i))mc_ui_key(&engine,&ui,i,0);else if(held_part[i]<3)mc_key(&engine,held_part[i],held_note[i],100,0);}
+ }
+ notes=nn;buttons=bb;service();
+}
+API("emu_enc") void emu_enc(unsigned e,int step){static const uint8_t map[7]={0,1,3,4,5,6,2};if(e<7)mc_ui_encoder(&engine,&ui,map[e],step);service();}
+API("emu_enc_at") void emu_enc_at(unsigned e,int step,uint32_t now_ms){static const uint8_t map[7]={0,1,3,4,5,6,2};if(e<7)mc_ui_encoder_at(&engine,&ui,map[e],step,now_ms);service();}
+API("emu_ui_tick") void emu_ui_tick(uint32_t now_ms){ui_time=now_ms;mc_ui_tick(&ui,now_ms);}
+API("emu_adc_set") void emu_adc_set(unsigned ch,int v){if(ch==4)master=v<0?0:v>1023?1023:v;}
+API("emu_fb_ptr") uintptr_t emu_fb_ptr(void){return (uintptr_t)fb;}
+API("emu_fb_gen") uint32_t emu_fb_gen(void){return fb_gen;}
+API("emu_audio_ptr") uintptr_t emu_audio_ptr(void){return (uintptr_t)audio;}
+API("emu_led_ptr") uintptr_t emu_led_ptr(void){return (uintptr_t)leds;}
+API("emu_led_dim_ptr") uintptr_t emu_led_dim_ptr(void){return (uintptr_t)dims;}
+API("emu_flash_ptr") uintptr_t emu_flash_ptr(void){return (uintptr_t)flash;}
+API("emu_flash_size") unsigned emu_flash_size(void){return sizeof flash;}
+API("emu_flash_gen") uint32_t emu_flash_gen(void){return flash_gen;}
+API("emu_pack_ptr") uintptr_t emu_pack_ptr(void){return (uintptr_t)mc_pack_id;}
+API("emu_pack_bytes") unsigned emu_pack_bytes(void){return sizeof mc_pack_id;}
+API("emu_store_status") unsigned emu_store_status(void){return (unsigned)mc_store_status(&storage);}
+API("emu_midi_byte") void emu_midi_byte(unsigned source,unsigned byte){if(byte<256)mc_midi_byte(&engine,source,(uint8_t)byte);}
+API("emu_midi_reset") void emu_midi_reset(unsigned source){mc_midi_reset(&engine,source);}
+API("emu_midi_pop") uint32_t emu_midi_pop(void){McMidiMessage m;if(!mc_midi_pop(&engine,&m))return 0;return ((uint32_t)m.length<<24)|m.data[0]|((uint32_t)m.data[1]<<8)|((uint32_t)m.data[2]<<16);}
+/* Read-only test diagnostics, also useful for browser bug reports. */
+API("emu_state") uint32_t emu_state(unsigned k){
+ unsigned p=engine.selected<3?engine.selected:0;
+ switch(k){case 0:return engine.project.bpm;case 1:return engine.selected;case 2:return ui.page;case 3:return engine.project.demo;case 4:return engine.playing;case 5:return engine.project.fx[0];case 6:return ui.preset[p];case 7:return engine.project.patch[0].cutoff;case 8:return engine.project.drum_kit;case 9:return engine.pattern;case 10:case 11:return engine.project.fx_send[engine.selected][k-10];case 12:case 13:return engine.project.fx_bus_type[k-12];case 14:return ui.preset_popup;
+ case 15:return engine.arp[p].events;case 16:return engine.project.arp[p].enabled;
+ case 17:return engine.project.arp[p].mode;case 18:return engine.project.arp[p].rate;
+ case 19:return engine.project.arp[p].octaves;case 20:return engine.project.arp[p].gate;
+ case 21:return engine.project.arp[p].latch;case 22:return engine.project.automation_count;
+ case 23:return engine.automation_full;case 24:return engine.step;case 25:return engine.project.preset[p];case 26:return engine.queued;case 27:return MC_PATTERNS;case 28:return engine.edit_step;case 29:return engine.master;case 30:return engine.midi.dropped;case 31:return engine.project.clock_source;case 32:return engine.project.song_mode;case 33:return engine.song_position;case 34:return engine.song_repeat;case 35:return engine.project.song_length;case 36:case 37:case 38:case 39:return engine.project.midi_channel[k-36];
+ case 40:return engine.project.patch[p].source_mask;
+ case 41:return engine.project.patch[p].fm_mix;
+ case 42:return engine.project.patch[p].va_mix;
+ case 43:return engine.project.patch[p].profile;
+ case 44:return resample_phase;
+ case 45:return resample_input_frames;
+ case 46:return resample_output_frames;
+ default:return 0;}
+}
+API("emu_parameter") int emu_parameter(unsigned part,unsigned parameter){return mc_parameter_get(&engine,part,parameter);}
+
+#ifdef __wasm__
+#include <stddef.h>
+void *memcpy(void *dst,const void *src,size_t n){unsigned char *d=dst;const unsigned char *s=src;while(n--)*d++=*s++;return dst;}
+void *memset(void *dst,int v,size_t n){unsigned char *d=dst;while(n--)*d++=(unsigned char)v;return dst;}
+#endif
