@@ -1231,7 +1231,8 @@ static void arranged_song(McEngine *e,unsigned techno) {
         p->patch[0].sustain=104;
         p->patch[0].release=8;
         p->patch[0].glide=42;
-        p->patch[1].level=127;
+        /* Preserve the song balance after Pulse Arp's fixed 1.75x output trim. */
+        p->patch[1].level=73;
         p->patch[1].release=8;
         p->patch[2].level=112;
         p->patch[2].release=10;
@@ -1251,30 +1252,51 @@ void mc_demo_load(McEngine *e,unsigned demo) {
     e->midi.output_channels=channels;e->midi.output_running=running;
     e->midi.cleanup=(uint8_t)(channels?3:0);e->midi.stop_pending=running;
     if(demo>=MC_DEMO_HIPHOP) { arranged_song(e,demo==MC_DEMO_TECHNO);return; }
-    /* Both built-in demos use the active shared banks, not legacy master FX. */
+    /* Preserve the original shared effects after selecting the new instrument roles. */
+    static const uint8_t presets[2][3]={
+        {MC_PRESET_SLIDE_BASS,MC_PRESET_SLOW_STRINGS,MC_PRESET_STAGE_PIANO},
+        {MC_PRESET_SLIDE_BASS,MC_PRESET_SLIDE_BASS,MC_PRESET_SOFT_MALLET}};
+    static const uint8_t sends[2][4][MC_FX_BANKS]={
+        {{8,0,10,0},{52,28,38,0},{24,0,28,18},{10,0,0,0}},
+        {{8,0,12,0},{40,18,44,0},{20,0,26,16},{8,0,0,0}}};
+    static const uint8_t types[2][MC_FX_BANKS]={{3,0,7,6},{5,1,6,4}};
     /* Favor part 1's gentle pitch movement; keep recorded PCM attacks stable. */
     static const uint8_t analog[2][3]={{18,52,8},{24,60,6}};
     unsigned version=demo?1:0;
+    e->midi.receiving=1;
+    for(unsigned part=0;part<3;part++)mc_preset(e,part,presets[version][part]);
+    e->midi.receiving=0;
+    for(unsigned part=0;part<3;part++)mc_midi_send(e,0xc0u+e->project.midi_channel[part],e->project.preset[part],0,2);
+    for(unsigned part=0;part<4;part++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+        e->project.fx_send[part][bank]=sends[version][part][bank];
+    for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+        e->project.fx_bus_type[bank]=types[version][bank];
     for(unsigned part=0;part<3;part++)
         e->project.analog[part]=analog[version][part];
     if(!demo) {
-        e->midi.receiving=1;mc_preset(e,2,MC_PRESET_STAGE_PIANO);e->midi.receiving=0;
-        mc_midi_send(e,0xc0u+e->project.midi_channel[2],e->project.preset[2],0,2);
-        /* piano 어택과 FM 배음, VA 몸통을 같은 hook으로 연주한다. */
+        e->project.patch[0].cutoff=48;e->project.patch[0].resonance=90;
+        e->project.patch[0].attack=1;e->project.patch[0].decay=55;e->project.patch[0].sustain=45;
+        e->project.patch[0].release=10;e->project.patch[0].glide=55;e->project.patch[0].level=100;
+        /* Silk Pad's slow envelope is local to NIGHT CIRCUIT, not the Strings preset. */
+        e->project.patch[1].wave=MC_WAVE_SINE;
+        e->project.patch[1].cutoff=58;e->project.patch[1].resonance=0;
+        e->project.patch[1].attack=94;e->project.patch[1].decay=120;e->project.patch[1].sustain=127;
+        e->project.patch[1].release=68;e->project.patch[1].glide=0;e->project.patch[1].level=88;
+        /* Recorded piano and its short FM onset play the original hook. */
         e->project.patch[2].pcm_mix=108;
         e->project.patch[2].cutoff=100;e->project.patch[2].resonance=8;
         e->project.level[2]=104;
-        demo_full_tone_fx(&e->project);
         return;
     }
     for(unsigned i=0;i<sizeof e->project.step;i++) ((uint8_t *)e->project.step)[i]=0;
     e->project.bpm=140;e->project.swing=0;
-    e->midi.receiving=1;
-    mc_preset(e,0,MC_PRESET_PULSE_DRIVE);mc_preset(e,1,MC_PRESET_SLIDE_BASS);mc_preset(e,2,MC_PRESET_SOFT_MALLET);
-    e->midi.receiving=0;
-    for(unsigned part=0;part<3;part++)mc_midi_send(e,0xc0u+e->project.midi_channel[part],e->project.preset[part],0,2);
+    e->project.patch[0].wave=MC_WAVE_SQUARE;
     e->project.patch[0].cutoff=65;e->project.patch[0].resonance=35;e->project.patch[0].decay=30;e->project.patch[0].sustain=45;
-    e->project.patch[1].resonance=35;e->project.patch[1].glide=55;
+    e->project.patch[0].attack=1;e->project.patch[0].release=15;e->project.patch[0].glide=70;e->project.patch[0].level=100;
+    e->project.patch[1].wave=MC_WAVE_SAW;
+    e->project.patch[1].cutoff=80;e->project.patch[1].resonance=35;
+    e->project.patch[1].attack=1;e->project.patch[1].decay=40;e->project.patch[1].sustain=35;
+    e->project.patch[1].release=8;e->project.patch[1].glide=55;e->project.patch[1].level=90;
     /* FM 단독 mallet에는 없는 PCM gain을 지정하지 않는다. */
     e->project.patch[2].resonance=8;
     e->project.level[0]=127;e->project.level[1]=100;e->project.level[2]=104;e->project.level[3]=75;
@@ -1291,7 +1313,6 @@ void mc_demo_load(McEngine *e,unsigned demo) {
         drum->velocity=(uint8_t)(s%4==0?120:85);drum->gate=50;
     }
     e->project.demo=1;
-    demo_full_tone_fx(&e->project);
     e->project.fx[0]=48;e->project.fx[1]=35;e->project.fx[2]=20;e->project.fx[3]=30;
 }
 void mc_demo_tick(McEngine *e) {

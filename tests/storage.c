@@ -78,7 +78,7 @@ static void reject(unsigned n) {
 static void wire_tests(void) {
     assert(mc_encode(&original,71,encoded,sizeof encoded)==MC_RECORD_BYTES);
     assert(!memcmp(encoded,"MCHY",4)&&encoded[4]==9&&!encoded[5]);
-    assert(!memcmp(encoded+20,"MOD1\1\0\4\0",8));
+    assert(!memcmp(encoded+20,"MOD1\1\0\5\0",8));
     assert(!memcmp(encoded+20,mc_pack_id,8));
     assert((encoded[6]|(unsigned)encoded[7]<<8)==35134);
     memcpy(other,encoded,sizeof other);

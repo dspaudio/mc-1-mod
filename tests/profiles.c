@@ -8,8 +8,8 @@
 /* Validate immutable recipes and real factory data, not perceived sound quality. */
 int main(void) {
     static const uint8_t masks[32]={
-        6,4,6,6,6,7,6,6,7,5,7,7,5,7,6,6,
-        6,6,4,1,6,4,6,6,6,5,4,7,4,7,6,7};
+        6,4,6,6,6,7,6,6,3,1,3,3,5,7,6,6,
+        6,6,4,1,6,4,6,6,6,1,4,6,4,7,6,6};
     static const uint8_t families[32]={
         255,255,255,255,0,0,255,255,1,1,1,1,2,3,255,255,
         255,255,255,4,255,255,255,255,255,5,255,6,255,2,255,6};
@@ -23,13 +23,16 @@ int main(void) {
     _Static_assert(sizeof(((McHybridProfile *)0)->fm_body_q15)==2&&
         sizeof(((McHybridProfile *)0)->va_colour_start_q15)==2&&
         sizeof(((McHybridProfile *)0)->va_colour_end_q15)==2&&
-        sizeof(((McHybridProfile *)0)->va_morph_ms)==2,"immutable recipe units");
+        sizeof(((McHybridProfile *)0)->va_morph_ms)==2&&
+        sizeof(((McHybridProfile *)0)->gain_q8)==2,"immutable recipe units");
     unsigned singles=0,triples=0,used=0;
     for(unsigned id=0;id<MC_PRESETS;id++) {
         const McPatch *p=&mc_presets[id];
         const McHybridProfile *r=&mc_hybrid_profiles[id];
         unsigned available=masks[id]|(id==4?HY_PCM:0)|
-            (id==19?(HY_FM|HY_VA):0);
+            (id==19?(HY_FM|HY_VA):0)|
+            (((id>=8&&id<=11)||id==25)?HY_VA:0)|
+            ((id==27||id==31)?HY_PCM:0);
         assert(p->profile==id&&p->source_mask==masks[id]);
         assert(r->available_mask==available&&r->pcm_family==families[id]);
         assert(available&&!(available&~HY_ALL));
@@ -48,6 +51,7 @@ int main(void) {
         assert(r->velocity_index<=127&&r->velocity_cutoff<=127);
         assert(r->fm_decay_ms<=10000&&r->fm_duration_ms<=10000);
         assert(r->fm_body_q15<=32768);
+        assert(r->gain_q8==(id==28?448u:256u));
         assert(r->va_colour_start_q15<=32768&&r->va_colour_end_q15<=32768);
         assert(!r->va_morph_ms||(r->va_morph_ms>=80&&r->va_morph_ms<=10000));
         if(!r->va_morph_ms)assert(r->va_colour_start_q15==r->va_colour_end_q15);
@@ -82,7 +86,7 @@ int main(void) {
         singles+=(masks[id]&(masks[id]-1u))==0;
         triples+=masks[id]==HY_ALL;
     }
-    assert(singles==6&&triples==8&&used==127);
+    assert(singles==8&&triples==3&&used==127);
     for(unsigned z=0;z<MC_PCM_ZONES;z++) {
         const McPcmZone *zone=&mc_pcm_zones[z];
         static const uint8_t roots[MC_PCM_ZONES]={36,48,60,72,60,60,60,60,60};
@@ -104,22 +108,25 @@ int main(void) {
     assert(mc_presets[6].source_mask==(HY_FM|HY_VA));
     assert(mc_presets[0].fm_mix>0&&mc_hybrid_profiles[0].fm_body_q15>0);
     assert(mc_presets[5].source_mask==HY_ALL&&mc_hybrid_profiles[5].fm_body_q15>0);
-    assert(mc_presets[8].pcm_mix>mc_presets[8].fm_mix&&mc_presets[8].va_mix>mc_presets[8].fm_mix);
+    assert(mc_presets[8].pcm_mix>mc_presets[8].fm_mix&&!(mc_presets[8].source_mask&HY_VA));
     assert(mc_hybrid_profiles[8].fm_duration_ms>0&&mc_presets[8].sustain>=80);
-    assert(mc_presets[9].wave==MC_WAVE_SAW&&mc_presets[9].va_mix>mc_presets[8].va_mix);
-    assert(mc_presets[9].sustain>mc_presets[8].sustain&&mc_presets[9].release>mc_presets[8].release);
+    assert(mc_presets[9].wave==MC_WAVE_SINE&&mc_presets[9].source_mask==HY_PCM);
+    assert(mc_presets[9].sustain>=mc_presets[8].sustain&&mc_presets[9].release>mc_presets[8].release);
     assert(mc_presets[10].fm_mix>mc_presets[10].va_mix&&mc_presets[11].cutoff>mc_presets[10].cutoff);
-    for(unsigned id=MC_PRESET_STAGE_PIANO;id<=MC_PRESET_CLEAR_EP;id++)
-        assert(mc_presets[id].source_mask&HY_PCM);
+    for(unsigned id=MC_PRESET_STAGE_PIANO;id<=MC_PRESET_CLEAR_EP;id++) {
+        assert((mc_presets[id].source_mask&HY_PCM)&&!(mc_presets[id].source_mask&HY_VA));
+        assert(mc_presets[id].wave==MC_WAVE_SINE&&!mc_hybrid_profiles[id].fm_feedback);
+    }
     assert(mc_presets[14].sustain==0&&mc_presets[15].sustain==0);
     assert(mc_hybrid_profiles[16].fm_body_q15==32768&&mc_hybrid_profiles[17].fm_body_q15==32768);
     assert(mc_presets[16].sustain>=120&&mc_presets[17].sustain>=120&&mc_presets[18].sustain==0);
+    assert(mc_presets[16].wave==MC_WAVE_SINE&&mc_presets[17].wave==MC_WAVE_SINE);
     assert(mc_presets[20].wave==MC_WAVE_SAW&&mc_presets[21].wave==MC_WAVE_SQUARE);
     assert(mc_presets[22].glide>0&&mc_presets[23].fm_mix>mc_presets[23].va_mix);
     assert(mc_presets[24].va_mix>mc_presets[24].pcm_mix);
     assert(mc_presets[25].pcm_mix>mc_presets[25].va_mix);
     assert(MC_PRESET_HOLLOW_PAD==26&&mc_presets[26].wave==MC_WAVE_SQUARE);
-    assert(mc_presets[27].source_mask==HY_ALL&&mc_hybrid_profiles[27].pcm_family==6);
+    assert(mc_presets[27].source_mask==(HY_FM|HY_VA)&&mc_hybrid_profiles[27].pcm_family==6);
     assert(mc_presets[27].wave==MC_WAVE_SINE&&!mc_hybrid_profiles[27].fm_feedback);
     for(unsigned id=24;id<=30;id++)if(id!=25&&id!=27&&id!=28&&id!=29)
         assert(!(mc_presets[id].source_mask&HY_PCM));
@@ -128,7 +135,8 @@ int main(void) {
     assert(mc_hybrid_profiles[28].available_mask==HY_VA&&mc_hybrid_profiles[29].fm_duration_ms);
     assert(mc_presets[24].wave==MC_WAVE_SINE&&mc_presets[30].wave==MC_WAVE_SINE);
     assert(mc_presets[30].attack>mc_presets[24].attack&&mc_hybrid_profiles[30].fm_decay_ms>=4000);
-    assert(mc_hybrid_profiles[31].fm_decay_ms>1000&&mc_presets[31].fm_mix>mc_presets[31].va_mix);
+    assert(mc_hybrid_profiles[31].fm_decay_ms>1000&&mc_presets[31].va_mix>mc_presets[31].fm_mix);
+    assert(mc_presets[31].source_mask==(HY_FM|HY_VA)&&!mc_hybrid_profiles[31].fm_feedback);
     {
         static McProject project;
         static const uint8_t types[4]={3,1,7,5},drums[4]={12,0,6,0},ids[3]={0,10,20};

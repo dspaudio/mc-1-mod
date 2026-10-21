@@ -254,38 +254,20 @@ static int aud_kit(AudResult *r,unsigned kit) {
     }
     return aud_until(r,r->frames);
 }
-static int aud_demo(AudResult *r,int stress) {
+static int aud_stress(AudResult *r) {
     static const unsigned pitches[8]={48,52,55,59,60,64,67,71};
     static const unsigned sounds[6]={0,1,3,4,5,13};
-    if(stress) {
-        for(unsigned p=0;p<3;p++) {
-            mc_preset(&aud_engine,p,MC_PRESET_GLASS_PAD);
-            McPatch *v=&aud_engine.project.patch[p];
-            v->source_mask=HY_ALL;v->sustain=127;v->attack=0;
-        }
-        aud_fx(AUD_STRESS);
-        for(unsigned i=0;i<8;i++)
-            if(aud_event(r,i%3,pitches[i],100,0,4u*MC_RATE,0))return -1;
-        for(unsigned step=0;step<16;step++) {
-            if(aud_until(r,step*MC_RATE/4u))return -1;
-            for(unsigned i=0;i<6;i++)if(aud_event(r,3,sounds[i],110,0,0,1))return -1;
-        }
-    } else {
-        mc_preset(&aud_engine,0,MC_PRESET_DEEP_SUB);
-        mc_preset(&aud_engine,1,MC_PRESET_STAGE_PIANO);
-        mc_preset(&aud_engine,2,MC_PRESET_PULSE_LEAD);
-        aud_fx(AUD_FULL);
-        for(unsigned step=0;step<32;step++) {
-            if(aud_until(r,step*MC_RATE/4u))return -1;
-            unsigned root=step<16?36:41;
-            if(!(step%2)&&aud_event(r,0,root+(step%8==6?12u:0u),108,0,MC_RATE/5u,0))return -1;
-            if(!(step%8))for(unsigned k=0;k<3;k++)
-                if(aud_event(r,1,root+24+(k==1?3u:k==2?7u:0u),90,0,MC_RATE,0))return -1;
-            if(step%2&&aud_event(r,2,root+36+(step%8==7?10u:7u),96,0,MC_RATE/4u,0))return -1;
-            if(!(step%4)&&aud_event(r,3,0,116,0,0,1))return -1;
-            if(step%4==2&&aud_event(r,3,1,106,0,0,1))return -1;
-            if(aud_event(r,3,step%8==7?3:2,80,0,0,1))return -1;
-        }
+    for(unsigned p=0;p<3;p++) {
+        mc_preset(&aud_engine,p,MC_PRESET_GLASS_PAD);
+        McPatch *v=&aud_engine.project.patch[p];
+        v->source_mask=HY_ALL;v->sustain=127;v->attack=0;
+    }
+    aud_fx(AUD_STRESS);
+    for(unsigned i=0;i<8;i++)
+        if(aud_event(r,i%3,pitches[i],100,0,4u*MC_RATE,0))return -1;
+    for(unsigned step=0;step<16;step++) {
+        if(aud_until(r,step*MC_RATE/4u))return -1;
+        for(unsigned i=0;i<6;i++)if(aud_event(r,3,sounds[i],110,0,0,1))return -1;
     }
     return aud_until(r,r->frames);
 }
@@ -315,6 +297,7 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
     if(snprintf(path,sizeof path,"%s/%s",dir,name)>=(int)sizeof path)return -1;
     AudResult r={0};
     int isdemo=!strcmp(kind,"demo"),stress=!strcmp(kind,"stress"),issong=song>=0;
+    int reference=isdemo&&issong;
     aud_setup(preset<0?0u:(unsigned)preset,mask);
     unsigned bars=0,automation_count=0;
     uint8_t song_default_sends[MC_PARTS][MC_FX_BANKS]={{0}};
@@ -327,6 +310,7 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
                 sizeof song_default_sends[part]);
         automation_count=aud_engine.project.automation_count;
         for(unsigned i=0;i<aud_engine.project.song_length;i++)bars+=aud_engine.project.song[i].repeats;
+        if(reference)bars=song?32u:8u;
     } else if(!isdemo&&!stress)aud_fx(mode);
     /* Scheduled performance length; every file then renders a further 12 s for FX/voice tails. */
     r.perf=stress?5u*MC_RATE:isdemo?9u*MC_RATE:kit>=0?10u*MC_RATE:11u*MC_RATE;
@@ -345,9 +329,13 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
     int failed;
     if(issong) {
         mc_start(&aud_engine);
-        failed=aud_until(&r,r.frames)||aud_engine.playing;
+        if(reference) {
+            failed=aud_until(&r,r.perf);
+            mc_stop(&aud_engine);
+            if(!failed)failed=aud_until(&r,r.frames);
+        } else failed=aud_until(&r,r.frames)||aud_engine.playing;
     } else failed=kit>=0?aud_kit(&r,(unsigned)kit):
-        (isdemo||stress)?aud_demo(&r,stress):aud_phrase(&r,(unsigned)preset);
+        stress?aud_stress(&r):aud_phrase(&r,(unsigned)preset);
     r.end_voices=active_voices();r.end_drums=active_drums();
     unsigned end_fx_active=(unsigned)(aud_engine.shared_fx.rd_active!=0)+(unsigned)(aud_engine.shared_fx.cf_active!=0)+
         (unsigned)(aud_engine.extra_fx.rd_active!=0)+(unsigned)(aud_engine.extra_fx.cf_active!=0);
@@ -407,7 +395,8 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
         mechanical_ok?"PASS":"FAIL",
         aud_engine.project.analog[0],aud_engine.project.analog[1],aud_engine.project.analog[2]);
     static const char *const origins[4]={"preset-defaults","diagnostic-zero","diagnostic-zero","stress-fixture"};
-    const char *origin=issong?"song-defaults":isdemo?"preset-defaults":kit>=0?"project":origins[mode];
+    const char *origin=reference?"mc1-demo-defaults":issong?"song-defaults":
+        isdemo?"preset-defaults":kit>=0?"project":origins[mode];
     fprintf(report,"\"render_mode\":\"%s\",\"diagnostic\":%s,\"bank_revision\":%u,\"fx_origin\":\"%s\","
         "\"paired_file\":",aud_mode_names[mode],mode==AUD_DRY||mode==AUD_SOURCE?"true":"false",
         (unsigned)MC_BANK_REVISION,origin);
@@ -419,8 +408,9 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
     unsigned song_edits=0;
     if(issong)for(unsigned part=0;part<MC_PARTS;part++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
         if(song_default_sends[part][bank]!=aud_init_sends[part][bank])
-            fprintf(report,"%s{\"frame\":0,\"stage\":\"song-load\",\"part\":%u,\"bank\":%u,"
-                "\"from\":%u,\"to\":%u}",song_edits++?",":"",part,bank,
+            fprintf(report,"%s{\"frame\":0,\"stage\":\"%s\",\"part\":%u,\"bank\":%u,"
+                "\"from\":%u,\"to\":%u}",song_edits++?",":"",
+                reference?"demo-load":"song-load",part,bank,
                 song_default_sends[part][bank],aud_init_sends[part][bank]);
     fputs("],\"fx_changes\":[",report);
     if(fx_changed) {
@@ -430,10 +420,14 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
     }
     fputs("],",report);
     if(issong) {
-        /* Genre direction only: no notes or audio are copied and neither reference was auditioned. */
-        fprintf(report,"\"genre_reference_video_id\":\"%s\",\"genre_reference_audio_auditioned\":false,"
-            "\"arrangement_status\":\"candidate-pending-listening-approval\",",
-            song==MC_DEMO_HIPHOP?"na7lIb09898":"NKTetfkfbao");
+        if(reference)
+            fputs("\"mc1_original_arrangement\":true,\"score_scope\":\"loaded-source-patterns\",",report);
+        else {
+            /* Genre direction only: neither video was auditioned or sampled. */
+            fprintf(report,"\"genre_reference_video_id\":\"%s\",\"genre_reference_audio_auditioned\":false,"
+                "\"arrangement_status\":\"candidate-pending-listening-approval\",",
+                song==MC_DEMO_HIPHOP?"na7lIb09898":"NKTetfkfbao");
+        }
         fprintf(report,"\"demo_id\":%d,\"bpm\":%u,\"swing\":%u,\"song_bars\":%u,"
             "\"song_mode\":%s,\"song_loop\":%s,\"song_entries\":[",
             song,aud_engine.project.bpm,aud_engine.project.swing,bars,
@@ -443,6 +437,7 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
             const McSongEntry *entry=&aud_engine.project.song[i];used[entry->pattern]=1;
             fprintf(report,"%s{\"pattern\":%u,\"repeats\":%u}",i?",":"",entry->pattern,entry->repeats);
         }
+        if(reference)for(unsigned p=0;p<4;p++)used[p]=1;
         unsigned pattern_count=0;
         for(unsigned p=0;p<MC_PATTERNS;p++)pattern_count+=used[p]!=0;
         fprintf(report,"],\"pattern_count\":%u,\"automation_count\":%u,\"score\":[",
@@ -462,9 +457,11 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
     for(unsigned p=0;p<3;p++) {
         const McPatch *v=&aud_engine.project.patch[p];
         fprintf(report,"%s{\"profile\":%u,\"mask\":%u,\"gains\":[%u,%u,%u],"
-            "\"cutoff\":%u,\"resonance\":%u,\"adsr\":[%u,%u,%u,%u],\"wave\":%u,\"mode\":%u,\"glide\":%u}",
+            "\"cutoff\":%u,\"resonance\":%u,\"adsr\":[%u,%u,%u,%u],\"wave\":%u,\"mode\":%u,\"glide\":%u,"
+            "\"fixed_gain_q8\":%u}",
             p?",":"",v->profile,v->source_mask,v->pcm_mix,v->fm_mix,v->va_mix,
-            v->cutoff,v->resonance,v->attack,v->decay,v->sustain,v->release,v->wave,v->mode,v->glide);
+            v->cutoff,v->resonance,v->attack,v->decay,v->sustain,v->release,v->wave,v->mode,v->glide,
+            (unsigned)hy_profile(v->profile)->gain_q8);
     }
     /* fx_types/fx_sends are the renderer's initial state captured before the first sample. */
     fputs("],\"fx_types\":[",report);
@@ -516,7 +513,8 @@ int auditions(const char *dir,const char *json) {
     }
     if(!failed)failed=aud_file(f,dir,"hiphop-pocket.wav","song",-1,-1,0,MC_DEMO_HIPHOP,AUD_FULL,NULL,&first);
     if(!failed)failed=aud_file(f,dir,"techno-drive.wav","song",-1,-1,0,MC_DEMO_TECHNO,AUD_FULL,NULL,&first);
-    if(!failed)failed=aud_file(f,dir,"modern-demo.wav","demo",-1,-1,0,-1,AUD_FULL,NULL,&first);
+    if(!failed)failed=aud_file(f,dir,"night-circuit.wav","demo",-1,-1,0,0,AUD_FULL,NULL,&first);
+    if(!failed)failed=aud_file(f,dir,"neon-spiral.wav","demo",-1,-1,0,1,AUD_FULL,NULL,&first);
     if(!failed)failed=aud_file(f,dir,"modern-stress.wav","stress",-1,-1,7,-1,AUD_STRESS,NULL,&first);
     fprintf(f,"\n],\"render_complete\":%s,\"mechanical_failures\":%u}\n",failed?"false":"true",aud_mech_failures);
     if(ferror(f))failed=1;

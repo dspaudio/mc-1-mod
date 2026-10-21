@@ -85,6 +85,8 @@ static void ramp_and_end(void) {
     }
     assert(a.voice[0].hybrid.fm_left==held.hybrid.fm_left-127u);
     render(&a,MC_RATE);
+    assert(!(a.voice[0].hybrid.ended_mask&HY_PCM));
+    render(&a,MC_RATE/2);
     assert(a.voice[0].hybrid.ended_mask&HY_PCM);
     uint32_t pos=a.voice[0].pcm_pos;
     assert(!mc_parameter_set(&a,0,MC_PARAM_SOURCE_MASK,0));render(&a,128);
@@ -319,15 +321,18 @@ static void modern_body(void) {
         mc_init(&a);
         mc_preset(&a,0,profile);
         memset(a.project.fx_send,0,sizeof a.project.fx_send);
-        assert(a.project.patch[0].wave==MC_WAVE_SAW);
-        assert(a.project.patch[0].source_mask==(profile==MC_PRESET_STAGE_PIANO?HY_ALL:HY_PCM|HY_VA));
+        assert(a.project.patch[0].wave==MC_WAVE_SINE);
+        assert(a.project.patch[0].source_mask==(profile==MC_PRESET_STAGE_PIANO?HY_PCM|HY_FM:HY_PCM));
         mc_note(&a,0,60,127,0,0);render(&a,MC_RATE);
-        assert(a.voice[0].hybrid.ended_mask&HY_PCM);
-        assert(a.voice[0].active&&a.voice[0].phase2&&audible(whole,MC_RATE%4096));
-        uint32_t phase=a.voice[0].phase2,pos=a.voice[0].pcm_pos;
+        assert(!(a.voice[0].hybrid.ended_mask&HY_PCM));
+        assert(a.voice[0].active&&!a.voice[0].phase2&&audible(whole,MC_RATE%4096));
+        uint32_t pos=a.voice[0].pcm_pos;
         render(&a,128);
-        assert(a.voice[0].pcm_pos==pos&&a.voice[0].phase2!=phase&&audible(whole,128));
+        assert(a.voice[0].pcm_pos>pos&&!a.voice[0].phase2&&audible(whole,128));
         if(profile==MC_PRESET_SOFT_PIANO)assert(!a.voice[0].phase);
+        render(&a,MC_RATE/2);
+        assert(a.voice[0].hybrid.ended_mask&HY_PCM);
+        assert(!audible(whole,(MC_RATE/2)%4096));
     }
 }
 static int32_t sine_oracle(uint32_t phase) {

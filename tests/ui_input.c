@@ -773,15 +773,16 @@ static void hybrid_controls(void) {
     /* HOME 네 번째 노브는 recipe가 아니라 실제 mode를 따른다. */
     init();mc_preset(&e,0,MC_PRESET_STAGE_PIANO);
     unsigned pcm=e.project.patch[0].pcm_mix,glide=e.project.patch[0].glide;
-    mc_ui_encoder(&e,&u,6,1);assert(e.project.patch[0].pcm_mix==pcm+1&&e.project.patch[0].glide==glide);
+    mc_ui_encoder(&e,&u,6,1);assert(e.project.patch[0].pcm_mix==pcm&&e.project.patch[0].glide==glide);
+    mc_ui_encoder(&e,&u,6,-1);assert(e.project.patch[0].pcm_mix==pcm-1&&e.project.patch[0].glide==glide);
     assert(!mc_parameter_set(&e,0,MC_PARAM_MODE,MC_MONO));
-    mc_ui_encoder(&e,&u,6,1);assert(e.project.patch[0].glide==glide+1&&e.project.patch[0].pcm_mix==pcm+1);
+    mc_ui_encoder(&e,&u,6,1);assert(e.project.patch[0].glide==glide+1&&e.project.patch[0].pcm_mix==pcm-1);
     u.page=11;mc_ui_encoder(&e,&u,3,-127);
     timed(3,1,100);timed(3,1,101);assert(e.project.patch[0].pcm_mix==4);
     assert(!mc_parameter_set(&e,0,MC_PARAM_MODE,MC_POLY));
     timed(3,1,102);assert(e.project.patch[0].pcm_mix==5);
     mc_preset(&e,0,MC_PRESET_SOFT_PIANO);pcm=e.project.patch[0].pcm_mix;
-    timed(3,1,103);assert(e.project.patch[0].pcm_mix==pcm+1);
+    timed(3,-1,103);assert(e.project.patch[0].pcm_mix==pcm-1);
     puts("PASS: 32 wrap/explicit3x/59-60ms, all32x3 gain bounds/availability, sparse mask traversal/clamps/no acceleration, drums disabled, read-only profile/origin, HOME mode and context resets");
 }
 static void hybrid_automation(void) {
@@ -812,7 +813,7 @@ static void hybrid_automation(void) {
 static void hybrid_pixels(void) {
     init();mc_preset(&e,0,MC_PRESET_STAGE_PIANO);draw(first);
     uint16_t expected[240*8]={0};Canvas canvas={0,8,expected};
-    text(&canvas,63,4,"HYB",WHITE,1);text(&canvas,91,4,"PFV",WHITE,1);
+    text(&canvas,63,4,"HYB",WHITE,1);text(&canvas,91,4,"PF-",WHITE,1);
     for(unsigned row=4;row<8;row++)for(unsigned x=63;x<112;x++)
         assert((first[row*240+x]==WHITE)==(expected[row*240+x]==WHITE));
     assert(!mc_parameter_set(&e,0,3,0));

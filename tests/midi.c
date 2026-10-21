@@ -44,11 +44,11 @@ static void demo_cleanup(void) {
     for(unsigned demo=0;demo<2;demo++) {
         mc_init(&e);mc_demo_load(&e,demo);unsigned programs=0;
         while(mc_midi_pop(&e,&m)) {
-            assert((m.data[0]&0xf0)==0xc0);
-            if(!demo)assert(m.data[0]==0xc2&&m.data[1]==MC_PRESET_STAGE_PIANO);
+            assert(programs<3&&m.length==2&&m.data[0]==0xc0+programs);
+            assert(m.data[1]==e.project.preset[programs]);
             programs++;
         }
-        assert(programs==(demo?3u:1u));
+        assert(programs==3);
     }
     for(unsigned demo=0;demo<2;demo++) for(unsigned mode=0;mode<4;mode++) {
         mc_init(&e);e.project.midi_channel[0]=14;
@@ -82,14 +82,16 @@ static void demo_cleanup(void) {
     mc_note(&e,0,60,100,0,0);e.project.midi_channel[1]=15;mc_note(&e,1,64,100,0,0);drain();
     mc_demo_load(&e,0);for(unsigned i=0;i<4;i++)assert(mc_midi_pop(&e,&m));
     mc_demo_load(&e,0);cleanup(1u<<15,0);
-    assert(mc_midi_pop(&e,&m)&&m.data[0]==0xc2&&m.data[1]==MC_PRESET_STAGE_PIANO);
+    for(unsigned part=0;part<3;part++)
+        assert(mc_midi_pop(&e,&m)&&m.data[0]==0xc0+part&&m.data[1]==e.project.preset[part]);
     assert(!mc_midi_pop(&e,&m));
     /* 이미 출력된 Start만 Stop으로 마감하며 새 Start는 정리 뒤에 전달한다. */
     mc_init(&e);memset(e.project.step,0,sizeof e.project.step);mc_start(&e);drain();
     mc_stop(&e);mc_demo_load(&e,0);mc_demo_load(&e,1);cleanup(0,1);drain();
     memset(e.project.step,0,sizeof e.project.step);mc_start(&e);mc_note(&e,0,60,100,0,0);mc_drum(&e,0,100);
     drain();mc_demo_load(&e,0);mc_start(&e);cleanup((1u<<0)|(1u<<9),1);
-    assert(mc_midi_pop(&e,&m)&&m.data[0]==0xc2&&m.data[1]==MC_PRESET_STAGE_PIANO);
+    for(unsigned part=0;part<3;part++)
+        assert(mc_midi_pop(&e,&m)&&m.data[0]==0xc0+part&&m.data[1]==e.project.preset[part]);
     assert(mc_midi_pop(&e,&m)&&m.data[0]==0xfa);drain();
     /* 정리 도중 overflow도 정리를 유지하며 기존 16채널 복구 정책을 따른다. */
     mc_init(&e);e.project.midi_channel[0]=14;mc_note(&e,0,60,100,0,0);drain();mc_demo_load(&e,0);

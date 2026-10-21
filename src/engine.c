@@ -622,7 +622,7 @@ static __attribute__((noinline)) int32_t melodic_sample(McVoice *v,unsigned inde
     x=mul(x,amplitude);x=mc_div127_signal(x*v->velocity);
     x=mc_div127_signal(x*p->level);
     if(v->accent)x=mc_div_pow2(x*5,2);
-    return x;
+    return x*r->profile->gain_q8/256;
 }
 static int32_t melodic(McVoice *v,unsigned index,McVoiceRender *r) {
     return voice_envelope(v,r->sustain)?melodic_sample(v,index,r,v->envelope):0;

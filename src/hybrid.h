@@ -18,6 +18,7 @@ typedef struct {
     uint16_t fm_decay_ms, fm_duration_ms;
     int16_t filter_depth;
     uint16_t fm_body_q15, va_colour_start_q15, va_colour_end_q15, va_morph_ms;
+    uint16_t gain_q8;
 } McHybridProfile;
 
 /* slice 안에서만 사용하는 준비 상태다. 직렬화하거나 worker에 포인터를 전송하지 않는다.

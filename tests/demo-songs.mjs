@@ -15,10 +15,14 @@ assert.equal(manifest.delivery.sample_exact,false);
 const module=new WebAssembly.Module(fs.readFileSync('build/mod1.wasm'));
 const songs=manifest.files.filter(item=>item.kind==='song');
 assert.deepEqual(songs.map(item=>[item.demo_id,item.bpm,item.song_bars]),[[2,128,24],[3,144,32]]);
+const references=manifest.files.filter(item=>item.kind==='demo');
+assert.deepEqual(references.map(item=>[item.demo_id,item.bpm,item.song_bars]),[[0,118,8],[1,140,32]]);
+assert(references.every(item=>item.mc1_original_arrangement));
 const sha256=data=>createHash('sha256').update(data).digest('hex');
 const tap=(e,button)=>{e.emu_input(0,1<<button);e.emu_input(0,0);};
-for(const song of songs) {
-    const original=native.files.find(item=>item.kind==='song'&&item.demo_id===song.demo_id);
+for(const song of [...references,...songs]) {
+    const reference=song.kind==='demo';
+    const original=native.files.find(item=>item.kind===song.kind&&item.demo_id===song.demo_id);
     assert(original);
     const canonical=Object.fromEntries(['file','sha256','bytes','frames','sample_rate','channels','bits_per_sample']
         .map(key=>[key,original[key]]));
@@ -60,7 +64,9 @@ for(const song of songs) {
     assert.equal(e.emu_state(4),1);
     assert.equal(wav.readUInt32LE(24),44100);
     for(let frame=0;frame<song.frames;) {
-        const count=Math.min(128,song.frames-frame);
+        if(reference&&frame===song.performance_frames&&e.emu_state(4))tap(e,12);
+        let count=Math.min(128,song.frames-frame);
+        if(reference&&frame<song.performance_frames)count=Math.min(count,song.performance_frames-frame);
         e.emu_render(count);
         const output=new Float32Array(e.memory.buffer,e.emu_audio_ptr(),count*2);
         for(let sample=0;sample<output.length;sample++)
@@ -69,5 +75,5 @@ for(const song of songs) {
         frame+=count;
     }
     assert.equal(e.emu_state(4),0);
-    console.log(`SONG_WASM_PASS id=${song.demo_id} bpm=${song.bpm} bars=${song.song_bars} frames=${song.frames} PCM=exact`);
+    console.log(`${reference?'MC1_DEMO':'SONG'}_WASM_PASS id=${song.demo_id} bpm=${song.bpm} bars=${song.song_bars} frames=${song.frames} PCM=exact`);
 }

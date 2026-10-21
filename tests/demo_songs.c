@@ -50,9 +50,7 @@ static void midi(void) {
             assert(mc_midi_pop(&e,&m)&&m.length==3&&m.data[0]==0xbe);
             assert(m.data[1]==controls[i]&&!m.data[2]);
         }
-        unsigned programs=demo?3u:1u;
-        for(unsigned part=0;part<programs;part++) {
-            unsigned p=demo?part:2u;
+        for(unsigned p=0;p<3;p++) {
             assert(mc_midi_pop(&e,&m)&&m.length==2&&m.data[0]==0xc0+e.project.midi_channel[p]);
             assert(m.data[1]==e.project.preset[p]);
         }
@@ -62,22 +60,119 @@ static void midi(void) {
 }
 /* SONG sends are explicit mix edits; the four effect processors remain shared. */
 static void fx_contract(unsigned demo) {
-    static const uint8_t drum_sends[MC_FX_BANKS]={12,0,6,0};
+    static const uint8_t original_types[2][MC_FX_BANKS]={{3,0,7,6},{5,1,6,4}};
+    static const uint8_t original_sends[2][MC_PARTS][MC_FX_BANKS]={
+        {{8,0,10,0},{52,28,38,0},{24,0,28,18},{10,0,0,0}},
+        {{8,0,12,0},{40,18,44,0},{20,0,26,16},{8,0,0,0}}};
     static const uint8_t song_sends[2][MC_PARTS][MC_FX_BANKS]={
         {{2,0,0,0},{8,3,4,6},{8,0,4,4},{2,0,0,0}},
         {{4,0,8,4},{8,4,0,4},{10,0,4,4},{2,0,0,0}}};
     mc_init(&e);mc_demo_load(&e,demo);
-    assert(!memcmp(e.project.fx_bus_type,mc_factory_fx_types,sizeof e.project.fx_bus_type));
-    for(unsigned part=0;part<3;part++) {
+    assert(!memcmp(e.project.fx_bus_type,demo<MC_DEMO_HIPHOP?
+        original_types[demo]:mc_factory_fx_types,sizeof e.project.fx_bus_type));
+    for(unsigned part=0;part<MC_PARTS;part++) {
         unsigned live=0;
         const uint8_t *expected=demo>=MC_DEMO_HIPHOP? song_sends[demo-MC_DEMO_HIPHOP][part]:
-            mc_preset_fx_send[e.project.preset[part]];
+            original_sends[demo][part];
         assert(!memcmp(e.project.fx_send[part],expected,MC_FX_BANKS));
         for(unsigned bank=0;bank<MC_FX_BANKS;bank++)live+=e.project.fx_send[part][bank];
         assert(live);
     }
-    assert(!memcmp(e.project.fx_send[3],demo>=MC_DEMO_HIPHOP?
-        song_sends[demo-MC_DEMO_HIPHOP][3]:drum_sends,sizeof drum_sends));
+}
+static void original_score(unsigned demo) {
+    static const uint8_t roots[2][4]={{45,41,48,43},{40,40,43,41}};
+    static const uint8_t melody[16]={0,0,7,0,12,10,0,7,3,0,7,10,12,0,15,10};
+    static const uint8_t motif[16]={0,12,7,15,12,7,19,12,0,7,12,15,19,15,7,12};
+    mc_init(&e);mc_demo_load(&e,demo);
+    assert(e.project.bpm==(demo?140:118)&&e.project.swing==(demo?0:10));
+    assert(e.project.demo==demo&&!e.project.song_mode&&!e.project.automation_count);
+    for(unsigned p=0;p<MC_PATTERNS;p++) {
+        McStep expected[MC_PARTS][MC_STEPS]={0};
+        if(p<4)for(unsigned s=0;s<MC_STEPS;s++) {
+            unsigned root=roots[demo][p];
+            McStep *bass=&expected[0][s],*middle=&expected[1][s];
+            McStep *hook=&expected[2][s],*drum=&expected[3][s];
+            if(!demo) {
+                *bass=(McStep){{(uint8_t)(root+((s==6||s==14)?12:0)),0,0},
+                    (uint8_t)(s==3||s==11?0:s%4==0?115:85),65,
+                    (uint8_t)((s%4==0?MC_ACCENT:0)|(s==5||s==13?MC_SLIDE:0)),0};
+                if(s%8==0)*middle=(McStep){{(uint8_t)(root+12),(uint8_t)(root+15),(uint8_t)(root+19)},76,100,0,0};
+                if(s%2==0||s==7||s==15)*hook=(McStep){{(uint8_t)(root+24+melody[s]),0,0},
+                    (uint8_t)(80+(s%3)*10),55,0,0};
+                drum->drums=(uint16_t)((s%4==0?1:0)|(s%8==4?2:0)|(s%2==0?4:0)|
+                    (s==14?8:0)|(s==12?16:0)|(p==3&&s==15?32:0));
+                drum->velocity=(uint8_t)(s%4==0?112:85);
+            } else {
+                *bass=(McStep){{(uint8_t)(root+(s==15?12:0)),0,0},(uint8_t)(s%4?100:0),42,0,0};
+                *middle=(McStep){{(uint8_t)(root+12+motif[(s+p*2)%16]),0,0},
+                    (uint8_t)(s%4==0?115:90),50,
+                    (uint8_t)((s%4==0?MC_ACCENT:0)|(s%8==5?MC_SLIDE:0)),0};
+                if(s%2==0||s==15)*hook=(McStep){{(uint8_t)(root+24+motif[(s+4)%16]),0,0},
+                    (uint8_t)(s%4==0?104:92),45,0,0};
+                drum->drums=(uint16_t)((s%4==0?1:0)|(s%2==1?4:0)|(s%4==2?8:0)|
+                    (s%8==4?16:0)|(s%4==3?(1u<<12):0)|(p==3&&s>=14?(1u<<9):0));
+                drum->velocity=(uint8_t)(s%4==0?120:85);
+            }
+            drum->gate=50;
+        }
+        assert(!memcmp(e.project.step[p],expected,sizeof expected));
+    }
+}
+static void original_roles(void) {
+    static const uint8_t presets[2][3]={{1,25,8},{1,1,15}};
+    /* Original editable controls, with the new Strings source's sine wave. */
+    static const uint8_t controls[2][2][10]={
+        {{1,0,48,90,1,55,45,10,55,100},{0,2,58,0,94,120,127,68,0,88}},
+        {{1,1,65,35,1,30,45,15,70,100},{1,0,80,35,1,40,35,8,55,90}}};
+    static const uint8_t levels[2][4]={{100,75,104,100},{127,100,104,75}};
+    static const uint8_t analog[2][3]={{18,52,8},{24,60,6}};
+    static const uint8_t pans[4]={64,42,88,64};
+    static const uint8_t fx[2][4]={{0,0,0,0},{48,35,20,30}};
+    for(unsigned demo=0;demo<2;demo++) {
+        original_score(demo);
+        assert(mc_project_valid(&e.project));
+        assert(!memcmp(e.project.preset,presets[demo],3));
+        assert(!memcmp(e.project.level,levels[demo],4)&&!memcmp(e.project.pan,pans,4));
+        assert(!memcmp(e.project.analog,analog[demo],3)&&!memcmp(e.project.fx,fx[demo],4));
+        for(unsigned part=0;part<2;part++) {
+            const McPatch *p=&e.project.patch[part],*base=&mc_presets[presets[demo][part]];
+            uint8_t actual[10]={p->mode,p->wave,p->cutoff,p->resonance,p->attack,p->decay,
+                p->sustain,p->release,p->glide,p->level};
+            assert(!memcmp(actual,controls[demo][part],sizeof actual));
+            assert(p->profile==base->profile&&p->source_mask==base->source_mask);
+            assert(p->pcm_mix==base->pcm_mix&&p->fm_mix==base->fm_mix&&p->va_mix==base->va_mix);
+        }
+        McPatch hook=mc_presets[presets[demo][2]];
+        hook.resonance=8;
+        if(!demo) { hook.pcm_mix=108;hook.cutoff=100; }
+        assert(!memcmp(&e.project.patch[2],&hook,sizeof hook));
+        for(unsigned d=0;d<MC_DRUMS;d++) {
+            unsigned gain=demo?(d==0?115:d==2?70:d==3?64:d==4?85:100):100;
+            assert(e.project.drum_level[d]==gain);
+        }
+        assert(!e.project.drum_kit);
+    }
+    mc_preset(&e,1,MC_PRESET_SLOW_STRINGS);
+    assert(e.project.patch[1].attack==4);
+    mc_demo_load(&e,1);drain();e.playing=1;
+    for(unsigned bar=0;bar<32;bar++)for(unsigned frame=0;frame<3;frame++) {
+        e.events=bar*16+1;e.queued=255;e.pattern=(uint8_t)(bar%4);
+        unsigned span=MC_RATE*240u*4u/e.project.bpm;
+        e.demo_frame=((span-1u)*frame/2u/64u)*64u;
+        int rise=(int)((e.demo_frame%span)*90u/span);
+        int cutoff=bar<8?30+rise/2:bar<16?35+rise:bar<20?20+rise:bar<24?95-rise/2:40+rise;
+        int resonance=bar<16?45:bar<20?35+rise:100;
+        mc_demo_tick(&e);drain();
+        assert(e.mute==(bar<4?2:bar<16?0:bar<20?13:bar<24?4:0));
+        assert(e.queued==(bar+1)%4);
+        assert(e.project.patch[1].cutoff==(cutoff>127?127:cutoff));
+        assert(e.project.patch[1].resonance==resonance&&e.project.patch[2].cutoff==88+rise/5);
+    }
+    McPatch before=e.project.patch[1];
+    e.demo_frame=1;mc_demo_tick(&e);
+    assert(!memcmp(&before,&e.project.patch[1],sizeof before));
+    e.events=32*16+1;e.playing=1;mc_demo_tick(&e);assert(!e.playing);
+    puts("PASS original demos: exact scores, roles, controls, mix and 32-bar scene automation");
 }
 /* Full-tone and zero-send renders of the same loaded song must differ; sends are cleared after load. */
 static void wet_dry(unsigned demo) {
@@ -263,9 +358,9 @@ static void song(unsigned demo) {
         mc_demo_names[demo],e.project.bpm,e.project.swing,bars,frames,e.events,peak,e.clips,e.limiter_hits,e.steals,max_voice,max_drum,tail_peak);
 }
 int main(void) {
-    selection();midi();
+    selection();midi();original_roles();
     for(unsigned demo=0;demo<MC_DEMOS;demo++)fx_contract(demo);
-    puts("PASS demo FX: candidate palette and role sends set after the final preset in all four loads");
+    puts("PASS demo FX: original shared settings for demos 0/1, candidate palette for demos 2/3");
     wet_dry(MC_DEMO_HIPHOP);wet_dry(MC_DEMO_TECHNO);
     mix_balance(MC_DEMO_HIPHOP);mix_balance(MC_DEMO_TECHNO);
     kick_attack(MC_DEMO_HIPHOP);kick_attack(MC_DEMO_TECHNO);

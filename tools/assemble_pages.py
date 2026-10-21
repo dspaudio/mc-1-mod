@@ -24,7 +24,8 @@ def target_fingerprint() -> str:
               if p.is_file() and p.suffix in (".c", ".h", ".S", ".ld")]
     inputs += [ROOT / p for p in ("tools/build_target.py", "tools/gen_pcm.py", "tools/gen_va.py",
                                   "tools/target_abi.c", "data/pcm-manifest.json",
-                                  "data/pcm-source/vsco-attacks.json")]
+                                  "data/pcm-source/vsco-attacks.json",
+                                  "data/pcm-source/generaluser-strings.json")]
     result = hashlib.sha256()
     for path in sorted(inputs):
         result.update(path.relative_to(ROOT).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
@@ -93,6 +94,10 @@ def main() -> None:
         songs = [item for item in auditions["files"] if item["kind"] == "song"]
         assert [(item["demo_id"], item["bpm"], item["song_bars"]) for item in songs] == [(2, 128, 24), (3, 144, 32)]
         assert all(item["song_mode"] and not item["song_loop"] and item["score"] for item in songs)
+        references = [item for item in auditions["files"] if item["kind"] == "demo"]
+        assert [(item["demo_id"], item["bpm"], item["song_bars"]) for item in references] == [(0, 118, 8), (1, 140, 32)]
+        assert all(item["mc1_original_arrangement"] and item["score"] and
+                   item["fx_origin"] == "mc1-demo-defaults" for item in references)
         shutil.copy2(folder / "auditions.json", canonical / "auditions.json")
         for item in auditions["files"]:
             source = folder / "audio" / item["file"]

@@ -14,6 +14,7 @@ static void fixture(McEngine *e,unsigned amount) {
     for(unsigned p=0;p<3;p++) {
         mc_preset(e,p,MC_PRESET_STAGE_PIANO);
         McPatch *patch=&e->project.patch[p];
+        patch->source_mask=HY_PCM|HY_FM|HY_VA;
         patch->cutoff=100;patch->resonance=0;patch->attack=0;patch->decay=0;
         patch->sustain=127;patch->release=100;patch->glide=0;patch->level=100;
         assert(!mc_parameter_set(e,p,MC_PARAM_ANALOG,amount));

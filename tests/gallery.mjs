@@ -44,7 +44,7 @@ assert.deepEqual(actualRequest,{url:'./auditions.json?v=audio-build-A',cache:'no
 assert.equal(error.hidden,undefined,'valid manifest must not expose the error state');
 const audios=walk(gallery).filter(node=>node instanceof Audio);
 assert.equal(audios.length,manifest.files.length,'every rendered audition has a control');
-const primaryPresets=gallery.children[1];
+const primaryPresets=gallery.children[2];
 assert(primaryPresets);
 assert.equal(walk(primaryPresets).filter(node=>node instanceof Audio).length,32);
 assert.deepEqual(walk(primaryPresets).filter(node=>node instanceof Audio).map(audio=>audio.src).sort(),
@@ -57,11 +57,14 @@ assert.deepEqual(audios.map(audio=>audio.src).sort(),manifest.files.map(item=>'.
 assert(audios.every(audio=>audio.controls&&audio.preload==='none'));
 assert.equal(new Set(audios.map(audio=>audio.src)).size,manifest.files.length);
 assert.deepEqual(manifest.files.filter(item=>item.kind==='song').map(item=>item.demo_id),[2,3]);
-assert.equal(gallery.children[0].id,'beat-songs');
-assert.deepEqual(audios.slice(0,2).map(audio=>audio.src),manifest.files.filter(item=>item.kind==='song').map(item=>'./audio/'+item.file+'?v='+item.sha256));
+assert.deepEqual(manifest.files.filter(item=>item.kind==='demo').map(item=>item.demo_id),[0,1]);
+assert(manifest.files.filter(item=>item.kind==='demo').every(item=>item.mc1_original_arrangement));
+assert.equal(gallery.children[0].id,'mc1-demos');
+assert.equal(gallery.children[1].id,'beat-songs');
+assert.deepEqual(audios.slice(0,2).map(audio=>audio.src),manifest.files.filter(item=>item.kind==='demo').map(item=>'./audio/'+item.file+'?v='+item.sha256));
 assert.deepEqual(walk(gallery).filter(node=>node.tagName==='a').map(link=>link.href).sort(),audios.map(audio=>audio.src).sort());
 audios[0].paused=false;audios[1].paused=false;
 handlers.play({target:audios[1]});
 assert.equal(audios[0].paused,true);
 assert.equal(audios[1].paused,false,'the newly playing audition remains playing');
-console.log(`GALLERY_PASS all${audios.length} unique controls/downloads,32 full presets, collapsed diagnostics, two songs first, no eager loading, exclusive playback`);
+console.log(`GALLERY_PASS all ${audios.length} unique controls/downloads, 32 full presets, collapsed diagnostics, two MC-1 demos first, no eager loading, exclusive playback`);

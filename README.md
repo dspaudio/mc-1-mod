@@ -2,19 +2,19 @@
 
 A separate sound pack for FM-1. Built on MC-1's sequencer, drums, mixer, four shared FX, MIDI, and panel, it replaces the legacy LA sound generation path with hybrid PCM/FM/VA voices. The firmware and web emulator use the same C DSP, UI, and storage code in this repository.
 
-The 32 sounds aim for a modern palette for techno, hiphop, pop, and eurosynth rather than realistic instrument replicas. All four piano/EP defaults (IDs 8–11) enable recorded CC0 VSCO upright-piano PCM. Stage Piano (ID 8) combines PCM+FM+VA, while Soft Piano (ID 9) is intended to transition into a strings/pad-like VA body. With piano PCM gain active, the combined FM/VA output is suppressed for 1024 frames, then faded in over 2048 frames; its source clocks continue running. The three melody parts retain a combined 8 voices, with 6 simultaneous drum voices, 8 kits, and 4 FX banks.
+The 32 sounds aim for a modern palette for techno, hiphop, pop, and eurosynth. All four piano/EP defaults (IDs 8–11) use real 1.2-second CC0 upright-piano segments without a default saw body. Stage Piano adds a short FM onset; Soft Piano is PCM-only. Strings (ID 25) uses licensed SoundFont PCM with a fast default attack, which the user can lengthen with ATTACK. The three melody parts retain a combined 8 voices, with 6 simultaneous drum voices, 8 kits, and 4 FX banks.
 
 ## Current status
 
 **0.0.1 experimental: audio quality has not received listening approval, and FM-1 hardware remains unverified.** Target compilation and offline OTA/RAM loader checks are complete, but installation on a device, boot, audio, and real-time deadlines have not been verified. Host/WASM agreement and a sensitivity model based on historical MC-1 measurements do not prove that the new firmware works on hardware.
 
-Revision 4 is an implementation candidate: **all 32 sounds remain unapproved by listening, including IDs 4 and 5**. Its bass recipes retain sustained FM/VA body; organ and brass use static FM modulation, while Warm Pad (ID 24) and Soft Sweep (ID 30) use sine/FM beds distinct from Slow Strings (ID 25). Soft Air family 6 replaces the former vowel material in Glass Pad (ID 27) and Bell Bloom (ID 31). Pulse Arp (ID 28) is a short VA-only pulse with attack 10, decay 18 and zero sustain, targeting the foreground Popcorn timbre rather than an embedded pattern. Orch Hit (ID 19) uses a recorded CC0 ensemble with a 700 ms one-shot body. These changes do not establish subjective success or a kick improvement. Final preset voicing includes source material, the shared envelope/filter, and the built-in FX together. Dry renders are diagnostic references, not the final listening target.
+Revision 5 is an implementation candidate: **all 32 sounds remain unapproved by listening, including IDs 4 and 5**. It replaces the piano/EP saw bodies, the organ/brass waveforms and the default Glass Pad/Bell Bloom air layers. Strings uses one GeneralUser GS mono source and its original loop, not a synthetic bow bed or two layered instruments. Pulse Arp keeps its short articulation and gains about 6.1 dB through fixed factory voicing, not export normalization. Organ and brass retain their smooth attack and static FM modulation. Orch Hit retains its recorded CC0 ensemble and 700 ms one-shot body. Final voicing includes source material, shared filter/envelope, MIDI/velocity and built-in FX. Dry renders remain diagnostic references, not the final listening target.
 
-Revision 4 passed the full shared-core host regression suite, LLVM ASan/UBSan, native/WASM PCM agreement for all 32 sounds and both full songs, UI, MIDI, storage identity, worklet, and 44.1/48/96kHz output. Regenerated PCM reproduces offline; the actual pi32v2 package and all 140 MP3 previews passed their byte/hash and delivery checks. Mechanical checks cover loops, shared pitch, bend/glide, and per-source harmonics. See [verification evidence](docs/VERIFICATION.md). Numbers alone do not establish that the sounds are "not toy-like" or "useful in a song."
+Historical revision-4 verification and current revision-5 evidence are recorded separately in [verification evidence](docs/VERIFICATION.md). Checks cover the shared core, sanitizers, native/WASM PCM, UI/MIDI/storage, actual target/package limits, MP3 delivery and provenance. Numbers alone do not establish that sounds are "not toy-like" or "useful in a song."
 
 Dedicated Pages artifacts are assembled in `build/site/`.
 
-- `index.html`: two fast hiphop/techno dance songs, playback and MP3 downloads for all 32 sounds and 8 drum kits, per-source comparisons, demos, and maximum-load renders.
+- `index.html`: the original MC-1 demo arrangements with new voices, two additional fast dance songs, all 32 sounds and 8 kits, source comparisons and maximum-load renders.
 - `emulator.html`: a panel using the actual C screen and AudioWorklet audio.
 - `install.html`: FWSC downloads with verified bytes, SHA-256, and input hashes. There is no browser-based device installation feature.
 
@@ -33,7 +33,7 @@ CLANG=/opt/homebrew/opt/llvm/bin/clang python3 tools/build_web.py
 python3 tools/verify_web.py
 ```
 
-`render` creates `build/demo.wav`. `auditions` creates 140 WAV files and `auditions.json`, containing exact events, settings, and hashes, inside the specified OUT. The hiphop and techno songs play the actual C SONG sequencer to completion, including FX tails. Existing listening materials are protected against accidental overwrites; use a new OUT when regenerating them. No automatic loudness normalization is applied.
+`render` creates `build/demo.wav`. `auditions` creates 141 WAV files and `auditions.json`, containing exact events, settings and hashes, inside the specified OUT. The MC-1 examples and additional dance songs use the actual C sequencer, including FX tails. Existing materials are protected against accidental overwrites; use a new OUT when regenerating. No automatic loudness normalization is applied.
 
 ```sh
 make sanitize CC="/opt/homebrew/opt/llvm/bin/clang --no-default-config --target=arm64-apple-macosx15.0.0 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.1.sdk"
@@ -64,20 +64,27 @@ The assembler renders fresh auditions from the current C core and checks 32 pres
 
 ## Storage and controls
 
-Storage uses `MCHY` v9, payload identity `MOD1`, patch schema 1, and bank revision 4. Revision-1/2/3 data and other packs are not automatically converted. A foreign bank or read failure locks SAVE without erasing existing data. The web version saves under a dedicated IndexedDB identity and restores it on reconnect.
+Storage uses `MCHY` v9, payload identity `MOD1`, patch schema 1, and bank revision 5. Revision-1/2/3/4 data and other packs are not automatically converted. A foreign bank or read failure locks SAVE without erasing existing data. The web version saves under a dedicated IndexedDB identity and restores it on reconnect.
 
 From HOME, press GLO seven times to reach MIX. Knobs 1–4 control PCM/FM/VA gain and the source mask, skipping unavailable sources. MIDI Program Change 0–31 selects presets; CC 16/17/18/19 selects PCM/FM/VA/MASK. See the emulator instructions and [integration decisions](docs/INTEGRATION_DECISIONS.md) for detailed controls.
 
-## Dance song demos
+## Original MC-1 demos
+
+- `NIGHT CIRCUIT`: the original 118 BPM pattern as an 8-bar excerpt, using Slide Bass / Strings / Stage Piano. MP3: `audio/night-circuit.mp3`. Its slow pad attack is a demo-only setting, not baked into the Strings sample.
+- `NEON SPIRAL`: the original 140 BPM, 32-bar arrangement and scene automation, using ACID4 square / ACID4 saw / Soft Mallet. MP3: `audio/neon-spiral.mp3`.
+
+Original notes, gates, flags, drums, mix controls and shared FX are retained, with new voices assigned to their original musical roles. No legacy LA bank is used. These two examples appear first on the landing page.
+
+## Additional dance song demos
 
 Both songs are original arrangements with fast dance beats, using the actual SONG sequencer, drums, and FX from the same C core.
 
 - `HIPHOP POCKET`: club hiphop at 128 BPM, 24 bars. MP3: `audio/hiphop-pocket.mp3`.
 - `TECHNO DRIVE`: techno at 144 BPM, 32 bars. MP3: `audio/techno-drive.mp3`.
 
-The kick follow-up changes only the two song arrangements/mixes, not the 32 preset recipes. HIPHOP POCKET raises the drum track from 38 to 60 and kick level from 92 to 96, with the other drum levels reduced to preserve their approximate gain. TECHNO DRIVE moves its 303 notes and matching automation one sixteenth later in drum-bearing patterns, leaving space at the kick onset. Both retain CLUB 909, their tempo, bar count and shared FX. These are listening candidates, not a claim that a numerical check proves kick audibility.
+The revision-4 kick follow-up raised HIPHOP POCKET's drum track from 38 to 60 and kick level from 92 to 96, compensating the other drums. TECHNO DRIVE moved its 303 notes and matching automation one sixteenth later in drum-bearing patterns. Revision 5 retains that kick space and compensates Pulse Arp's fixed trim with HIPHOP POCKET lead patch level 73. Both retain CLUB 909, tempo, bar count and shared FX. Numerical checks do not prove kick audibility.
 
-While stopped, press GLO three times to open DEMO LIBRARY, select with KNOB1, turn KNOB4 clockwise to load, then press PLAY. NIGHT CIRCUIT and NEON SPIRAL are also retained. Play or download the complete MP3 previews from the first audio group on the landing page.
+While stopped, press GLO three times to open DEMO LIBRARY, select with KNOB1, turn KNOB4 clockwise to load, then press PLAY. The additional dance-song MP3 previews follow the MC-1 examples on the landing page.
 
 ## Provenance and verification boundaries
 
@@ -85,7 +92,7 @@ While stopped, press GLO three times to open DEMO LIBRARY, select with KNOB1, tu
 - Original web panel: `f855ee3f1be53bef19cc5b4b741621087cd8d61f`.
 - Historical MC-1 measurements: `data/baseline-mc1-1.2.0.json`. TIMER4's nominal 24MHz is not the MCU CPU clock.
 - The actual pi32v2 ABI and memory/partition limits are recorded in `target-report.json`; SDK asset, loader, and package provenance are recorded in `package-report.json`.
-- PCM assets combine five original mathematical zones with four recorded CC0 VSCO 2 Community Edition zones: three upright-piano attacks and one trumpet/horn/violin-section ensemble impact with a tuned foundation. `tools/gen_pcm.py` and `data/pcm-manifest.json` describe the current construction, roots, lengths and measurements; the manifest's `recorded_source` and `recorded_source_sha256` identify the current processed source corpus. Consult that corpus for source filenames, hashes, regions and tuning rather than relying on a fixed filename/hash list here. No legacy LA bank, Yamaha/Roland ROMs or reference-video audio is used. See [NOTICE](NOTICE.md) for attribution.
+- PCM combines four mathematical zones, four CC0 VSCO zones (three upright-piano segments and one ensemble impact) and one GeneralUser GS strings zone. `tools/gen_pcm.py`, `data/pcm-manifest.json` and its two `recorded_sources` identify the construction, source hashes, regions and tuning. The original SoundFont license is retained separately from CC0. No legacy LA bank, proprietary ROM image or reference-video audio is used. See [NOTICE](NOTICE.md).
 - Neither original repository was modified. [NOTICE](NOTICE.md) and the [license](LICENSE) are preserved.
 
 ## Documents

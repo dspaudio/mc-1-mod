@@ -258,6 +258,7 @@ static void safe_va_bands(void) {
         for(unsigned amount=0;amount<=127;amount+=127)for(unsigned wave=0;wave<2;wave++)
             for(unsigned polarity=0;polarity<2;polarity++) {
             mc_init(&eng);mc_preset(&eng,0,MC_PRESET_STAGE_PIANO);
+            eng.project.patch[0].source_mask|=HY_VA;
             eng.project.patch[0].wave=(uint8_t)wave;mc_note(&eng,0,note,127,0,0);
             McVoice *v=&eng.voice[0];McVoiceRender r;
             McAnalogVoice *analog=&eng.analog_voice[0];

@@ -461,7 +461,10 @@ static void sorted_bank(void) {
         McProject roundtrip;uint32_t sequence;
         mc_demo_load(&e,demo);assert(mc_project_valid(&e.project));
         assert(e.project.preset[2]==(demo?15:8));
-        if(demo)assert(e.project.preset[0]==2&&e.project.preset[1]==1);
+        if(demo) {
+            assert(e.project.preset[0]==1&&e.project.preset[1]==1);
+            assert(e.project.patch[0].wave==MC_WAVE_SQUARE&&e.project.patch[1].wave==MC_WAVE_SAW);
+        }
         assert(mc_encode(&e.project,1,record,sizeof record)>0);
         assert(!mc_decode(&roundtrip,&sequence,record,sizeof record)&&sequence==1);
         assert(!memcmp(&roundtrip,&e.project,sizeof roundtrip));

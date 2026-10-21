@@ -2,7 +2,78 @@
 
 2026-10-21. This record covers local builds and web verification. The firmware was not installed/flashed on an FM-1, and the new image's boot, analog output, CPU1 timing, and real-time deadlines were not measured. Sound quality also remains unapproved by listening.
 
-## Revision 4 song-mix follow-up: current local evidence
+## Revision 5 candidate: current local evidence
+
+The bank is a listening candidate, not an approved instrument set. IDs 08–11
+use 1.2-second recorded piano bodies without a default VA saw. Organ and Brass
+retain their smooth attacks and static harmonic bodies. Glass and Bell use
+reduced modulation and sine carriers. Pulse Arp retains its short articulation
+with a fixed 1.75x profile trim; the additional hip-hop song compensates its
+lead level to retain the previous kick balance. ID 25 is now Strings, with a
+fast default attack and an editable ATTACK control.
+
+- The complete native C suite and VA-table regeneration passed. The complete
+  suite and render also passed LLVM 23 ASan/UBSan with the explicit macOS 15.1
+  SDK and arm64 target configuration used below. VA-band and Analog fixtures
+  explicitly enable their tested sources rather than depending on the old
+  Stage Piano default mask. No production source was changed to satisfy a
+  stale fixture.
+- All 11 generated PCM headers and the manifest reproduce offline. Nine zones
+  contain four mathematical sources, four CC0 recorded sources and one
+  separately licensed GeneralUser GS source. Piano roots retain 19,200 frames;
+  Strings retains its original 18,880-frame loop after a 1,600-frame prefix.
+  The GeneralUser license and its sample-origin qualification are included.
+  Payload is 430,532 bytes; descriptor-inclusive data is 431,684 bytes against
+  a 442,368-byte budget. Recorded-source correlation exceeds 0.999999.
+- Native/WASM equality passed for all 32 profiles, four-bank FX choices,
+  source controls and Analog. All four actual performances match sample for
+  sample: NIGHT CIRCUIT 1,246,760 frames, NEON SPIRAL 2,948,400, HIPHOP POCKET
+  2,513,700 and TECHNO DRIVE 2,881,200, including stopped tails. NIGHT CIRCUIT
+  is the original eight-bar pattern excerpt; NEON SPIRAL is 32 bars. Their
+  original MC-1 scores, control values and FX use new voices in matching roles.
+- Browser-storage tests preserve foreign bank revisions 1–4 without writes or
+  automatic migration. Bank 5 retains wire version 9, a 15-byte McPatch and
+  35,154-byte record. Real WASM worklet, MIDI, UI and 44.1/48/96 kHz conversion
+  checks passed.
+- The actual pi32v2 app is 556,504 / 581,564 bytes, leaving 25,060 bytes.
+  Globals are 55,708 bytes, pool reservation 304,184 and RAM text 5,568.
+  McVoice/McSynthJob remain 140/1,264 bytes. FWSC is 610,089 bytes. Package,
+  actual offline OTA and RAM-loader simulation passed; no device was flashed.
+- All 141 public MP3 entries pass hash/size, exact decoded duration,
+  gallery/install and cache checks. Canonical WAVs remain local; MP3 delivery
+  is lossy and is not described as sample-identical. All native previews have
+  no clips and finish their stopped tails. MC-1 demos appear before the
+  additional dance songs and individual presets.
+- Fresh Chrome captures cover home, MC-1 demos, downloads and the actual C
+  panel at 390 CSS pixels (DPR 3, touch), 1,440 and 1,920. There is no
+  horizontal overflow; all panel sizes reach audio ready with the 240x240
+  C canvas. Both MC-1 MP3s and Strings advance playback. The actual C worklet
+  produces a nonzero 0.1622314453125 peak at 44.1 kHz. Selecting Strings,
+  editing CUT and pressing SAVE twice writes a 73,728-byte flash image
+  identical to IndexedDB; reload restores Strings and the edited CUT value.
+  The existing dark-only theme, rotated portrait panel and bitmap LCD remain
+  the accepted design contract. Captures are browser evidence, not a physical
+  phone or FM-1 test.
+- Independent read-only source/functional and visual reviews passed. The
+  visual review inspected all 23 fresh captures across the three routes and
+  the save/reload interaction; accepted design debt was separated from new
+  regressions. JavaScript/HTML/Python language-server packages are absent;
+  actual Node syntax checks, Python compilation, C diagnostics and executable
+  regression checks were used instead.
+
+Current app SHA-256:
+`bd7c9fcca472d456f9ccbb02cba6041f7d2af6d92b3e42c202daa5acf2166894`
+
+Current FWSC SHA-256:
+`cc52d16d78d69e0486015636bbda8e40ec09b7e1891f84e297575dc061eefe71`
+
+Current target-input SHA-256:
+`7fd9adf2d64e9fc87a96bcaf72011c2c682de8b96e6f8a355e2e023aea03866d`
+
+Logs and captures are local under `build/sound-quality/voice-revision5/`.
+Mechanical checks do not establish listening approval or hardware timing.
+
+## Revision 4 song-mix follow-up: historical local evidence
 
 The 32 preset recipes and PCM inputs are unchanged from `20e0c00`. Kick events
 were present in both previous song renders; this follow-up addresses their mix
@@ -29,13 +100,13 @@ and onset space, not a dropped-event fault.
   contracts and actual offline OTA/loader checks passed. Public MP3 payload
   is 31,318,303 bytes.
 
-Current app SHA-256:
+Revision 4 follow-up app SHA-256:
 `7cdf9bb1749617f42ab48b4c8d39e9903c241b7c5da73d1b77af6d5a78400494`
 
-Current FWSC SHA-256:
+Revision 4 follow-up FWSC SHA-256:
 `af3c1d8a543cc1f6f76ff09f1749396c6c5b00c9d1e762643be8b7d039f54c0c`
 
-Current target-input SHA-256:
+Revision 4 follow-up target-input SHA-256:
 `36d585708ab85396fb5098d2ed5eb9247491e01e8287aa55dbee31f1b1e893f2`
 
 These are mechanical and provenance checks, not listening approval.
@@ -82,13 +153,13 @@ bank remains unapproved by listening, and no device was flashed.
   output at 44.1 kHz. Captures and logs are local under
   `build/sound-quality/voice-revision4/`.
 
-Current app SHA-256:
+Revision 4 first-candidate app SHA-256:
 `47c7166016e3e5b7aaf49f87a1ec22ba79eaf5257d88ea832d4f220a46772a9a`
 
-Current FWSC SHA-256:
+Revision 4 first-candidate FWSC SHA-256:
 `40fc3851e15cb31c7a7e6d54b9ed3e3d2a89e356cda0b0e020c71ba7c4112223`
 
-Current target-input SHA-256:
+Revision 4 first-candidate target-input SHA-256:
 `3b8d22d44d867ab9e51e64cfe042b7946b4196fcbab19c249cfddff9992b0f32`
 
 ## Revision 3 candidate: historical local evidence

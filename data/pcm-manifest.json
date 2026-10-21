@@ -1,8 +1,8 @@
 {
   "schema": 3,
-  "kind": "mathematical_and_cc0_recorded_pcm",
-  "license": "GPL-3.0-only; CC0-1.0 source material",
-  "construction": "Five original mathematical zones and four CC0 recorded attack zones. Piano uses upright recordings; the ensemble combines trumpet, horn and violin sections with a tuned foundation. Soft Air has no vowel formants, struck rings or fast AM. No legacy LA bank or reference-video audio is used.",
+  "kind": "mathematical_and_licensed_recorded_pcm",
+  "license": "GPL-3.0-only; CC0-1.0 and LicenseRef-GeneralUser-GS source material",
+  "construction": "Four mathematical zones, four CC0 recorded zones and one GeneralUser GS SoundFont strings zone with its original loop. Piano uses upright recordings; the ensemble combines trumpet, horn and violin sections with a tuned foundation. Soft Air has no vowel formants, struck rings or fast AM. No legacy LA bank or reference-video audio is used.",
   "sample_rate": 16000,
   "families": 7,
   "peak_target": 26000,
@@ -123,8 +123,8 @@
       "name": "Piano Low",
       "family": 1,
       "root": 48,
-      "role": "Recorded upright-piano low attack; source root and tuning are explicit.",
-      "recorded_signal_correlation": 0.999999998913,
+      "role": "Recorded upright-piano low segment; source root and tuning are explicit.",
+      "recorded_signal_correlation": 0.999999997425,
       "tuning_hz_q16": 8572947,
       "fundamental_hz": 130.812783,
       "tuning_cents_vs_equal": 0,
@@ -136,13 +136,13 @@
       "transient_stages_ms": [],
       "loop_cycles": 0,
       "lengths": [
-        6400,
-        3200,
-        1600,
-        800,
-        400,
-        200,
-        100
+        19200,
+        9600,
+        4800,
+        2400,
+        1200,
+        600,
+        300
       ],
       "loop_start": [
         0,
@@ -162,10 +162,10 @@
         0,
         0
       ],
-      "pcm_sha256": "1e3662530917ca20e9f73b1d403d4dac29436089f5800bf2ee2dbe3be58be384",
+      "pcm_sha256": "ac819956ece3a7f50b034e627d9fce7975f6809fabac26a19fcf654ac9c30b45",
       "peak": 26000,
-      "rms": 8792.3545,
-      "dc_offset": 0.0055,
+      "rms": 5689.1458,
+      "dc_offset": -0.0002,
       "loop_jumps": [
         0,
         0,
@@ -191,34 +191,34 @@
       "centroid_hz": [
         272.61,
         223.69,
-        252.2,
-        293.53
+        265.57,
+        408
       ],
       "bright_fraction": [
         0.042,
         0.0423,
-        0.057,
-        0.0828
+        0.0696,
+        0.1852
       ],
-      "fundamental_margin_db": 23.72,
-      "occupied_bands": 14,
+      "fundamental_margin_db": 19.96,
+      "occupied_bands": 13,
       "available_bands": 22,
       "mip_level_db": [
         0,
         0,
         -0.01,
-        -0.08,
-        -0.86,
-        -3.66,
-        -26.22
+        -0.09,
+        -1.14,
+        -4.33,
+        -27.11
       ]
     },
     {
       "name": "Piano Mid",
       "family": 1,
       "root": 60,
-      "role": "Recorded upright-piano middle attack, not a synthetic tine transient.",
-      "recorded_signal_correlation": 0.999999998945,
+      "role": "Recorded upright-piano middle segment, not a synthetic tine transient.",
+      "recorded_signal_correlation": 0.99999999738,
       "tuning_hz_q16": 17145893,
       "fundamental_hz": 261.625565,
       "tuning_cents_vs_equal": 0,
@@ -230,13 +230,13 @@
       "transient_stages_ms": [],
       "loop_cycles": 0,
       "lengths": [
-        6400,
-        3200,
-        1600,
-        800,
-        400,
-        200,
-        100
+        19200,
+        9600,
+        4800,
+        2400,
+        1200,
+        600,
+        300
       ],
       "loop_start": [
         0,
@@ -256,10 +256,10 @@
         0,
         0
       ],
-      "pcm_sha256": "84919b81505927f571f067c2eff604a6912d5773ad79279485e9092093d9f541",
+      "pcm_sha256": "1a309d06e2f496d7ae6af235797dad7ca100d70b8fe5dad2def5eafbc60391de",
       "peak": 26000,
-      "rms": 8933.0091,
-      "dc_offset": 0.0034,
+      "rms": 5642.2964,
+      "dc_offset": 0.0022,
       "loop_jumps": [
         0,
         0,
@@ -285,16 +285,16 @@
       "centroid_hz": [
         303.85,
         300.09,
-        300.35,
-        296.08
+        296.15,
+        359.68
       ],
       "bright_fraction": [
         0.0132,
         0.0118,
-        0.0057,
-        0.0025
+        0.003,
+        0.0108
       ],
-      "fundamental_margin_db": 30.63,
+      "fundamental_margin_db": 30.91,
       "occupied_bands": 6,
       "available_bands": 18,
       "mip_level_db": [
@@ -302,17 +302,17 @@
         0,
         -0.01,
         -0.04,
-        -0.58,
-        -20.01,
-        -22.51
+        -0.59,
+        -20.65,
+        -23.18
       ]
     },
     {
       "name": "Piano High",
       "family": 1,
       "root": 72,
-      "role": "Recorded upright-piano high attack, retaining its actual hammer/body.",
-      "recorded_signal_correlation": 0.999999997742,
+      "role": "Recorded upright-piano high segment, retaining its actual hammer/body.",
+      "recorded_signal_correlation": 0.999999993885,
       "tuning_hz_q16": 34291786,
       "fundamental_hz": 523.251131,
       "tuning_cents_vs_equal": 0,
@@ -324,13 +324,13 @@
       "transient_stages_ms": [],
       "loop_cycles": 0,
       "lengths": [
-        6400,
-        3200,
-        1600,
-        800,
-        400,
-        200,
-        100
+        19200,
+        9600,
+        4800,
+        2400,
+        1200,
+        600,
+        300
       ],
       "loop_start": [
         0,
@@ -350,10 +350,10 @@
         0,
         0
       ],
-      "pcm_sha256": "807e302f2b41ff22e44c4bdda7e8dab15595adf01412b10a53c0b36d5f9b74b4",
+      "pcm_sha256": "a28e5b7d1f67c6badea766d74d66350b74a654229df491bc11768ae3eb178033",
       "peak": 25987,
-      "rms": 6048.4257,
-      "dc_offset": -0.0052,
+      "rms": 3703.9849,
+      "dc_offset": 0.0021,
       "loop_jumps": [
         0,
         0,
@@ -379,26 +379,26 @@
       "centroid_hz": [
         516.05,
         534.17,
-        555.46,
-        568.16
+        563.74,
+        526.94
       ],
       "bright_fraction": [
         0.0018,
         0.0016,
-        0.0009,
-        0.0024
+        0.0021,
+        0.0018
       ],
-      "fundamental_margin_db": 36.91,
-      "occupied_bands": 4,
+      "fundamental_margin_db": 36.32,
+      "occupied_bands": 5,
       "available_bands": 14,
       "mip_level_db": [
         0,
         0,
-        -0.06,
-        -0.17,
-        -17.03,
-        -20.58,
-        -23.61
+        -0.05,
+        -0.18,
+        -17.51,
+        -21.04,
+        -24.08
       ]
     },
     {
@@ -699,101 +699,97 @@
       "name": "String Texture",
       "family": 5,
       "root": 60,
-      "role": "Granular ensemble bed: staggered swell that opens its formants, a coherent grid-locked bow sweep and a 64-bin looped air bed.",
-      "recorded_signal_correlation": null,
-      "tuning_hz_q16": 17039360,
-      "fundamental_hz": 260,
-      "tuning_cents_vs_equal": -10.7903,
-      "partials": 91,
-      "morphing_partials": 27,
-      "sweep_partials": 25,
-      "morph_tau_ms": 45,
-      "sweep_bin": 1,
-      "transient_stages_ms": [
-        0,
-        12,
-        18
-      ],
-      "loop_cycles": 52,
+      "role": "GeneralUser GS Fast Strings single-source PCM and original loop; no extra layered instrument, synthetic bow/AM or baked slow envelope.",
+      "recorded_signal_correlation": 0.999999998746,
+      "tuning_hz_q16": 17111450,
+      "fundamental_hz": 261.1,
+      "tuning_cents_vs_equal": -3.4813,
+      "partials": 0,
+      "morphing_partials": 0,
+      "sweep_partials": 0,
+      "morph_tau_ms": 200,
+      "sweep_bin": 0,
+      "transient_stages_ms": [],
+      "loop_cycles": 308,
       "lengths": [
-        6400,
-        3200,
-        1600,
-        800,
-        400,
-        200,
-        100
+        20480,
+        10240,
+        5120,
+        2560,
+        1280,
+        640,
+        320
       ],
       "loop_start": [
-        3200,
         1600,
         800,
         400,
         200,
         100,
-        50
+        50,
+        25
       ],
       "loop_end": [
-        6400,
-        3200,
-        1600,
-        800,
-        400,
-        200,
-        100
+        20480,
+        10240,
+        5120,
+        2560,
+        1280,
+        640,
+        320
       ],
-      "pcm_sha256": "394d6ec054d29974fa37c68fcf32c12f485531ec743ac2d001ce8bc651e45570",
-      "peak": 25951,
-      "rms": 11199.1283,
-      "dc_offset": -15.2695,
+      "pcm_sha256": "f9bb9909e65341a37a5eefd28fce06ed38b204d03d27dfd060331054b6b22893",
+      "peak": 26000,
+      "rms": 8190.0265,
+      "dc_offset": -2.6579,
       "loop_jumps": [
-        354,
-        15118,
-        2890,
-        7041,
-        8149,
-        0,
-        0
+        6101,
+        9091,
+        13847,
+        6075,
+        451,
+        135,
+        115
       ],
       "loop_second_difference": [
-        11835,
-        2638,
-        11994,
-        3298,
-        1,
-        0,
-        0
+        484,
+        2335,
+        2083,
+        14110,
+        4281,
+        87,
+        217
       ],
-      "attack_ms": 87.562,
+      "attack_ms": 39.75,
       "stage_rebound": 1,
-      "loop_motion_db": 0.5,
+      "loop_motion_db": 9.81,
       "loop_centroid_range_hz": [
-        1243.8,
-        1491.59
+        583.81,
+        1107.95
       ],
       "centroid_hz": [
-        508.79,
-        776.87,
-        1420.71,
-        1444.74
+        536.68,
+        558.02,
+        970.5,
+        626.09
       ],
       "bright_fraction": [
-        0.1214,
-        0.3007,
-        0.5327,
-        0.5451
+        0.0644,
+        0.0764,
+        0.2888,
+        0.1333
       ],
-      "fundamental_margin_db": 116.97,
-      "occupied_bands": 17,
+      "fundamental_margin_db": 3.85,
+      "occupied_bands": 13,
       "available_bands": 19,
       "mip_level_db": [
         0,
-        -0.44,
-        -1.9,
-        -3.97,
-        -5.65,
-        -46.39,
-        -49.83
+        -0.04,
+        -0.31,
+        -1.11,
+        -7.2,
+        -29.57,
+        -30.11
       ]
     },
     {
@@ -894,11 +890,23 @@
       ]
     }
   ],
-  "pcm_bytes": 222252,
-  "budget_bytes": 229376,
+  "pcm_bytes": 430532,
+  "budget_bytes": 442368,
   "reference_audio_auditioned": false,
   "listening_approved": false,
   "generator_sha256_scope": "The input hash covers the generator, committed recorded material and generated headers.",
   "recorded_source": "data/pcm-source/vsco-attacks.json",
-  "recorded_source_sha256": "faba27d825daabbe2b12b8fc0cbe6d6643762501d89cd8178864314356799edd"
+  "recorded_source_sha256": "c69d9bf45e3bef518f60d62d5af372e352287c13c2489f1368265adebfa7b400",
+  "recorded_sources": [
+    {
+      "path": "data/pcm-source/vsco-attacks.json",
+      "license": "CC0-1.0",
+      "sha256": "c69d9bf45e3bef518f60d62d5af372e352287c13c2489f1368265adebfa7b400"
+    },
+    {
+      "path": "data/pcm-source/generaluser-strings.json",
+      "license": "LicenseRef-GeneralUser-GS",
+      "sha256": "dc158ee96a861b527f2ab7e6e23185b631002d1fe8d0853f280222c7ed888370"
+    }
+  ]
 }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const module = new WebAssembly.Module(fs.readFileSync(process.argv[2] || 'build/mod1.wasm'));
-const identity = [77, 79, 68, 49, 1, 0, 4, 0];
+const identity = [77, 79, 68, 49, 1, 0, 5, 0];
 
 function boot(image) {
     const e = new WebAssembly.Instance(module, {}).exports;
@@ -39,6 +39,20 @@ const image = current.flash.slice();
 const restored = boot(image);
 assert.equal(restored.e.emu_store_status(), 0);
 assert.equal(restored.e.emu_parameter(0, 4), savedCutoff);
+
+// Earlier bank identities must never enter own-corrupt recovery or be rewritten.
+for (let bank = 1; bank < identity[6]; bank++) {
+    const older = image.slice();
+    for (const offset of [20, 20 + image.length / 2]) {
+        if (identity.every((byte, i) => older[offset + i] === byte)) older[offset + 6] = bank;
+    }
+    const blocked = boot(older);
+    assert.equal(blocked.e.emu_store_status(), 3);
+    const generation = blocked.e.emu_flash_gen();
+    save(blocked.e);
+    assert.equal(blocked.e.emu_flash_gen(), generation);
+    assert.deepEqual(blocked.flash, older);
+}
 
 // 다른 magic과 HEADER 밖의 불명확한 데이터도 자동 초기화·덮어쓰기하지 않는다.
 for (const dirtyTail of [false, true]) {

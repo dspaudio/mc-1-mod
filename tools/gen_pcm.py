@@ -8,10 +8,11 @@
 # Apply the file bundle printed on stdout with apply_patch. This tool writes no file itself.
 """Hybrid mathematical and CC0 recorded PCM, with its reproduction report.
 
-Five zones are original mathematical hybrid material. Three piano attacks and
-one ensemble impact use committed, processed CC0 VSCO 2 Community Edition
-recordings with pinned source hashes and tuning provenance. No legacy LA bank
-or reference-video audio is used. Mathematical families use these layers:
+Four zones are original mathematical hybrid material. Three piano segments and
+one ensemble impact use CC0 VSCO 2 Community Edition recordings. Strings use a
+licensed GeneralUser GS SoundFont sample and its original loop. All recorded
+material has committed inputs, pinned source hashes and tuning provenance.
+No legacy LA bank or reference-video audio is used. Mathematical families use:
 
   * a morphing partial bed: each partial owns an onset, bloom, strike and decay
     trajectory and a second spectral weight, so the whole spectrum travels from an
@@ -48,6 +49,7 @@ from pathlib import Path
 from typing import Final, TypedDict
 
 RATE: Final = 16000
+BUDGET: Final = 432 * 1024
 MIPS: Final = 7
 PEAK: Final = 26000
 TAU: Final = 2.0 * math.pi
@@ -148,10 +150,12 @@ class Zone:
     loop: bool
     role: str
     build: Callable[[float, int], Voicing] = field(compare=False)
+    tuning_hz: float = 0.0
+    loop_frames: int = 0
 
     @property
     def loop_span(self) -> int:
-        return self.length // 2 // 64 * 64 if self.loop else 0
+        return (self.loop_frames or self.length // 2 // 64 * 64) if self.loop else 0
 
 
 def mix64(value: int) -> int:
@@ -308,9 +312,9 @@ def finger_body(f0: float, _cycles: int) -> Voicing:
     return Voicing(tuple(partials), 1.0, rings, bursts, morph_tau=0.016, sweep_bin=1)
 
 
-def recorded_voicing(key: str) -> Voicing:
-    """Decode the committed, hash-verified CC0 attack material without network access."""
-    path = Path(__file__).resolve().parents[1] / "data/pcm-source/vsco-attacks.json"
+def recorded_voicing(key: str, source: str = "vsco-attacks.json") -> Voicing:
+    """Decode committed, hash-verified licensed PCM without network access."""
+    path = Path(__file__).resolve().parents[1] / "data/pcm-source" / source
     corpus = json.loads(path.read_text())
     material = corpus["materials"][key]
     raw = base64.b64decode(material["pcm16_base64"], validate=True)
@@ -321,7 +325,7 @@ def recorded_voicing(key: str) -> Voicing:
 
 
 def hybrid_keys(_f0: float, zone: int) -> Voicing:
-    """Family 1 - recorded upright-piano attacks, aligned to the three actual roots."""
+    """Family 1 - recorded upright-piano segments, aligned to the three actual roots."""
     return recorded_voicing(f"piano-{48 + zone * 12}")
 
 PICK_NEAR: Final = ((1900.0, 1150.0, 1.00), (4600.0, 1650.0, 0.48))
@@ -398,42 +402,9 @@ STRING_CLOSE: Final = ((1150.0, 820.0, 0.62), (3000.0, 1550.0, 0.30))
 STRING_OPEN: Final = ((1900.0, 950.0, 0.80), (4300.0, 1700.0, 0.46))
 
 
-def string_texture(f0: float, cycles: int) -> Voicing:
-    """Family 5 - granular ensemble bed: staggered swell opening under a bow sweep."""
-    partials = []
-    for h in range(1, 40):
-        hz = f0 * h
-        if hz >= RATE * 0.44:
-            break
-        attack = h ** -0.88 * resonance(hz, STRING_CLOSE, 0.40)
-        body = h ** -0.74 * resonance(hz, STRING_OPEN, 0.34)
-        if h % 2:
-            attack *= 1.08
-            body *= 1.12
-        sweep, sweep_phase = slope_depth(hz, STRING_OPEN, 0.34, 0.95, 0.38) \
-            if h >= 3 else (0.0, 0.0)
-        partials.append(Partial(
-            ratio=float(h), amp=attack, amp2=body,
-            phase=TAU * (0.31 * h * h % 1.0) if h > 1 else 0.0,
-            onset=0.011 + 0.0019 * h,
-            rise=0.004 + 0.050 * min(1.0, h / 18.0),
-            decay=0.0, tail=0.0,
-            sweep=sweep, sweep_phase=sweep_phase,
-            am_depth=0.0 if h < 3 else 0.09 + 0.12 * unit(0x7001, h),
-            am_bin=0 if h < 3 else 2 + int(unit(0x7002, h) * 4.0),
-            am_phase=TAU * unit(0x7003, h)))
-    # Grid-locked air bed: fixed-phase inharmonic bins, exactly periodic over the loop.
-    for index in range(64):
-        bin_index = clear_bin(80 + int(unit(0x7100, index) * 1320.0), cycles)
-        partials.append(Partial(
-            ratio=bin_index / cycles, amp=0.065 * (bin_index / 80.0) ** -0.70,
-            phase=TAU * unit(0x7200, index), onset=0.085 + 0.030 * unit(0x7201, index),
-            rise=0.030, am_depth=0.30, am_bin=2 + int(unit(0x7202, index) * 3.0),
-            am_phase=TAU * unit(0x7203, index)))
-    rings = (Ring(0.18, 1600.0, 140.0), Ring(0.10, 4200.0, 300.0, delay=0.0120))
-    bursts = (Burst(0.30, 2300.0, 1.6, 48.0, 0x701),
-              Burst(0.14, 5100.0, 1.1, 85.0, 0x702, delay=0.0180))
-    return Voicing(tuple(partials), 0.14, rings, bursts, morph_tau=0.045, sweep_bin=1)
+def string_texture(_f0: float, _cycles: int) -> Voicing:
+    """Family 5 - SoundFont strings with the upstream loop and no baked slow EG."""
+    return recorded_voicing("strings-60", "generaluser-strings.json")
 
 
 def soft_air(_f0: float, cycles: int) -> Voicing:
@@ -452,13 +423,13 @@ ZONES: Final = (
     Zone("Finger Body", 0, 36, 4000, True,
          "Sub growl engine: formant bed morphing from open to growl, one coherent "
          "grid-locked growl sweep and a three-stage finger transient.", finger_body),
-    Zone("Piano Low", 1, 48, 6400, False,
-         "Recorded upright-piano low attack; source root and tuning are explicit.",
+    Zone("Piano Low", 1, 48, 19200, False,
+         "Recorded upright-piano low segment; source root and tuning are explicit.",
          lambda f0, c: hybrid_keys(f0, 0)),
-    Zone("Piano Mid", 1, 60, 6400, False,
-         "Recorded upright-piano middle attack, not a synthetic tine transient.", lambda f0, c: hybrid_keys(f0, 1)),
-    Zone("Piano High", 1, 72, 6400, False,
-         "Recorded upright-piano high attack, retaining its actual hammer/body.", lambda f0, c: hybrid_keys(f0, 2)),
+    Zone("Piano Mid", 1, 60, 19200, False,
+         "Recorded upright-piano middle segment, not a synthetic tine transient.", lambda f0, c: hybrid_keys(f0, 1)),
+    Zone("Piano High", 1, 72, 19200, False,
+         "Recorded upright-piano high segment, retaining its actual hammer/body.", lambda f0, c: hybrid_keys(f0, 2)),
     Zone("Muted Pick", 2, 60, 3200, False,
          "Noise-click stab: comb position travelling from 0.215 to 0.340 under a "
          "four-stage click and a chirped pick edge.", muted_pick),
@@ -468,9 +439,10 @@ ZONES: Final = (
     Zone("Ensemble Hit", 4, 60, 11200, False,
          "Recorded CC0 trumpet, horn and violin-section impact: independently "
          "timed attacks, tuned C4 foundation and a 700 ms one-shot body.", tonal_hit),
-    Zone("String Texture", 5, 60, 6400, True,
-         "Granular ensemble bed: staggered swell that opens its formants, a "
-         "coherent grid-locked bow sweep and a 64-bin looped air bed.", string_texture),
+    Zone("String Texture", 5, 60, 20480, True,
+         "GeneralUser GS Fast Strings single-source PCM and original loop; "
+         "no extra layered instrument, synthetic bow/AM or baked slow envelope.",
+         string_texture, 261.1, 18880),
     Zone("Soft Air", 6, 60, 6400, True,
          "Smooth tonal foundation and low-level broadband air, with no vowel "
          "formants, struck rings or fast amplitude modulation.", soft_air),
@@ -479,6 +451,8 @@ ZONES: Final = (
 
 def source_frequency(zone: Zone) -> float:
     """A loop uses whole fundamental cycles over its span; a one-shot uses the root."""
+    if zone.tuning_hz:
+        return zone.tuning_hz
     nominal = 440 * 2 ** ((zone.root - 69) / 12)
     span = zone.loop_span
     return RATE * round(nominal * span / RATE) / span if zone.loop else nominal
@@ -876,6 +850,7 @@ class Manifest(TypedDict):
     generator_sha256_scope: str
     recorded_source: str
     recorded_source_sha256: str
+    recorded_sources: list[dict[str, str]]
 
 
 class Bundle(TypedDict):
@@ -965,7 +940,11 @@ def generate() -> Bundle:
                  f"/* {zone.name}: {zone.role} */",
                  '#include "../pcm_types.h"']
         if voicing.recorded:
-            lines.insert(2, "/* Derived CC0 VSCO 2 Community Edition material; see NOTICE.md. */")
+            if zone.family == 5:
+                lines[0] = "/* SPDX-License-Identifier: LicenseRef-GeneralUser-GS */"
+                lines.insert(2, "/* Derived GeneralUser GS material by S. Christian Collins; see NOTICE.md. */")
+            else:
+                lines.insert(2, "/* Derived CC0 VSCO 2 Community Edition material; see NOTICE.md. */")
         for mip, level in enumerate(levels):
             lines.append(f"static const int16_t mc_pcm_z{index}_m{mip}[{len(level.samples)}] = {{")
             for offset in range(0, len(level.samples), 16):
@@ -987,12 +966,13 @@ def generate() -> Bundle:
         "#ifndef MC_PCM_TYPES_H", "#define MC_PCM_TYPES_H", "#include <stdint.h>",
         "#define MC_PCM_RATE 16000u", "#define MC_PCM_FAMILIES 7u", "#define MC_PCM_ZONES 9u",
         f"#define MC_PCM_PEAK {PEAK}", f"#define MC_PCM_PAYLOAD {total}u",
+        f"#define MC_PCM_BUDGET {BUDGET}u",
         "typedef struct { const int16_t *data; uint16_t length,loop_start,loop_end; } McPcmMip;",
         "typedef struct { uint8_t family,root,levels; uint32_t tuning_hz_q16; const McPcmMip *mip; } McPcmZone;",
         "#endif", ""])
     header = [
         "/* SPDX-License-Identifier: GPL-3.0-only */",
-        "/* Copyright (C) 2026 dspaudio; mathematical and CC0 recorded PCM.",
+        "/* Copyright (C) 2026 dspaudio; mathematical and licensed recorded PCM.",
         "   Not an LA bank. Generated by tools/gen_pcm.py; see NOTICE.md. */",
         "#ifndef MC_PCM_BANK_H", "#define MC_PCM_BANK_H", '#include "pcm_types.h"',
     ]
@@ -1001,10 +981,13 @@ def generate() -> Bundle:
     files["src/pcm_bank.h"] = "\n".join(header) + "\n"
     stopband = max(filter_response(step / 2048.0) for step in range(512, 1025))
     passband = min(filter_response(step / 2048.0) for step in range(0, 308))
+    assert total <= BUDGET, (total, BUDGET)
     manifest: Manifest = {
-        "schema": 3, "kind": "mathematical_and_cc0_recorded_pcm", "license": "GPL-3.0-only; CC0-1.0 source material",
-        "construction": "Five original mathematical zones and four CC0 recorded attack "
-                        "zones. Piano uses upright recordings; the ensemble combines "
+        "schema": 3, "kind": "mathematical_and_licensed_recorded_pcm",
+        "license": "GPL-3.0-only; CC0-1.0 and LicenseRef-GeneralUser-GS source material",
+        "construction": "Four mathematical zones, four CC0 recorded zones and one "
+                        "GeneralUser GS SoundFont strings zone with its original loop. "
+                        "Piano uses upright recordings; the ensemble combines "
                         "trumpet, horn and violin sections with a tuned foundation. "
                         "Soft Air has no vowel formants, struck rings or fast AM. "
                         "No legacy LA bank or reference-video audio is used.",
@@ -1024,12 +1007,19 @@ def generate() -> Bundle:
         "mip_filter": {"taps": MIP_TAPS, "cutoff": MIP_CUTOFF, "kaiser_beta": MIP_BETA,
                        "passband_ripple_db": round(20 * math.log10(passband), 3),
                        "stopband_db": round(20 * math.log10(stopband), 2)},
-        "zones": zones, "pcm_bytes": total, "budget_bytes": 224 * 1024,
+        "zones": zones, "pcm_bytes": total, "budget_bytes": BUDGET,
         "reference_audio_auditioned": False, "listening_approved": False,
         "generator_sha256_scope": "The input hash covers the generator, committed recorded material and generated headers.",
         "recorded_source": "data/pcm-source/vsco-attacks.json",
         "recorded_source_sha256": hashlib.sha256(
             (Path(__file__).resolve().parents[1] / "data/pcm-source/vsco-attacks.json").read_bytes()).hexdigest(),
+        "recorded_sources": [
+            {"path": f"data/pcm-source/{name}", "license": license_name,
+             "sha256": hashlib.sha256(
+                 (Path(__file__).resolve().parents[1] / "data/pcm-source" / name).read_bytes()).hexdigest()}
+            for name, license_name in (("vsco-attacks.json", "CC0-1.0"),
+                                       ("generaluser-strings.json", "LicenseRef-GeneralUser-GS"))
+        ],
     }
     return {"files": files, "manifest": manifest}
 

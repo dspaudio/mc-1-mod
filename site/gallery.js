@@ -5,10 +5,10 @@
   if (!gallery || !status || !error) return;
 
   const groups = [
-    ["song", "Hip-hop & techno dance songs · Listening approval pending"],
+    ["demo", "MC-1 demos · Original arrangements, new voices"],
+    ["song", "Additional hip-hop & techno dance songs"],
     ["preset", "full-tone presets"],
     ["kit", "drum kits"],
-    ["demo", "Modern demo"],
     ["stress", "Stress render"]
   ];
   const label = (value) => Array.isArray(value) ? value.join(", ") : value == null ? "—" : String(value);
@@ -70,6 +70,7 @@
   function addGroup(items, kind, title, sortById) {
     const section = document.createElement("section");
     section.className = "gallery-group";
+    if (kind === "demo") section.id = "mc1-demos";
     if (kind === "song") section.id = "beat-songs";
     const heading = document.createElement("h3");
     section.append(heading);

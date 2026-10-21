@@ -126,9 +126,11 @@ static void contribution(void) {
         if(id==8||id==9) {
             capture(id,HY_PCM,60,reference,0,0);
             capture(id,mask,60,mixed,0,0);
-            CHECK(energy(reference,MC_RATE,MC_RATE)==0,id,60,"piano_PCM_ended");
-            CHECK(energy(mixed,MC_RATE,MC_RATE)>0,id,60,"synth_strings_body_remains");
-            CHECK(mc_presets[id].wave==MC_WAVE_SAW,id,60,"modern_saw_body");
+            CHECK(energy(reference,MC_RATE/2,MC_RATE/2)>0,id,60,"recorded_piano_body_past_400_ms");
+            CHECK(energy(reference,MC_RATE*3/2,MC_RATE/2)==0,id,60,"piano_PCM_ends_naturally");
+            CHECK(energy(mixed,MC_RATE*3/2,MC_RATE/2)==0,id,60,"no_fake_synth_body_after_piano");
+            CHECK(mc_presets[id].wave==MC_WAVE_SINE&&!(mask&HY_VA),
+                id,60,"piano_no_default_saw_body");
         }
     }
 }
@@ -152,11 +154,14 @@ static void loops(void) {
                 " phase_error_cycles=%.12f seam=%d adjacent_max=%d\n",
                 zi,mi,z->root,z->tuning_hz_q16/65536.0,cycles,(double)error/(double)scale,jump,max_delta);
             for(unsigned id=0;id<MC_PRESETS;id++)if(hy_profile(id)->pcm_family==z->family) {
-                if(!cycles||error>span/2u+1u||abs(jump)>max_delta)
+                if((z->family!=5u&&(!cycles||error>span/2u+1u))||abs(jump)>max_delta)
                     fprintf(stderr,"LOOP_EVIDENCE preset=%u name=\"%s\" optional=%u zone=%u mip=%u "
                         "seam=%d local_max=%d phase_error_cycles=%.12f\n",id,mc_preset_names[id],
                         !(mc_presets[id].source_mask&HY_PCM),zi,mi,jump,max_delta,(double)error/(double)scale);
-                CHECK(cycles&&error<=span/2u+1u,id,z->root,"loop_integer_cycles");
+                if(z->family==5u)
+                    CHECK(span==18880u&&m->loop_start==(1600u>>mi)&&z->root==60u,
+                        id,z->root,"recorded_strings_upstream_loop_geometry");
+                else CHECK(cycles&&error<=span/2u+1u,id,z->root,"loop_integer_cycles");
                 CHECK(abs(jump)<=max_delta,id,z->root,"seam_within_source_slope");
             }
         }
@@ -316,6 +321,18 @@ static void reviewed_roles(void) {
         early,pop,tail,upper/(lower+1e-30));
     CHECK(early<pop*0.2&&pop>75&&tail<1,28,60,"rounded_compact_pop");
     CHECK(upper/(lower+1e-30)<0.06,28,60,"pop_not_metal_ring");
+    const unsigned plucks[4]={12,14,15,18};
+    double peer[4];
+    for(unsigned i=0;i<4;i++) {
+        capture(plucks[i],mc_presets[plucks[i]].source_mask,60,isolated,0,0);
+        peer[i]=sqrt(energy(isolated,MC_RATE/100,MC_RATE/25));
+    }
+    for(unsigned i=1;i<4;i++)for(unsigned j=i;j&&peer[j]<peer[j-1u];j--) {
+        double saved=peer[j];peer[j]=peer[j-1u];peer[j-1u]=saved;
+    }
+    double median=(peer[1]+peer[2])*0.5;
+    CHECK(pop>=median*0.8&&pop<=median*1.25,28,60,"pop_level_matches_other_short_plucks");
+    printf("ROLE_POP_LEVEL pop=%.6f peer_median=%.6f ratio=%.6f\n",pop,median,pop/median);
     capture(28,mc_presets[28].source_mask,79,mixed,0,0);
     hz=(double)mc_frequency[79]*MC_RATE/4294967296.0;
     double fundamental=harmonic(mixed,MC_RATE/100,512,hz);
@@ -326,9 +343,30 @@ static void reviewed_roles(void) {
         28,79,"foreground_pop_has_reference_register_odd_harmonics");
     CHECK(energy(mixed,MC_RATE/10,MC_RATE/10)==0,28,79,"foreground_pop_ends_before_100_ms");
 }
+static void strings_attack(void) {
+    unsigned id=25u;
+    CHECK(mc_presets[id].source_mask==HY_PCM&&mc_presets[id].wave==2u,
+        id,60,"strings_no_default_saw_body");
+    capture(id,mc_presets[id].source_mask,60,mixed,0,0);
+    double fast=sqrt(energy(mixed,0,MC_RATE/50u));
+    double body=sqrt(energy(mixed,MC_RATE,MC_RATE/5u));
+    setup(id,mc_presets[id].source_mask,0);
+    q.project.patch[0].attack=96;
+    mc_note(&q,0,60,110,0,0);
+    for(unsigned i=0;i<Q_FRAMES;i++) {
+        int16_t out[2];mc_render(&q,out,1);isolated[i]=out[0];
+    }
+    double slow=sqrt(energy(isolated,0,MC_RATE/50u));
+    double held=sqrt(energy(isolated,MC_RATE,MC_RATE/5u));
+    CHECK(fast>slow*4.0&&body>100&&held>body*0.9,
+        id,60,"strings_fast_default_user_attack_creates_slow");
+    CHECK(!q.clips,id,60,"strings_held_output_not_clipped");
+    printf("ROLE_STRINGS early20_default=%.6f early20_attack96=%.6f "
+        "held_default=%.6f held_attack96=%.6f\n",fast,slow,body,held);
+}
 int main(void) {
     setvbuf(stdout,NULL,_IONBF,0);
-    contribution();loops();sustained();harmonic_reference();transitions();reviewed_roles();
+    contribution();loops();sustained();harmonic_reference();transitions();reviewed_roles();strings_attack();
     printf("MECHANICAL_%s failures=%u\n",failures?"FAIL":"PASS",failures);
     puts("QUALITY_UNRUN: 수치는 승인 기준이 아니다. AM/시간별 배음 비교는 추가 A/B 검토가 필요하다.");
     puts("UNRUN: 실제 청취, alias 전대역 판정, WASM 실행, 타깃, 장치");

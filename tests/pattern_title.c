@@ -64,8 +64,8 @@ int main(void)
     static const unsigned star[7]={0,21,14,31,14,21,0};
     for(unsigned y=0;y<14;y++)for(unsigned x=0;x<10;x++)
         assert(frame[(30+y)*240+84+x]==((star[y/2]>>(4-x/2))&1?0xdefb:0x0841));
-    mc_preset(&engine,0,MC_PRESET_SLOW_STRINGS);
-    assert(strlen(mc_preset_names[MC_PRESET_SLOW_STRINGS])==12);
+    mc_preset(&engine,0,MC_PRESET_ROUND_FINGER);
+    assert(strlen(mc_preset_names[MC_PRESET_ROUND_FINGER])==12);
     assert(!mc_parameter_set(&engine,0,4,(engine.project.patch[0].cutoff+1u)%128u));render(frame);
     for(unsigned y=30;y<44;y++)for(unsigned x=228;x<240;x++)assert(frame[y*240+x]==0x0841);
     engine.project.song_mode=1;engine.project.song_length=1;

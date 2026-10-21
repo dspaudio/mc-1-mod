@@ -1,4 +1,4 @@
-# Modern hybrid 32-role bank, revision 4
+# Modern hybrid 32-role bank, revision 5
 
 Date: 2026-10-21. Status: revoiced implementation candidates; **all 32 sounds remain unapproved, including IDs 04 and 05**. The old bank is a rejected A/B reference, not protected material. These tables describe the actual immutable recipes and default patches, not measured listening success. Follow [audio acceptance](AUDIO_ACCEPTANCE.md).
 
@@ -8,7 +8,7 @@ The selected direction is the entire first Shorts F4_2MaZXeOA, user-identified a
 
 Each note still occupies one of eight melody slots, with one PCM stream, two FM operators and one phase-coherent VA oscillator sharing pitch, gate, velocity, amplitude EG and filter. Six drum voices, 16 drum lanes and four SHARED FX banks remain. No unison, extra oscillator, per-preset processor, master normalization or acoustic-replica claim is introduced. IDs and order are unchanged; ID26 is the authorized Hollow Pad replacement. Only zero-based IDs 01/22 are mono. Display numbers are ID + 1.
 
-Revision 4 keeps MOD1, schema 1, the 15-byte McPatch and v9's 35134-byte payload/35154-byte record. The four uint16 source fields are immutable profile data, never patch/project bytes. Revision-1/2/3 records are foreign/unsupported under the revised pack identity, not silently migrated; resolving/exporting an older stored bank is separate work.
+Revision 5 keeps MOD1, schema 1, the 15-byte McPatch and v9's 35134-byte payload/35154-byte record. Source envelopes, colour and fixed Q8 output trim are immutable profile data, never patch/project bytes. Revision-1/2/3/4 records are foreign/unsupported under the revised pack identity, not silently migrated; resolving/exporting an older stored bank is separate work.
 
 Groups remain BASS CORE (00..03), BASS SEQ (04..07), PIANO EP (08..11), PLUCK MALLET (12..15), COMP STAB (16..19), LEAD (20..23), PAD TEXTURE (24..27), MOTION (28..31).
 
@@ -24,36 +24,36 @@ Groups remain BASS CORE (00..03), BASS SEQ (04..07), PIANO EP (08..11), PLUCK MA
 | 05 | Round Finger | Finger PCM/FM/sine gains 90/112/92, ratio-1 index-36 FM and unity modulation floor combine a picked onset with sustained body. |
 | 06 | Reed Pulse | Ratio-1 index-36 FM retains full modulation; pulse colour moves 16384 to 8192 over 420 ms under sustain 112. |
 | 07 | Metal Seq | Ratio-3 index-32 FM retains an 87.5% modulation floor; saw colour moves 28672 to 16384 over 220 ms with sustain 112. |
-| 08 | Stage Piano | Recorded upright-piano PCM/FM/VA gains 100/32/100; finite 320 ms FM and a 1.1 s saw-colour transition supply the intended synth body after the shared piano handoff. |
-| 09 | Soft Piano | Recorded upright-piano PCM/VA gains 76/116; a 2.1 s saw-colour bloom, sustain 96 and release 58 target a strings/pad-like body after the shared piano handoff. |
-| 10 | Warm Tines | Recorded upright-piano PCM is enabled at gain 76 alongside FM/coloured square; ratio-2 FM retains a 31.25% modulation floor after 720 ms. |
-| 11 | Clear EP | Recorded upright-piano PCM/FM/saw with a 25% FM modulation floor; a 650 ms reverse colour transition separates its body from Warm Tines. |
+| 08 | Stage Piano | Real 1.2-second upright-piano PCM at gain 127, with a short 280 ms zero-feedback FM onset at gain 24. VA is disabled; no synthetic body remains after the recording ends. |
+| 09 | Soft Piano | The same real piano body at PCM gain 127, with a softer filter and release 58. PCM-only by default; the optional VA is sine, not a strings/pad saw replacement. |
+| 10 | Warm Tines | Recorded piano PCM/FM gains 104/64, ratio-2 zero-feedback FM settling over 600 ms to a 12.5% modulation floor. Zero common sustain gives an EP decay; VA is disabled. |
+| 11 | Clear EP | Recorded piano PCM/FM gains 104/72, ratio-1 zero-feedback FM settling over 420 ms to a 12.5% modulation floor. Brighter filter and zero common sustain; VA is disabled. |
 | 12 | Muted Gtr | Muted-family transient with a short coloured pulse body, zero sustain and a 90 ms reverse colour transition. |
 | 13 | Nylon Pick | Nylon-family PCM with ratio-1 FM at a 25% modulation floor and a 360 ms evolving saw; sustain 18 retains a short plucked role. |
 | 14 | Glass Pluck | FM/pulse gains 90/78 with a 180 ms reverse colour transition; zero sustain and zero FM modulation floor target a pluck rather than a held tone. |
 | 15 | Soft Mallet | Sine support beneath a 110 ms low-index FM strike; zero sustain and zero modulation floor permit a carrier tail before the common envelope ends. |
-| 16 | Perc Organ | Pulse VA with static colour 8192 and static ratio-1, index-24, zero-feedback FM at unity modulation floor; attack 40 and sustain 124. |
-| 17 | Brass Stab | Saw VA with a 350 ms colour transition and static ratio-1, index-4, zero-feedback FM at unity modulation floor; attack 44 and sustain 120. |
+| 16 | Perc Organ | Sine VA plus static ratio-1, index-12, zero-feedback FM at unity modulation floor. The existing smooth attack 40 and sustain 124 remain; no pulse colour or keyboard strike is added. |
+| 17 | Brass Stab | Sine VA plus static ratio-1, index-24, zero-feedback FM at unity modulation floor. The existing smooth attack 44 and sustain 120 remain; no saw or colour transition. |
 | 18 | Chord Pluck | VA-only saw with a 160 ms reverse colour transition, filter depth 14500 and zero sustain; it plays only supplied notes. |
 | 19 | Orch Hit | Recorded CC0 VSCO trumpet, horn and violin-section ensemble with a tuned C4 foundation and 700 ms one-shot body; the default PCM-only mask disables competing FM/VA. |
 | 20 | Euro Saw | Saw-body sustain 102 and an 850 ms colour transition; finite 75 ms FM defines the onset while shared chorus/delay provide intended width. |
 | 21 | Pulse Lead | VA-only pulse with a descending 1.2 s colour transition and sustain 104; no embedded pattern or PWM claim. |
 | 22 | Porta Lead | Mono FM/saw with a 37.5% FM modulation floor and 1.1 s colour transition; existing slide preserves source clocks and phase. |
 | 23 | Bright FM | Ratio-2 FM with a 37.5% modulation floor and reverse saw colour over 1.6 s supplies the intended sustained digital lead. |
-| 24 | Warm Pad | Sine VA plus ratio-1 index-14 FM settling over 2.4 s to a 50% modulation floor; attack 48 and sustain 112. No PCM: distinct from Slow Strings (25). |
-| 25 | Slow Strings | String Texture PCM plus saw VA at gain 80; a 4.4 s colour transition reaches the alternate endpoint under attack 68 and sustain 114. |
+| 24 | Warm Pad | Sine VA plus ratio-1 index-14 FM settling over 2.4 s to a 50% modulation floor; attack 48 and sustain 112. No PCM: distinct from Strings (25). |
+| 25 | Strings | GeneralUser GS Fast Strings mono PCM at gain 96, with its original 1.18-second loop and no second instrument layer. Default attack 4; the user raises ATTACK for slow strings. No default VA, synthetic bow/AM or baked slow envelope. |
 | 26 | Hollow Pad | Authorized ID26 replacement: VA-only pulse with a 3.6 s colour transition, attack 52 and sustain 114. No PCM/FM or choir claim. |
-| 27 | Glass Pad | Soft Air family-6 PCM is enabled at gain 48 alongside sine VA and ratio-3 index-6 zero-feedback FM with a 75% modulation floor; attack 52 and sustain 114. No vowel material. |
-| 28 | Pulse Arp | Short VA-only resonant pulse: A10/D18/S0/R12, CUT 48, RES 24 and filter depth 3000. Targets the reference track's foreground Popcorn TIMBRE, not an arp pattern; no FM. |
+| 27 | Glass Pad | Sine VA/FM gains 80/96 with ratio-2 index-10 zero-feedback FM, settling over 5 seconds to a 25% modulation floor. Family-6 PCM is optional and disabled; attack 52 and sustain 114 remain. |
+| 28 | Pulse Arp | The same short VA-only resonant pulse: A10/D18/S0/R12, CUT 48, RES 24 and filter depth 3000. Level 127 and fixed 1.75x post-filter trim raise the default by about 6.1 dB without changing its articulation or harmonic recipe. No embedded arp or FM. |
 | 29 | Digital Arp | Muted-family PCM/saw with finite 180 ms FM; common A0/D42/S0/R16 articulates externally supplied sequences. |
-| 30 | Soft Sweep | Sine VA plus ratio-1 index-32 FM settling over 4.5 s to a 12.5% modulation floor; signed filter depth -5000, attack 64 and sustain 110. No PCM or VA colour motion: distinct from Slow Strings (25). |
-| 31 | Bell Bloom | Soft Air family-6 PCM enabled at gain 40 with sine VA and ratio-4 FM retaining a 31.25% modulation floor after 2.4 s. The name is unchanged; the former vowel material is replaced. |
+| 30 | Soft Sweep | Sine VA plus ratio-1 index-32 FM settling over 4.5 s to a 12.5% modulation floor; signed filter depth -5000, attack 64 and sustain 110. No PCM or VA colour motion: distinct from Strings (25). |
+| 31 | Bell Bloom | Sine VA/FM gains 96/72 with ratio-5 index-14 zero-feedback FM, settling over 1.8 seconds to a 12.5% modulation floor. Family-6 PCM is optional and disabled, leaving sparse bell harmonics rather than an air/saw body. |
 
 For family-1 piano profiles, `hy_source_sample` suppresses the combined FM/VA output for the first 1024 frames, then fades it in over the next 2048 frames (about 23.2 ms + 46.4 ms at 44100 Hz). This applies while PCM gain is nonzero, including all four factory piano/EP defaults. PCM is not faded out by this rule. FM/VA oscillators, FM decay and VA colour clocks keep advancing; the fade does not retrigger them. With PCM muted, the rule does not apply.
 
 ## Actual editable defaults
 
-All values below are existing 0..127 control units, not milliseconds or independent element envelopes. Masks use PCM=1, FM=2, VA=4. There are 6 single-source, 18 dual-source and 8 triple-source defaults. ID04 retains optional disabled PCM with a nonzero stored gain; ID19 retains optional disabled FM/VA. All four piano/EP defaults (08..11) enable PCM, as do Glass Pad (27) and Bell Bloom (31). All available sources have nonzero stored gains. IDs 01/22 are mono; all others are poly.
+All values below are existing 0..127 control units, not milliseconds or independent element envelopes. Masks use PCM=1, FM=2, VA=4. There are 8 single-source, 21 dual-source and 3 triple-source defaults. IDs 08..11 enable PCM and disable VA; Strings (25) is PCM-only. Glass Pad (27) and Bell Bloom (31) disable their optional PCM. All available sources retain nonzero stored gains. IDs 01/22 are mono; all others are poly. Fixed profile trim is unity except ID28 (Q8 448/256); it applies in the shared live C renderer, not during preview export.
 
 | ID | Active/available mask | PCM family | Wave | PCM/FM/VA gain | CUT/RES | A/D/S/R | Glide/level |
 |---|---|---|---|---|---|---|---|
@@ -65,16 +65,16 @@ All values below are existing 0..127 control units, not milliseconds or independ
 | 05 | 7/7 | 0 | sine | 90/112/92 | 98/8 | 1/80/112/20 | 0/112 |
 | 06 | 6/6 | none | square | 0/90/116 | 98/12 | 1/60/112/12 | 0/112 |
 | 07 | 6/6 | none | saw | 0/112/116 | 96/12 | 1/56/112/12 | 0/108 |
-| 08 | 7/7 | 1 | saw | 100/32/100 | 112/6 | 1/88/82/42 | 0/100 |
-| 09 | 5/5 | 1 | saw | 76/0/116 | 96/4 | 4/106/96/58 | 0/100 |
-| 10 | 7/7 | 1 | square | 76/104/64 | 104/5 | 2/90/74/40 | 0/104 |
-| 11 | 7/7 | 1 | saw | 66/92/62 | 116/6 | 1/76/64/34 | 0/98 |
+| 08 | 3/7 | 1 | sine | 127/24/24 | 112/6 | 1/88/96/42 | 0/100 |
+| 09 | 1/5 | 1 | sine | 127/0/24 | 96/4 | 4/106/96/58 | 0/100 |
+| 10 | 3/7 | 1 | sine | 104/64/20 | 104/5 | 2/100/0/40 | 0/104 |
+| 11 | 3/7 | 1 | sine | 104/72/20 | 116/6 | 1/96/0/34 | 0/98 |
 | 12 | 5/5 | 2 | square | 112/0/64 | 96/18 | 0/30/0/12 | 0/108 |
 | 13 | 7/7 | 3 | saw | 100/48/58 | 101/8 | 1/70/18/28 | 0/100 |
 | 14 | 6/6 | none | square | 0/90/78 | 108/10 | 0/48/0/22 | 0/104 |
 | 15 | 6/6 | none | sine | 0/112/40 | 102/3 | 1/62/0/24 | 0/112 |
-| 16 | 6/6 | none | square | 0/96/127 | 88/2 | 40/64/124/24 | 0/104 |
-| 17 | 6/6 | none | saw | 0/64/127 | 64/4 | 44/80/120/30 | 0/104 |
+| 16 | 6/6 | none | sine | 0/96/127 | 88/2 | 40/64/124/24 | 0/104 |
+| 17 | 6/6 | none | sine | 0/96/127 | 64/4 | 44/80/120/30 | 0/104 |
 | 18 | 4/4 | none | saw | 0/0/127 | 80/22 | 0/44/0/20 | 0/108 |
 | 19 | 1/7 | 4 | saw | 127/32/32 | 120/0 | 0/112/0/36 | 0/108 |
 | 20 | 6/6 | none | saw | 0/32/124 | 108/18 | 1/74/102/28 | 0/102 |
@@ -82,13 +82,13 @@ All values below are existing 0..127 control units, not milliseconds or independ
 | 22 | 6/6 | none | saw | 0/52/108 | 94/10 | 3/82/110/32 | 64/104 |
 | 23 | 6/6 | none | saw | 0/100/54 | 112/8 | 1/78/94/28 | 0/102 |
 | 24 | 6/6 | none | sine | 0/32/50 | 90/2 | 48/112/112/72 | 0/98 |
-| 25 | 5/5 | 5 | saw | 110/0/80 | 96/5 | 68/116/114/72 | 0/96 |
+| 25 | 1/5 | 5 | sine | 96/0/24 | 96/5 | 4/116/114/36 | 0/96 |
 | 26 | 4/4 | none | square | 0/0/127 | 90/4 | 52/112/114/72 | 0/104 |
-| 27 | 7/7 | 6 | sine | 48/32/104 | 104/0 | 52/116/114/76 | 0/100 |
-| 28 | 4/4 | none | square | 0/0/127 | 48/24 | 10/18/0/12 | 0/110 |
+| 27 | 6/7 | 6 | sine | 48/96/80 | 104/0 | 52/116/114/76 | 0/100 |
+| 28 | 4/4 | none | square | 0/0/127 | 48/24 | 10/18/0/12 | 0/127 |
 | 29 | 7/7 | 2 | saw | 72/88/80 | 108/12 | 0/42/0/16 | 0/100 |
 | 30 | 6/6 | none | sine | 0/50/40 | 90/8 | 64/120/110/70 | 0/96 |
-| 31 | 7/7 | 6 | sine | 40/100/44 | 114/5 | 3/112/78/60 | 0/102 |
+| 31 | 6/7 | 6 | sine | 40/72/96 | 114/5 | 3/112/78/60 | 0/102 |
 
 ## Actual immutable source and send data
 
@@ -104,16 +104,16 @@ FM duration 0 means unlimited lifetime, not zero decay. FM body is the fraction 
 | 05 | 1/36/0 | 12/10 | 310/0 | 3200 | 32768 | 0/0 | 0 | 8/6/4/0 |
 | 06 | 1/36/0 | 8/18 | 120/0 | 6000 | 32768 | 16384/8192 | 420 | 10/8/14/4 |
 | 07 | 3/32/0 | 12/12 | 105/0 | 6500 | 28672 | 28672/16384 | 220 | 12/4/18/6 |
-| 08 | 2/26/1 | 16/12 | 220/320 | 2800 | 0 | 2048/24576 | 1100 | 30/22/12/0 |
-| 09 | 1/0/0 | 0/10 | 0/0 | -1800 | 0 | 12288/28672 | 2100 | 38/30/10/4 |
-| 10 | 2/24/1 | 18/8 | 720/0 | 2200 | 10240 | 8192/20480 | 1400 | 26/22/14/0 |
-| 11 | 3/28/2 | 14/12 | 480/0 | 3200 | 8192 | 24576/8192 | 650 | 24/16/20/4 |
+| 08 | 1/10/0 | 8/12 | 120/280 | 2800 | 0 | 0/0 | 0 | 30/22/12/0 |
+| 09 | 1/0/0 | 0/10 | 0/0 | -1800 | 0 | 0/0 | 0 | 38/30/10/4 |
+| 10 | 2/20/0 | 8/8 | 600/0 | 2200 | 4096 | 0/0 | 0 | 26/22/14/0 |
+| 11 | 1/18/0 | 8/12 | 420/0 | 3200 | 4096 | 0/0 | 0 | 24/16/20/4 |
 | 12 | 1/0/0 | 0/18 | 0/0 | 11500 | 0 | 28672/4096 | 90 | 12/6/16/0 |
 | 13 | 1/20/1 | 18/12 | 280/0 | 4800 | 8192 | 4096/20480 | 360 | 22/12/18/0 |
 | 14 | 3/30/1 | 16/10 | 210/0 | 5500 | 0 | 24576/8192 | 180 | 28/12/26/4 |
 | 15 | 2/24/1 | 12/8 | 110/0 | 2200 | 0 | 0/0 | 0 | 20/8/14/0 |
-| 16 | 1/24/0 | 0/0 | 100/0 | 0 | 32768 | 8192/8192 | 0 | 18/28/8/4 |
-| 17 | 1/4/0 | 0/0 | 140/0 | 4000 | 32768 | 0/16384 | 350 | 20/16/14/4 |
+| 16 | 1/12/0 | 0/0 | 100/0 | 0 | 32768 | 0/0 | 0 | 18/28/8/4 |
+| 17 | 1/24/0 | 0/0 | 140/0 | 4000 | 32768 | 0/0 | 0 | 20/16/14/4 |
 | 18 | 1/0/0 | 0/18 | 0/0 | 14500 | 0 | 28672/4096 | 160 | 22/18/22/4 |
 | 19 | 1/8/0 | 0/0 | 100/150 | 0 | 0 | 0/0 | 0 | 30/12/16/0 |
 | 20 | 2/22/1 | 16/12 | 40/75 | 4800 | 0 | 2048/20480 | 850 | 24/28/24/6 |
@@ -121,13 +121,13 @@ FM duration 0 means unlimited lifetime, not zero decay. FM body is the fraction 
 | 22 | 1/18/1 | 16/10 | 420/0 | 4200 | 12288 | 8192/24576 | 1100 | 28/26/22/4 |
 | 23 | 2/30/2 | 18/10 | 760/0 | 3200 | 12288 | 20480/4096 | 1600 | 24/18/26/8 |
 | 24 | 1/14/0 | 0/0 | 2400/0 | 800 | 16384 | 0/0 | 0 | 40/34/18/10 |
-| 25 | 1/0/0 | 0/8 | 0/0 | 3800 | 0 | 8192/32768 | 4400 | 44/38/16/8 |
+| 25 | 1/0/0 | 0/8 | 0/0 | 3800 | 0 | 0/0 | 0 | 44/38/16/8 |
 | 26 | 1/0/0 | 0/0 | 0/0 | 1200 | 0 | 0/24576 | 3600 | 44/32/22/12 |
-| 27 | 3/6/0 | 0/0 | 1800/0 | 0 | 24576 | 0/0 | 0 | 40/28/28/12 |
+| 27 | 2/10/0 | 0/0 | 5000/0 | 0 | 8192 | 0/0 | 0 | 40/28/28/12 |
 | 28 | 1/0/0 | 0/0 | 0/0 | 3000 | 0 | 0/0 | 0 | 12/12/24/4 |
 | 29 | 3/24/1 | 20/16 | 90/180 | 8500 | 0 | 4096/16384 | 180 | 16/10/28/6 |
 | 30 | 1/32/0 | 0/0 | 4500/0 | -5000 | 4096 | 0/0 | 0 | 44/30/30/16 |
-| 31 | 4/26/1 | 14/10 | 2400/0 | -2400 | 10240 | 0/0 | 0 | 38/24/32/8 |
+| 31 | 5/14/0 | 8/10 | 1800/0 | -2400 | 4096 | 0/0 | 0 | 38/24/32/8 |
 
 ## One shared full-tone FX palette
 
@@ -145,11 +145,11 @@ Slide Bass uses existing ACID4: cutoff is derived from CUT plus the shared envel
 
 ## Shared PCM material and bounds
 
-Seven existing family IDs remain: 0 Finger Body; 1 Piano Low/Mid/High; 2 Muted Pick; 3 Nylon Pluck; 4 Ensemble Hit; 5 String Texture; 6 Soft Air. The nine zones combine five original mathematical zones with four recorded CC0 VSCO 2 Community Edition zones. Family 1 uses three 6400-frame (400 ms) upright-piano attacks at roots 48/60/72. Family 4 uses an 11200-frame (700 ms) ensemble one-shot at root 60, combining recorded trumpet, horn and violin sections with a tuned foundation. Family 6 replaces the former vowel material: a smooth tonal foundation plus quiet broadband air, with no vowel formants, struck rings or fast amplitude modulation; it is enabled in IDs 27 and 31. Finger Body remains rooted at 36 and the other five zones at 60.
+Seven existing family IDs remain: 0 Finger Body; 1 Piano Low/Mid/High; 2 Muted Pick; 3 Nylon Pluck; 4 Ensemble Hit; 5 String Texture; 6 Soft Air. The nine zones combine four mathematical zones, four recorded CC0 VSCO zones and one licensed GeneralUser GS strings zone. Family 1 uses three 19200-frame (1.2-second) piano segments at roots 48/60/72. Family 4 retains its 11200-frame (700 ms) trumpet/horn/violin-section impact. Family 5 uses 20480 frames, with its original recorded loop at 1600..20480 and calibrated 261.1 Hz tuning. Family 6 remains available but is disabled by default in IDs 27/31. Finger Body remains rooted at 36 and the other five zones at 60.
 
-`tools/gen_pcm.py` defines the current recipes, zone lengths and seven mip levels. `data/pcm-manifest.json` records the current generated measurements and payload against the 224 KiB budget; its `recorded_source` and `recorded_source_sha256` identify the processed source corpus. That corpus owns the source filenames, hashes, actual roots, used regions and processing provenance, so this document does not duplicate a filename/hash snapshot that can become stale during regeneration. No legacy LA bank or reference-video audio is used; see `NOTICE.md`. Profiles add no streams or families. Generator reproducibility, tuning, loops and alias checks remain separate validation evidence, not listening approval.
+`tools/gen_pcm.py` defines the current recipes and seven mip levels. `data/pcm-manifest.json` records 430532 sample bytes and 431684 descriptor-inclusive bytes under a 432 KiB allocation. Its `recorded_sources` identify the two processed corpora, hashes, roots, regions and processing. Strings keeps the SoundFont's original ensemble loop rather than a synthesized integer-cycle grid; all mip loop geometry and source-slope seams remain checked. No legacy LA bank or reference-video audio is used; see `NOTICE.md`. Profiles add no streams or families. Reproducibility, tuning, loop and alias evidence is separate from listening approval.
 
-Recipe bounds: ratio 1..8, index/velocity 0..127, feedback <=24, source times <=10000 ms, body/colour 0..32768, morph 0 or 80..10000 ms; no morph requires equal endpoints. Unavailable FM has zero body; unavailable or default sine VA has zero colour/time. Active FM requires positive decay. Current FM ratios/index/feedback do not establish alias safety. The fixed source divisor remains 381; no gain normalization hides overloaded wet mixes.
+Recipe bounds: ratio 1..8, index/velocity 0..127, feedback <=24, source times <=10000 ms, body/colour 0..32768, morph 0 or 80..10000 ms; no morph requires equal endpoints. Unavailable FM has zero body; unavailable or default sine VA has zero colour/time. Active FM requires positive decay. Ratios/index/feedback do not establish alias safety. The fixed source divisor remains 381; a shared post-filter trim is Q8 256 except Pulse Arp's 448. No per-file gain normalization hides overloaded wet mixes.
 
 ## Verification and remaining approval
 

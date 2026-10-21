@@ -132,6 +132,7 @@ try:
     inputs.append(root/'tools/target_abi.c')
     inputs.append(root/'data/pcm-manifest.json')
     inputs.append(root/'data/pcm-source/vsco-attacks.json')
+    inputs.append(root/'data/pcm-source/generaluser-strings.json')
     source_hash=hashlib.sha256()
     for path in sorted(inputs):
         source_hash.update(str(path.relative_to(root)).encode()+b'\0'+path.read_bytes()+b'\0')
