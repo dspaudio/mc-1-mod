@@ -1,6 +1,6 @@
 {
   "status": "pi32v2 compiled; NOT hardware tested; raw app, NOT an installer",
-  "app_bytes": 347904,
+  "app_bytes": 347984,
   "app_limit": 581564,
   "data_bss_bytes": 55708,
   "data_bss_limit": 98304,
@@ -8,7 +8,7 @@
   "pool_limit": 344064,
   "ram_text_bytes": 5568,
   "play_led_pulse": true,
-  "sha256": "47c7166016e3e5b7aaf49f87a1ec22ba79eaf5257d88ea832d4f220a46772a9a",
+  "sha256": "7cdf9bb1749617f42ab48b4c8d39e9903c241b7c5da73d1b77af6d5a78400494",
   "compiler": "clang version 4.0.1 () ()\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: <toolchain>/pi32v2/bin",
   "app_optimization": "-Os",
   "version": "0.0.1",
@@ -37,7 +37,7 @@
   },
   "data_bss_policy_limit": 65536,
   "pool_policy_limit": 335872,
-  "source_commit": "d678d92a5925ffcb3fea3b0f6d025aaae1d836b3",
+  "source_commit": "20e0c009eda540814e1799d1dbfb1e1a2ed85218",
   "source_dirty": true,
-  "source_input_sha256": "3b8d22d44d867ab9e51e64cfe042b7946b4196fcbab19c249cfddff9992b0f32"
+  "source_input_sha256": "36d585708ab85396fb5098d2ed5eb9247491e01e8287aa55dbee31f1b1e893f2"
 }

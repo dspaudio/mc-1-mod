@@ -75,6 +75,8 @@ Both songs are original arrangements with fast dance beats, using the actual SON
 - `HIPHOP POCKET`: club hiphop at 128 BPM, 24 bars. MP3: `audio/hiphop-pocket.mp3`.
 - `TECHNO DRIVE`: techno at 144 BPM, 32 bars. MP3: `audio/techno-drive.mp3`.
 
+The kick follow-up changes only the two song arrangements/mixes, not the 32 preset recipes. HIPHOP POCKET raises the drum track from 38 to 60 and kick level from 92 to 96, with the other drum levels reduced to preserve their approximate gain. TECHNO DRIVE moves its 303 notes and matching automation one sixteenth later in drum-bearing patterns, leaving space at the kick onset. Both retain CLUB 909, their tempo, bar count and shared FX. These are listening candidates, not a claim that a numerical check proves kick audibility.
+
 While stopped, press GLO three times to open DEMO LIBRARY, select with KNOB1, turn KNOB4 clockwise to load, then press PLAY. NIGHT CIRCUIT and NEON SPIRAL are also retained. Play or download the complete MP3 previews from the first audio group on the landing page.
 
 ## Provenance and verification boundaries

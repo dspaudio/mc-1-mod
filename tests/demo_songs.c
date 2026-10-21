@@ -138,6 +138,35 @@ static void mix_balance(unsigned demo) {
         mc_demo_names[demo],(unsigned long long)melody,(unsigned long long)bass,
         (unsigned long long)lead,(unsigned long long)kick);
 }
+static void kick_attack(unsigned demo) {
+    mc_init(&e);mc_demo_load(&e,demo);e.mute=7;
+    for(unsigned p=0;p<MC_PATTERNS;p++)for(unsigned s=0;s<MC_STEPS;s++)
+        e.project.step[p][3][s].drums&=1u;
+    mc_start(&e);
+    unsigned found=0,age=0,peak=0;
+    uint64_t energy=0;
+    unsigned bound=MC_RATE*480u/e.project.bpm;
+    for(unsigned n=0;n<bound;n++) {
+        int16_t audio[2];mc_render(&e,audio,1);drain();
+        if(!found)for(unsigned v=0;v<MC_DRUM_VOICES;v++)
+            if(e.drum[v].env&&e.drum[v].sound==0&&e.drum[v].age==1u) {
+                assert(e.pattern==1u&&e.step==0u);found=1;
+            }
+        if(found) {
+            for(unsigned c=0;c<2;c++) {
+                unsigned magnitude=(unsigned)(audio[c]<0?-(int)audio[c]:audio[c]);
+                if(magnitude>peak)peak=magnitude;
+                energy+=(uint64_t)((int64_t)audio[c]*audio[c]);
+            }
+            if(++age==MC_RATE/100u)break;
+        }
+    }
+    assert(found&&age==MC_RATE/100u&&energy);
+    assert(peak>(demo==MC_DEMO_HIPHOP?5000u:2500u));
+    assert(!e.clips&&!e.limiter_hits&&e.master==MC_MASTER_DEFAULT);
+    printf("PASS %s first kick: actual SONG trigger, 10ms peak=%u, unchanged master\n",
+        mc_demo_names[demo],peak);
+}
 static void song(unsigned demo) {
     static const uint8_t presets[2][3]={{2,28,14},{1,18,17}};
     unsigned techno=demo==MC_DEMO_TECHNO,bars=techno?32u:24u;
@@ -168,7 +197,7 @@ static void song(unsigned demo) {
     assert(accents&&slides&&e.project.patch[0].mode==MC_MONO);
     for(unsigned step=0;step<MC_STEPS;step++)assert(!e.project.step[0][3][step].drums);
     assert(e.project.step[1][3][0].drums&1);
-    assert(e.project.step[1][3][0].velocity>=110&&e.project.drum_level[0]==(techno?88:92));
+    assert(e.project.step[1][3][0].velocity>=110&&e.project.drum_level[0]==(techno?88:96));
     if(!techno) {
         assert(e.project.step[0][0][0].note[0]==43&&e.project.step[0][0][0].velocity==118);
         assert(e.project.step[0][1][1].note[0]==67&&e.project.step[0][1][1].velocity==108);
@@ -176,6 +205,9 @@ static void song(unsigned demo) {
     } else {
         assert(e.project.step[0][0][0].note[0]==60&&e.project.step[0][0][0].velocity==112);
         assert(e.project.step[0][0][1].note[0]==55&&(e.project.step[0][0][1].flags&MC_SLIDE));
+        assert(!e.project.step[1][0][0].velocity);
+        assert(e.project.step[1][0][1].note[0]==60);
+        assert(e.project.step[1][0][2].note[0]==55&&(e.project.step[1][0][2].flags&MC_SLIDE));
         assert(e.project.automation_count==112);
         unsigned cutoff_changes=0,resonance_changes=0;
         for(unsigned i=0;i<e.project.automation_count;i++) {
@@ -236,6 +268,7 @@ int main(void) {
     puts("PASS demo FX: candidate palette and role sends set after the final preset in all four loads");
     wet_dry(MC_DEMO_HIPHOP);wet_dry(MC_DEMO_TECHNO);
     mix_balance(MC_DEMO_HIPHOP);mix_balance(MC_DEMO_TECHNO);
+    kick_attack(MC_DEMO_HIPHOP);kick_attack(MC_DEMO_TECHNO);
     song(MC_DEMO_HIPHOP);song(MC_DEMO_TECHNO);
     puts("demo-songs: PASS");
 }

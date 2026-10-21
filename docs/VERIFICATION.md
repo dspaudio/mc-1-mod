@@ -2,7 +2,45 @@
 
 2026-10-21. This record covers local builds and web verification. The firmware was not installed/flashed on an FM-1, and the new image's boot, analog output, CPU1 timing, and real-time deadlines were not measured. Sound quality also remains unapproved by listening.
 
-## Revision 4 candidate: current local evidence
+## Revision 4 song-mix follow-up: current local evidence
+
+The 32 preset recipes and PCM inputs are unchanged from `20e0c00`. Kick events
+were present in both previous song renders; this follow-up addresses their mix
+and onset space, not a dropped-event fault.
+
+- HIPHOP POCKET raises only the kick's effective gain by about 4.3 dB. Its
+  other drum levels compensate for the higher drum-track level. The actual
+  first SONG kick now reaches 5,998 PCM16 units within 10 ms, versus a regression
+  failure on the prior mix. Master gain, drum synthesis and kit are unchanged.
+- TECHNO DRIVE moves the 303 notes and matching automation one sixteenth
+  later after its drumless intro. The kick and 303 no longer retrigger together
+  in the first drum-bearing pattern. The timing, slide, gate and automation
+  data remain portable project data.
+- The unchanged foreground-to-kick energy limits pass for both songs. Full
+  playback has zero clipping, limiter engagement or melody steals, and the
+  12-second tails finish. Song durations and bar counts are unchanged.
+- The full C suite, SONG ASan/UBSan tests, native/WASM checks and actual
+  pi32v2 app/FWSC build passed. The app is 347,984 bytes and WASM 371,105 bytes.
+  Globals/pool and all ABI sizes remain as recorded below.
+- Only the two song WAV hashes changed: all 138 other canonical renders,
+  including all 32 presets, are byte-identical to the first revision-4
+  candidate. Both complete songs match WASM and advance MP3 playback in the
+  real browser. All 140 MP3 hashes, decoded durations, gallery/install/cache
+  contracts and actual offline OTA/loader checks passed. Public MP3 payload
+  is 31,318,303 bytes.
+
+Current app SHA-256:
+`7cdf9bb1749617f42ab48b4c8d39e9903c241b7c5da73d1b77af6d5a78400494`
+
+Current FWSC SHA-256:
+`af3c1d8a543cc1f6f76ff09f1749396c6c5b00c9d1e762643be8b7d039f54c0c`
+
+Current target-input SHA-256:
+`36d585708ab85396fb5098d2ed5eb9247491e01e8287aa55dbee31f1b1e893f2`
+
+These are mechanical and provenance checks, not listening approval.
+
+## Revision 4 first candidate: historical local evidence
 
 All checks below used the final revision-4 source and generated PCM. The sound
 bank remains unapproved by listening, and no device was flashed.

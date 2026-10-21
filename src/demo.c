@@ -1168,13 +1168,13 @@ static const McAutomation techno_automation[]={
 static void arranged_song(McEngine *e,unsigned techno) {
     McProject *p=&e->project;
     static const uint8_t presets[2][3]={{2,28,14},{1,18,17}};
-    static const uint8_t levels[2][MC_PARTS]={{108,127,64,38},{127,68,52,34}};
+    static const uint8_t levels[2][MC_PARTS]={{108,127,64,60},{127,68,52,34}};
     static const uint8_t sends[2][MC_PARTS][MC_FX_BANKS]={
         {{2,0,0,0},{8,3,4,6},{8,0,4,4},{2,0,0,0}},
         {{4,0,8,4},{8,4,0,4},{10,0,4,4},{2,0,0,0}}
     };
     static const uint8_t drum_levels[2][MC_DRUMS]={
-        {92,74,34,32,54,40,40,42,40,40,40,40,38,40,40,40},
+        {96,47,22,20,34,25,25,27,25,25,25,25,24,25,25,25},
         {88,64,34,38,58,40,40,38,40,40,40,40,32,40,40,40}
     };
     static const uint8_t pans[MC_PARTS]={64,76,48,64};
@@ -1184,8 +1184,11 @@ static void arranged_song(McEngine *e,unsigned techno) {
     p->song_length=(uint8_t)(techno?sizeof techno_song/sizeof *techno_song:sizeof hiphop_song/sizeof *hiphop_song);
     for(unsigned i=0;i<p->song_length;i++)p->song[i]=techno?techno_song[i]:hiphop_song[i];
     for(unsigned pattern=0;pattern<16;pattern++)for(unsigned part=0;part<MC_PARTS;part++)
-        for(unsigned step=0;step<MC_STEPS;step++)
-            p->step[pattern][part][step]=techno?techno_steps[pattern][part][step]:hiphop_steps[pattern][part][step];
+        for(unsigned step=0;step<MC_STEPS;step++) {
+            /* Leave the kick attack alone before the 303 answers off the beat. */
+            unsigned source=techno&&pattern&&part==0?(step+MC_STEPS-1u)%MC_STEPS:step;
+            p->step[pattern][part][step]=techno?techno_steps[pattern][part][source]:hiphop_steps[pattern][part][step];
+        }
     e->midi.receiving=1;
     for(unsigned part=0;part<3;part++){mc_preset(e,part,presets[techno][part]);p->analog[part]=0;}
     e->midi.receiving=0;
@@ -1213,7 +1216,11 @@ static void arranged_song(McEngine *e,unsigned techno) {
         p->patch[2].level=112;
         p->patch[2].release=14;
         p->automation_count=(uint16_t)(sizeof techno_automation/sizeof *techno_automation);
-        for(unsigned i=0;i<p->automation_count;i++)p->automation[i]=techno_automation[i];
+        for(unsigned i=0;i<p->automation_count;i++) {
+            p->automation[i]=techno_automation[i];
+            if(p->automation[i].address/5u)
+                p->automation[i].step=(uint8_t)((p->automation[i].step+1u)%MC_STEPS);
+        }
     } else {
         p->patch[0].mode=1;
         p->patch[0].level=127;
