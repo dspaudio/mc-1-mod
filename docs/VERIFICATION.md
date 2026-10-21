@@ -4,6 +4,17 @@
 
 ## Revision 5 candidate: current local evidence
 
+NEON SPIRAL mix follow-up: track 2's mixer level changes from 100 to 127;
+track 3 changes from 104 to 72. Eight-bar solo renders with the same score,
+scene changes, master and sends measure approximately +2.1 dB and -3.2 dB.
+Only NEON SPIRAL's canonical WAV changes; the other 140 renders, including
+all 32 preset sounds, remain byte-identical to `bc52588`. The complete native
+suite, demo ASan/UBSan, native/WASM parity, all four full performances,
+gallery/cache/download checks, actual target package and offline OTA/loader
+checks pass. The 32-bar render has no clips, limiting or melody steals.
+App, globals, pool and package sizes are unchanged. Follow-up evidence is
+local under `build/sound-quality/neon-balance/`.
+
 The bank is a listening candidate, not an approved instrument set. IDs 08–11
 use 1.2-second recorded piano bodies without a default VA saw. Organ and Brass
 retain their smooth attacks and static harmonic bodies. Glass and Bell use
@@ -62,13 +73,13 @@ fast default attack and an editable ATTACK control.
   regression checks were used instead.
 
 Current app SHA-256:
-`bd7c9fcca472d456f9ccbb02cba6041f7d2af6d92b3e42c202daa5acf2166894`
+`2c63f8bbcff85e540df70261df9da4a54f97b384e3f69e5bb1350d6c30f5c1e5`
 
 Current FWSC SHA-256:
-`cc52d16d78d69e0486015636bbda8e40ec09b7e1891f84e297575dc061eefe71`
+`1b07646c6b53a26d7fe92aec59ce040afbcc9971afa4a186840e77d05124a621`
 
 Current target-input SHA-256:
-`7fd9adf2d64e9fc87a96bcaf72011c2c682de8b96e6f8a355e2e023aea03866d`
+`7a9690eac328e4560b2cb142aff9c231062e26277da5e2b5cb14cd7809555a65`
 
 Logs and captures are local under `build/sound-quality/voice-revision5/`.
 Mechanical checks do not establish listening approval or hardware timing.

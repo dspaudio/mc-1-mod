@@ -124,7 +124,7 @@ static void original_roles(void) {
     static const uint8_t controls[2][2][10]={
         {{1,0,48,90,1,55,45,10,55,100},{0,2,58,0,94,120,127,68,0,88}},
         {{1,1,65,35,1,30,45,15,70,100},{1,0,80,35,1,40,35,8,55,90}}};
-    static const uint8_t levels[2][4]={{100,75,104,100},{127,100,104,75}};
+    static const uint8_t levels[2][4]={{100,75,104,100},{127,127,72,75}};
     static const uint8_t analog[2][3]={{18,52,8},{24,60,6}};
     static const uint8_t pans[4]={64,42,88,64};
     static const uint8_t fx[2][4]={{0,0,0,0},{48,35,20,30}};
@@ -192,6 +192,36 @@ static void wet_dry(unsigned demo) {
     assert(energy&&diff);
     printf("PASS %s wet-vs-dry: dry_abs=%llu wet_minus_dry_abs=%llu\n",mc_demo_names[demo],
         (unsigned long long)energy,(unsigned long long)diff);
+}
+static void neon_mix_balance(void) {
+    static const uint8_t previous_levels[2]={100,104};
+    for(unsigned part=1;part<=2;part++) {
+        mc_init(&e);mc_demo_load(&e,1);
+        for(unsigned pattern=0;pattern<MC_PATTERNS;pattern++)
+            for(unsigned track=0;track<MC_PARTS;track++)if(track!=part)
+                memset(e.project.step[pattern][track],0,sizeof e.project.step[pattern][track]);
+        dry=e;dry.project.level[part]=previous_levels[part-1];
+        mc_start(&e);mc_start(&dry);
+        unsigned frames=MC_RATE*240u*8u/e.project.bpm;
+        uint64_t current=0,previous=0;
+        for(unsigned offset=0;offset<frames;) {
+            int16_t a[256],b[256];
+            unsigned count=frames-offset>128u?128u:frames-offset;
+            mc_render(&e,a,count);mc_render(&dry,b,count);
+            for(unsigned i=0;i<count*2;i++) {
+                current+=(uint64_t)((int64_t)a[i]*a[i]);
+                previous+=(uint64_t)((int64_t)b[i]*b[i]);
+            }
+            drain();McMidiMessage m;while(mc_midi_pop(&dry,&m)) {}
+            offset+=count;
+        }
+        assert(previous&&current&&!e.clips&&!e.limiter_hits&&!e.steals);
+        if(part==1)assert(current*100>previous*135);
+        else assert(current*100<previous*65);
+        printf("PASS NEON SPIRAL track %u mean-square: previous=%llu current=%llu\n",
+            part+1,(unsigned long long)(previous/(frames*2u)),
+            (unsigned long long)(current/(frames*2u)));
+    }
 }
 static uint64_t mix_energy(unsigned demo,unsigned mode) {
     mc_init(&e);mc_demo_load(&e,demo);
@@ -358,7 +388,7 @@ static void song(unsigned demo) {
         mc_demo_names[demo],e.project.bpm,e.project.swing,bars,frames,e.events,peak,e.clips,e.limiter_hits,e.steals,max_voice,max_drum,tail_peak);
 }
 int main(void) {
-    selection();midi();original_roles();
+    selection();midi();original_roles();neon_mix_balance();
     for(unsigned demo=0;demo<MC_DEMOS;demo++)fx_contract(demo);
     puts("PASS demo FX: original shared settings for demos 0/1, candidate palette for demos 2/3");
     wet_dry(MC_DEMO_HIPHOP);wet_dry(MC_DEMO_TECHNO);

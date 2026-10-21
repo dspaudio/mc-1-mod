@@ -1299,7 +1299,7 @@ void mc_demo_load(McEngine *e,unsigned demo) {
     e->project.patch[1].release=8;e->project.patch[1].glide=55;e->project.patch[1].level=90;
     /* FM 단독 mallet에는 없는 PCM gain을 지정하지 않는다. */
     e->project.patch[2].resonance=8;
-    e->project.level[0]=127;e->project.level[1]=100;e->project.level[2]=104;e->project.level[3]=75;
+    e->project.level[0]=127;e->project.level[1]=127;e->project.level[2]=72;e->project.level[3]=75;
     e->project.drum_level[0]=115;e->project.drum_level[2]=70;e->project.drum_level[3]=64;e->project.drum_level[4]=85;
     static const uint8_t roots[4]={40,40,43,41};
     static const uint8_t motif[16]={0,12,7,15,12,7,19,12,0,7,12,15,19,15,7,12};
