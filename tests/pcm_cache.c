@@ -287,8 +287,45 @@ static void safe_va_bands(void) {
     }
     puts("PASS: VA richest safe shared-phase band, MIDI 12..108/bend/Analog extremes and post-glide increments");
 }
+static void auxiliary_va_bands(void) {
+    const unsigned harmonics[]={32,24,16,8,4,2,1};
+    const uint32_t ratios[]={58386,73561};
+    unsigned profiles=0;
+    for(unsigned id=32;id<MC_PRESETS;id++) {
+        const McAuxProfile *aux=hy_aux_profile(id);
+        if(!aux||aux->kind!=HY_VA)continue;
+        profiles++;
+        for(unsigned note=12;note<=108;note++)for(unsigned bend=0;bend<2;bend++) {
+            mc_init(&eng);mc_preset(&eng,0,id);
+            eng.project.patch[0].source_mask=HY_SLOT1;eng.project.patch[0].pcm_mix=127;
+            mc_note(&eng,0,note,127,0,0);
+            McVoice *v=&eng.voice[0];McVoiceRender r;
+            McAnalogVoice *analog=&eng.analog_voice[0];
+            analog->random=123;analog->tuning=306;analog->drift=32512;
+            analog->target=analog->drift;analog->clock=1;
+            prepare_voice(v,&eng.pcm_cache[0],&eng.pitch_cache[0],analog,127,ratios[bend],&r);
+            v->target=mc_frequency[note==108?12:108];v->patch.glide=127;
+            for(unsigned sample=0;sample<128;sample++) {
+                uint32_t phase=v->aux.phase;
+                (void)melodic_sample(v,0,&r,32767);
+                uint32_t expected=(uint32_t)((uint64_t)r.increment*aux->tuning_q16/65536u);
+                unsigned band=0;
+                while(band<7&&(uint64_t)harmonics[band]*expected>=UINT32_C(0x73333333))band++;
+                assert(r.aux_increment==expected&&v->aux.phase-phase==expected);
+                if(aux->wave!=MC_WAVE_SINE) {
+                    assert(r.aux_table==(band<7?(aux->wave?mc_square[band]:mc_saw[band]):0));
+                    assert(r.aux_table_colour==(band<7?(aux->wave?mc_square_colour[band]:mc_saw_colour[band]):0));
+                }
+                assert(!v->phase&&!v->phase2&&!v->pcm_pos&&!eng.pcm_cache[0].count);
+            }
+        }
+    }
+    assert(profiles==8);
+    puts("PASS: auxiliary VA band/tuning follows post-glide/bend/Analog pitch, MIDI 12..108, no PCM reads");
+}
 int main(void) {
     safe_va_bands();
+    auxiliary_va_bands();
     sweep_all_levels();
     multi_loop();
     zone_selection();

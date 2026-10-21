@@ -349,6 +349,7 @@ static void trigger_oracles(void) {
     for(unsigned id=0;id<MC_PRESETS;id++)for(unsigned velocity=1;velocity<=127;velocity++) {
         McVoice v={0};
         memset(&v.hybrid,0xa5,sizeof v.hybrid);
+        memset(&v.aux,0xa5,sizeof v.aux);
         v.patch=mc_presets[id];v.note=60;v.velocity=(uint8_t)velocity;
         hy_source_init(&v);
         const McHybridProfile *p=hy_profile(id);
@@ -364,9 +365,63 @@ static void trigger_oracles(void) {
         assert(v.hybrid.va_colour_step==(m?
             ((int64_t)p->va_colour_end_q15-p->va_colour_start_q15)*65536/m:0));
         McHybridState first=v.hybrid;
-        memset(&v.hybrid,0x5a,sizeof v.hybrid);hy_source_init(&v);
+        McAuxState first_aux=v.aux;
+        memset(&v.hybrid,0x5a,sizeof v.hybrid);memset(&v.aux,0x5a,sizeof v.aux);hy_source_init(&v);
         assert(!memcmp(&first,&v.hybrid,sizeof first));
+        assert(!memcmp(&first_aux,&v.aux,sizeof first_aux));
     }
+}
+static void auxiliary_oracles(void) {
+    unsigned tested=0;
+    for(unsigned id=32;id<MC_PRESETS;id++) {
+        const McAuxProfile *p=hy_aux_profile(id);
+        if(!p)continue;
+        McVoice v={0};
+        v.patch=mc_presets[id];v.patch.source_mask=HY_SLOT1;
+        v.patch.pcm_mix=127;v.note=60;v.velocity=127;hy_source_init(&v);
+        v.hybrid.fm_frames=1;
+        uint32_t inc=(uint32_t)((uint64_t)mc_frequency[60]*p->tuning_q16/65536u);
+        unsigned band=0;while(band<7&&inc>mc_va_max_increment[band])band++;
+        McVoiceRender r={.profile=hy_profile(id),.aux=p,.increment=mc_frequency[60],.aux_increment=inc,
+            .aux_table=band<7?(p->wave?mc_square[band]:mc_saw[band]):0,
+            .aux_table_colour=band<7?(p->wave?mc_square_colour[band]:mc_saw_colour[band]):0};
+        uint32_t body=(uint32_t)p->fm_body_q15*65536u;
+        uint32_t frames=(uint32_t)p->fm_decay_ms*MC_RATE/1000u;
+        uint32_t depth=UINT32_C(0x80000000)-body;
+        uint32_t step=frames?depth/frames+(depth%frames!=0):0;
+        uint32_t phase=0,modulator=0,env=p->kind==HY_FM?(frames?UINT32_C(0x80000000):body):0;
+        int32_t previous=0;unsigned gain=127;
+        for(unsigned n=0;n<8192;n++) {
+            unsigned target=n>=256&&n<512?0u:127u;
+            v.patch.source_mask=(uint8_t)(target?HY_SLOT1:0);
+            gain=gain<target?gain+1u:gain>target?gain-1u:gain;
+            int32_t expected=0;
+            if(gain) {
+                if(p->kind==HY_FM) {
+                    previous=sine_oracle(modulator+(uint32_t)((int64_t)previous*p->fm_feedback*1024));
+                    int32_t mod=(int32_t)((int64_t)previous*env/INT64_C(2147483648));
+                    expected=sine_oracle(phase+(uint32_t)((int64_t)mod*p->fm_index*2048));
+                    modulator+=inc*p->fm_ratio;
+                    uint32_t remaining=env-body;env-=remaining>step?step:remaining;
+                } else if(inc<=mc_va_max_increment[6]) {
+                    if(p->wave==MC_WAVE_SINE)expected=sine_oracle(phase);
+                    else {
+                        int32_t plain=table_oracle(r.aux_table,phase);
+                        int32_t colour=table_oracle(r.aux_table_colour,phase);
+                        expected=plain+(int32_t)((int64_t)(colour-plain)*p->colour_q15/32768);
+                    }
+                }
+                phase+=inc;
+            }
+            assert(hy_source_sample(&v,&r)==expected*(int32_t)gain/381);v.age++;
+            assert(v.aux.phase==phase&&v.aux.modulator==modulator&&v.aux.previous_mod==previous);
+            assert(v.aux.env==env&&!v.phase&&!v.phase2&&!v.pcm_pos);
+            if(n>0)assert(v.hybrid.ended_mask&HY_FM);
+        }
+        tested++;
+    }
+    assert(tested==16);
+    puts("PASS auxiliary: independent FM/VA integer oracles, typed clocks, mute/resume and primary-FM expiry isolation");
 }
 static void fm_oracles(void) {
     const unsigned milliseconds[]={0,1,82,175,420,620,1800,2200,10000};
@@ -550,7 +605,7 @@ static void long_partitions(void) {
 }
 int main(void) {
     piano_attack_first();
-    trigger_oracles();fm_oracles();finite_fm_oracle();colour_oracles();preset_sends();
+    trigger_oracles();fm_oracles();finite_fm_oracle();colour_oracles();auxiliary_oracles();preset_sends();
     long_partitions();
     sources();ramp_and_end();gates_and_steals();parameters_and_snapshot();pitch();partition();source_math();modern_body();
     puts("PASS hybrid: actual McEngine, seven masks, gain ramps/end latch, 8/9 steals, gates, shared pitch, snapshot and partition");

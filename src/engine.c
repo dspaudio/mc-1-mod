@@ -522,6 +522,7 @@ static void prepare_voice(const McVoice *v,McPcmCache *cache,McPitchCache *pitch
     const McPatch *p=&v->patch;
     *r=(McVoiceRender){0};
     r->profile=hy_profile(p->profile);r->zone=hy_pcm_zone(v->hybrid.pcm_zone);
+    r->aux=hy_aux_profile(p->profile);
     r->fm_decay_frames=(uint32_t)r->profile->fm_decay_ms*MC_RATE/1000u;
     r->va_morph_frames=(uint32_t)r->profile->va_morph_ms*MC_RATE/1000u;
     r->cache=cache;r->pitch=pitch;r->analog=analog;r->amount=(uint8_t)amount;r->ratio=ratio;
@@ -579,6 +580,18 @@ static __attribute__((noinline)) int32_t melodic_sample(McVoice *v,unsigned inde
         if(band<7) {
             r->table=p->wave==MC_WAVE_SAW?mc_saw[band]:mc_square[band];
             r->table_colour=p->wave==MC_WAVE_SAW?mc_saw_colour[band]:mc_square_colour[band];
+        }
+    }
+    if(r->aux) {
+        r->aux_increment=(uint32_t)(((uint64_t)increment*r->aux->tuning_q16)>>16);
+        r->aux_table=r->aux_table_colour=0;
+        if(r->aux->kind==HY_VA&&r->aux->wave!=MC_WAVE_SINE) {
+            unsigned band=0;
+            while(band<7&&r->aux_increment>mc_va_max_increment[band])band++;
+            if(band<7) {
+                r->aux_table=r->aux->wave==MC_WAVE_SAW?mc_saw[band]:mc_square[band];
+                r->aux_table_colour=r->aux->wave==MC_WAVE_SAW?mc_saw_colour[band]:mc_square_colour[band];
+            }
         }
     }
     if(r->zone&&(v->hybrid.gain[0]||((p->source_mask&HY_PCM)&&p->pcm_mix))) {

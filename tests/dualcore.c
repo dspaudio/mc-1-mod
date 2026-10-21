@@ -64,6 +64,8 @@ static void *run_worker(void *unused) {
             worker.drums.voice[0].env=12345;worker.drums.random^=0x87654321u;
             worker.drums.sample[0]=777777;
             worker.drums.melodic[0].voice.phase+=123456u;
+            worker.drums.melodic[0].voice.aux.phase^=0x87654321u;
+            worker.drums.melodic[0].voice.aux.env=0;
             worker.drums.melodic[0].pcm.data[0]=1234;
             worker.drums.melodic[0].analog.random^=0x12345678u;
             worker.drums.part[0][0]=888888;
@@ -335,14 +337,19 @@ static void drums_without_fx(void) {
 }
 static void envelope_timeline(void) {
     const unsigned gates[MC_VOICES]={1,16,17,1,16,1,16,17};
-    for(unsigned fault=0;fault<=6;fault++)for(unsigned overflow=0;overflow<2;overflow++) {
+    for(unsigned variant=0;variant<2;variant++)
+        for(unsigned fault=0;fault<=6;fault++)for(unsigned overflow=0;overflow<2;overflow++) {
         mc_init(&reference);
         memset(reference.project.step,0,sizeof reference.project.step);
         for(unsigned p=0;p<MC_PARTS;p++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
             reference.project.fx_send[p][bank]=32;
         reference.project.bpm=240;reference.playing=1;
         reference.midi.clock=MC_RATE*60u-reference.project.bpm*24u;
-        for(unsigned p=0;p<3;p++)mc_preset(&reference,p,MC_PRESET_STAGE_PIANO);
+        const unsigned synth[3]={37,33,61};
+        for(unsigned p=0;p<3;p++) {
+            mc_preset(&reference,p,variant?synth[p]:MC_PRESET_STAGE_PIANO);
+            reference.project.patch[p].mode=MC_POLY;
+        }
         for(unsigned i=0;i<MC_VOICES;i++) {
             mc_note(&reference,i%3,48+i,127,0,gates[i]);
             reference.voice[i].envelope=30;
@@ -374,7 +381,37 @@ static void envelope_timeline(void) {
         }
         if(live)halt(&worker);
     }
-    puts("PASS dualcore: gates 1/16/17, final-inactive worker DSP, exact MIDI slot order/overflow and all fallback modes");
+    puts("PASS dualcore: legacy/auxiliary gates 1/16/17, final-inactive DSP, MIDI order/overflow and all fallback modes");
+}
+static void auxiliary_timeline(void) {
+    const unsigned ids[3]={37,33,61},sizes[5]={1,16,17,128,257};
+    for(unsigned fault=0;fault<3;fault++) {
+        mc_init(&reference);
+        for(unsigned part=0;part<3;part++) {
+            mc_preset(&reference,part,ids[part]);
+            reference.project.patch[part].mode=MC_POLY;
+            reference.project.patch[part].attack=0;reference.project.patch[part].sustain=127;
+            reference.project.analog[part]=127;
+        }
+        for(unsigned i=0;i<MC_VOICES;i++)mc_note(&reference,i%3,48+i*3,110,0,0);
+        for(unsigned i=0;i<6;i++)mc_drum(&reference,i,100);
+        parallel_engine=reference;boot(0);
+        for(unsigned block=0;block<256;block++) {
+            for(unsigned copy=0;copy<2;copy++) {
+                McEngine *e=copy?&parallel_engine:&reference;
+                if(block==8||block==16)
+                    assert(!mc_parameter_set(e,1,MC_PARAM_SOURCE_MASK,block==8?HY_SLOT1:HY_ALL));
+                if(block==24||block==32)
+                    assert(!mc_parameter_set(e,0,3,block==24?0:mc_presets[ids[0]].pcm_mix));
+                if(block==40||block==48)e->midi.bend[2]=(int16_t)(block==40?8191:-8192);
+                if(block==200)mc_stop(e);
+            }
+            if(block==64&&fault) { halt(&worker);boot(fault); }
+            compare(sizes[block%5]);
+        }
+        if(live)halt(&worker);
+    }
+    puts("PASS dualcore: eight triple-synth voices, drums/FX, auxiliary gain/mask, bend, release and late partial/timeout fallback");
 }
 static void evolving_timeline(void) {
     const unsigned sizes[]={1,3,16,17,127,128,255};
@@ -435,7 +472,7 @@ static void probe_masks(void) {
 }
 #endif
 int main(void) {
-    evolving_timeline();envelope_timeline();full_load();changes_and_tails();failures();lookahead_automation();block_tails();analog_voices();sparse_reads();drums_without_fx();
+    evolving_timeline();auxiliary_timeline();envelope_timeline();full_load();changes_and_tails();failures();lookahead_automation();block_tails();analog_voices();sparse_reads();drums_without_fx();
 #if MC_PERF_PROBE == 1
     probe_masks();
 #endif

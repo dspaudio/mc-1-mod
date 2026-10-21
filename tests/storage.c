@@ -183,7 +183,7 @@ static void wire_tests(void) {
     assert(!memcmp(&loaded,&before,sizeof loaded));
     changed=original;changed.bpm=142;
     changed.step[63][2][15].note[0]=99;changed.step[63][2][15].velocity=101;changed.step[63][2][15].gate=75;
-    puts("PASS: current wire, 32 profiles/custom origins/MIDI, schema/revision/CRC/length/parameter rejection is atomic");
+    puts("PASS: current wire, 64 profiles/custom origins/MIDI, schema/revision/CRC/length/parameter rejection is atomic");
 }
 static void bank_state(unsigned bank,int state) {
     uint8_t *p=flash+((bank?MC_STORE_B:MC_STORE_A)-BASE);
@@ -289,6 +289,31 @@ static void status_tests(void) {
     assert(mc_store_status(&io)==MC_STORE_CURRENT);
     puts("PASS: 25 status pairs, full-bank EMPTY, partial header protection, zero writes for foreign/IO, own-corrupt recovery");
 }
+static void integrated64_storage(void) {
+    assert(MC_BANK_REVISION==5&&sizeof(McPatch)==15);
+    before=changed;
+    memcpy(flash,snapshot,sizeof flash);reset_io();
+    uint32_t seq=0;
+    assert(mc_store_load(&io,&loaded,&seq)==0&&seq==1);
+    assert(!memcmp(&loaded,&original,sizeof loaded));
+    for(unsigned part=0;part<3;part++)assert(loaded.patch[part].profile<32);
+    changed=loaded;changed.patch[0].cutoff^=1;
+    assert(!mc_store_save(&io,&changed));
+    reset_io();assert(mc_store_load(&io,&loaded,&seq)==1&&seq==2);
+    assert(!memcmp(&loaded,&changed,sizeof loaded));
+    changed.patch[0]=mc_presets[63];changed.preset[0]=63;
+    changed.patch[0].cutoff^=1;
+    assert(mc_encode(&changed,3,encoded,sizeof encoded)==MC_RECORD_BYTES);
+    assert(encoded[4]==9&&!memcmp(encoded+20,"MOD1\1\0\5\0",8));
+    assert(!mc_decode(&loaded,&seq,encoded,sizeof encoded)&&seq==3);
+    assert(!memcmp(&loaded,&changed,sizeof loaded));
+    reset_io();assert(!mc_store_save(&io,&changed));
+    reset_io();assert(mc_store_load(&io,&loaded,&seq)==0&&seq==3);
+    assert(loaded.patch[0].profile==63&&loaded.preset[0]==63);
+    assert(!memcmp(&loaded,&changed,sizeof loaded));guards();
+    changed=before;memcpy(flash,snapshot,sizeof flash);reset_io();
+    puts("PASS: bank5 old-profile load/edit/save and edited profile63 wire/save/reload without schema or identity migration");
+}
 int main(void) {
     assert(MC_RECORD_BYTES==35154&&MC_STORE_BYTES==36864);
     assert(MC_STORE_CURRENT==0&&MC_STORE_EMPTY==1&&MC_STORE_CORRUPT_OWN==2&&MC_STORE_UNSUPPORTED==3&&MC_STORE_IO_ERROR==4);
@@ -308,6 +333,7 @@ int main(void) {
     assert(!mc_store_save(&io,&original)&&erased==9&&programmed==MC_RECORD_BYTES);
     assert(mc_store_load(&io,&loaded,&seq)==0&&seq==1&&!memcmp(&loaded,&original,sizeof loaded));
     memcpy(snapshot,flash,sizeof flash);
+    integrated64_storage();
     unsigned cuts=0;
     for(unsigned sector=0;sector<=9;sector++)for(int d=-1;d<=1;d++) {
         int pos=(int)(sector*MC_SECTOR)+d;if(pos>=0){cut_at((unsigned)pos);cuts++;}

@@ -12,7 +12,13 @@
     ["stress", "Stress render"]
   ];
   const label = (value) => Array.isArray(value) ? value.join(", ") : value == null ? "—" : String(value);
-  const sourceLabel = (mask) => ["PCM", "FM", "VA"].filter((_, bit) => mask & (1 << bit)).join(" + ") || "None";
+  const sourceLabel = (item, field) => {
+    const names = item.source_names
+      ? item.source_names.filter((_, slot) => item[field] & (1 << slot))
+      : item.patches.flatMap(patch => patch.source_names.filter((_, slot) =>
+        patch[field === "source_flags" ? "mask" : "available_source_flags"] & (1 << slot)));
+    return [...new Set(names)].join(" + ") || "None";
+  };
   const genres = (tags) => String(tags).split(" ").map(tag => ({T:"Techno",H:"Hip-hop",P:"Pop",E:"Eurosynth"})[tag] || tag).join(" · ");
 
   function makeTrack(item, title) {
@@ -32,8 +38,8 @@
       item.pattern_count != null && `${item.pattern_count} patterns`,
       item.automation_count != null && `${item.automation_count} native automations`,
       item.swing != null && `Swing ${item.swing}`,
-      item.source_flags != null && `Sources ${sourceLabel(item.source_flags)}`,
-      item.available_source_flags != null && `Available sources ${sourceLabel(item.available_source_flags)}`,
+      item.source_flags != null && `Sources ${item.source_configuration || sourceLabel(item, "source_flags")}`,
+      item.available_source_flags != null && `Available sources ${sourceLabel(item, "available_source_flags")}`,
       item.seconds != null && `${item.seconds} sec`,
       item.diagnostic && (item.render_mode === "dry-diagnostic" ? "Dry diagnostic" : "Source-only diagnostic"),
       item.peak_pcm16 != null && `Local WAV peak ${item.peak_pcm16}`,
@@ -108,7 +114,7 @@
     list.className = "audio-list";
     sources.forEach((item) => {
       const id = item.preset_id == null ? "—" : `ID ${String(item.preset_id).padStart(2, "0")}`;
-      const flags = item.source_flags == null ? "" : ` · Sources ${sourceLabel(item.source_flags)}`;
+      const flags = item.source_flags == null ? "" : ` · Sources ${item.source_configuration || sourceLabel(item, "source_flags")}`;
       list.append(makeTrack(item, `${id} · ${item.name == null ? "Source comparison" : String(item.name)}${flags}`));
     });
     details.append(list);
@@ -126,9 +132,10 @@
       if (manifest.schema_version !== 4) throw new Error("Unsupported audio manifest schema.");
       const primary = manifest.files.filter((item) => !item.diagnostic);
       const presets = primary.filter((item) => item.kind === "preset" && item.render_mode === "full");
-      if (presets.length !== 32 || new Set(presets.map((item) => item.preset_id)).size !== 32
-        || presets.some((item) => !Number.isInteger(item.preset_id) || item.preset_id < 0 || item.preset_id >= 32)) {
-        throw new Error("The manifest must contain exactly 32 full-tone presets.");
+      if (manifest.profile_count !== 64 || manifest.source_mask_semantics !== "slot-bits"
+        || presets.length !== 64 || new Set(presets.map((item) => item.preset_id)).size !== 64
+        || presets.some((item) => !Number.isInteger(item.preset_id) || item.preset_id < 0 || item.preset_id >= 64)) {
+        throw new Error("The manifest must contain exactly 64 full-tone presets with slot metadata.");
       }
       gallery.replaceChildren();
       for (const [kind, title] of groups) addGroup(kind === "preset" ? presets : primary, kind, title, kind === "preset" || kind === "kit");

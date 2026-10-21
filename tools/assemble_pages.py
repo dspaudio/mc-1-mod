@@ -82,14 +82,49 @@ def main() -> None:
         auditions = json.loads((folder / "auditions.json").read_text())
         assert auditions["render_complete"] and not auditions["subjective_listening_approved"]
         assert auditions["schema_version"] == 3
+        assert auditions["profile_count"] == 64
+        assert auditions["source_mask_semantics"] == "slot-bits"
         assert not auditions["mechanical_failures"]
         assert not auditions["target_test_performed"] and not auditions["device_test_performed"]
         for mode in ("full", "dry-diagnostic"):
             presets = [item for item in auditions["files"]
                        if item["kind"] == "preset" and item["render_mode"] == mode]
-            assert sorted(item["preset_id"] for item in presets) == list(range(32))
+            assert sorted(item["preset_id"] for item in presets) == list(range(auditions["profile_count"]))
             assert all(item["diagnostic"] == (mode != "full") for item in presets)
-        assert sum(item["kind"] == "preset" for item in auditions["files"]) == 64
+        full = sorted((item for item in auditions["files"]
+                       if item["kind"] == "preset" and item["render_mode"] == "full"),
+                      key=lambda item: item["preset_id"])
+        sources = [item for item in auditions["files"] if item["kind"] == "source"]
+        expected_sources = [(item["preset_id"], bit) for item in full
+                            if item["available_source_flags"].bit_count() > 1
+                            for bit in (1, 2, 4) if item["available_source_flags"] & bit]
+        assert sorted((item["preset_id"], item["source_flags"]) for item in sources) == expected_sources
+        assert len(sources) == 144
+        assert sum(item["kind"] == "preset" for item in auditions["files"]) == 128
+        assert sum(item["diagnostic"] for item in auditions["files"]) == 208
+        assert len(auditions["files"]) == 285
+        assert sum(item["preset_id"] < 32 for item in auditions["files"]) == 141
+        assert [item["role"] for item in full[32:]] == (
+            ["80S SYNTH"] * 12 + ["90S SYNTH"] * 10 + ["00S SYNTH"] * 10)
+        assert sum(item["source_flags"] == item["available_source_flags"] == 6 for item in full[32:]) == 16
+        assert sum(item["source_flags"] == item["available_source_flags"] == 7 for item in full[32:]) == 16
+        assert sum(item["source_names"][0] == "FM2" for item in full[32:]) == 8
+        assert sum(item["source_names"][0] == "VA2" for item in full[32:]) == 8
+        for item in auditions["files"]:
+            profiles = ([item] if item["preset_id"] >= 0 else []) + item["patches"]
+            for profile in profiles:
+                names = profile["source_names"]
+                assert len(names) == 3 and names[1:] == ["FM", "VA"]
+                mask = profile["source_flags"] if "source_flags" in profile else profile["mask"]
+                profile_id = item["preset_id"] if profile is item else profile["profile"]
+                aux = profile["aux_profile"]
+                assert names[0] == ("PCM" if profile_id < 32 else aux["kind"] if aux else "---")
+                assert (aux is None) == (profile_id < 32 or not (profile["available_source_flags"] & 1))
+                if aux:
+                    assert aux["kind"] in ("FM2", "VA2")
+                order = (0, 1, 2) if profile_id < 32 else (1, 2, 0)
+                assert profile["source_configuration"] == " + ".join(
+                    names[slot] for slot in order if mask & profile["available_source_flags"] & (1 << slot))
         assert sorted(f["drum_kit"] for f in auditions["files"] if f["kind"] == "kit") == list(range(8))
         songs = [item for item in auditions["files"] if item["kind"] == "song"]
         assert [(item["demo_id"], item["bpm"], item["song_bars"]) for item in songs] == [(2, 128, 24), (3, 144, 32)]
@@ -102,6 +137,7 @@ def main() -> None:
         for item in auditions["files"]:
             source = folder / "audio" / item["file"]
             assert item["mechanical_status"] == "PASS" and not item["loop_seam_review_count"]
+            assert item["normalization_gain"] == 1 and not item["adaptive_normalization"]
             assert not item["clipped_samples"] and item["ended_tails"]
             assert digest(source) == item["sha256"] and source.stat().st_size == item["bytes"]
             with wave.open(str(source), "rb") as wav:

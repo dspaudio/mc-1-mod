@@ -56,12 +56,12 @@ console.log(JSON.stringify({ scenario: 'four parts and eight kits stay one step;
 
 const presets = presetZero();
 presets.emu_enc_at(6, 1, 1000); assert.equal(presets.emu_state(6), 1);
-presets.emu_enc_at(6, 1, 1010); assert.equal(presets.emu_state(6), 4, '32-profile list accelerates by three');
+presets.emu_enc_at(6, 1, 1010); assert.equal(presets.emu_state(6), 4, '64-profile list accelerates by three');
 presets.emu_enc_at(6, -1, 1020); assert.equal(presets.emu_state(6), 3);
 presets.emu_enc_at(6, -1, 1030); assert.equal(presets.emu_state(6), 0);
-presets.emu_enc_at(6, -1, 1040); assert.equal(presets.emu_state(6), 29, 'accelerated reverse wraps at profile 1');
-presets.emu_enc_at(6, 1, 1050); assert.equal(presets.emu_state(6), 30);
-presets.emu_enc_at(6, 1, 1060); assert.equal(presets.emu_state(6), 1, 'accelerated forward wraps at profile 32');
+presets.emu_enc_at(6, -1, 1040); assert.equal(presets.emu_state(6), 61, 'accelerated reverse wraps at profile 1');
+presets.emu_enc_at(6, 1, 1050); assert.equal(presets.emu_state(6), 62);
+presets.emu_enc_at(6, 1, 1060); assert.equal(presets.emu_state(6), 1, 'accelerated forward wraps at profile 64');
 
 const popup = presetZero();
 const home = frame(popup);

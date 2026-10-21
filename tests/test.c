@@ -470,18 +470,18 @@ static void sorted_bank(void) {
         assert(!memcmp(&roundtrip,&e.project,sizeof roundtrip));
     }
     McUi u;for(unsigned part=0;part<3;part++) {
-        mc_init(&e);e.selected=(uint8_t)part;mc_preset(&e,part,31);mc_ui_init(&u);
+        mc_init(&e);e.selected=(uint8_t)part;mc_preset(&e,part,MC_PRESETS-1);mc_ui_init(&u);
         McPatch other[3];memcpy(other,e.project.patch,sizeof other);
         for(unsigned p=0;p<MC_PRESETS;p++) {
             mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==p&&!memcmp(&e.project.patch[part],&mc_presets[p],sizeof(McPatch)));
             for(unsigned t=0;t<3;t++)if(t!=part)assert(!memcmp(&other[t],&e.project.patch[t],sizeof(McPatch)));
         }
-        mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==0);mc_ui_encoder(&e,&u,2,-1);assert(u.preset[part]==31);
+        mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==0);mc_ui_encoder(&e,&u,2,-1);assert(u.preset[part]==MC_PRESETS-1);
         assert(mc_encode(&e.project,1,record,sizeof record)>0);mc_init(&e);uint32_t seq;
         assert(!mc_decode(&e.project,&seq,record,sizeof record));e.selected=(uint8_t)part;mc_ui_init(&u);
         mc_ui_encoder(&e,&u,2,1);assert(u.preset[part]==0);
     }
-    puts("PASS: 32 profile availability, initial 0/10/20, demo mappings/roundtrip and per-part wrap");
+    puts("PASS: 64 profile availability, initial 0/10/20, demo mappings/roundtrip and per-part wrap");
 }
 static void source_profiles(void) {
     unsigned families=0;
@@ -496,7 +496,7 @@ static void source_profiles(void) {
             mc_off(&a,0,60);mc_off(&b,0,60);render_n(&a,MC_RATE*3);render_n(&b,MC_RATE*3);
             assert(!a.voice[0].active&&!b.voice[0].active&&!a.clips&&!b.clips);
         }
-        if(!(r->available_mask&HY_PCM))continue;
+        if(r->pcm_family==HY_PCM_NONE)continue;
         families|=1u<<r->pcm_family;
         for(unsigned note=36;note<=84;note+=24) {
             mc_init(&a);mc_preset(&a,0,p);a.project.patch[0].source_mask=r->available_mask;
@@ -533,7 +533,7 @@ static void source_mix_transitions(void) {
     static const uint8_t mix[6]={127,0,127,63,0,127};
     static const int16_t bend[3]={0,4096,-4096};
     for(unsigned p=0;p<MC_PRESETS;p++) {
-        const McHybridProfile *r=hy_profile(p);if(!(r->available_mask&HY_PCM))continue;
+        const McHybridProfile *r=hy_profile(p);if(r->pcm_family==HY_PCM_NONE)continue;
         for(unsigned note=36;note<=84;note+=24) {
             mc_init(&a);mc_preset(&a,0,p);a.project.patch[0].sustain=127;
             a.project.patch[0].source_mask=r->available_mask;

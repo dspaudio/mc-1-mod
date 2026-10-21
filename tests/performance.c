@@ -294,7 +294,7 @@ static void stress_fixture(void) {
     puts("RAM stress: PCM+FM+VA, four FX, repeated six drums and sustained Slide Bass glide survive the full capture window: PASS");
 }
 static void modern_profiles(void) {
-    assert(MC_PRESETS==32);
+    assert(MC_PRESETS==64);
     for(unsigned profile=0;profile<MC_PRESETS;profile++) {
         empty();mc_preset(&e,0,profile);
         assert(mc_project_valid(&e.project)&&e.project.patch[0].profile==profile);
@@ -306,6 +306,6 @@ static void modern_profiles(void) {
         }
         assert(audible&&e.voice[0].active&&!e.steals&&!e.clips);
     }
-    puts("PASS: all 32 modern profiles use the actual engine and remain logical held voices");
+    puts("PASS: all 64 profiles use the actual engine and remain logical held voices");
 }
 int main(void) { modern_profiles();modes();live();recording();automation();persistence();recorded_audio();live_changes();live_glide();tempo_blocks();sliced_automation();legacy_master();stress_fixture();puts("performance: PASS"); }

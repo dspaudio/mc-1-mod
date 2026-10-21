@@ -22,7 +22,7 @@ def main() -> None:
         (ROOT / "build" / report).write_text(json.dumps(data, indent=2) + "\n")
     for name in ("startup", "midi", "wasm", "controls", "resample", "store-identity", "worklet"):
         subprocess.run(["node", f"tests/{name}.mjs"], cwd=ROOT, check=True)
-    print("PASS: native/WASM32 profiles, UI, MIDI, storage, worklet and resampling")
+    print("PASS: native/WASM 64 profiles, UI, MIDI, storage, worklet and resampling")
 
 
 if __name__ == "__main__":

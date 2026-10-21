@@ -254,7 +254,7 @@ static void popup(void) {
         e.selected=0;mc_preset(&e,0,p);timed(2,1,p*1000);
         for(unsigned y=0;y<240;y+=8) { mc_ui_strip(&e,&u,y,8,strip+1);assert(strip[0]==0x1234&&strip[240*8+1]==0x1234); }
     }
-    puts("PASS: seven-row actual C popup, immediate patch,499/500ms, refresh/zero/invalid/wrap, controls dismiss, all32 strip guards");
+    puts("PASS: seven-row actual C popup, immediate patch,499/500ms, refresh/zero/invalid/wrap, controls dismiss, all64 strip guards");
 }
 static void performance_ui(void) {
     init();mc_ui_button(&e,&u,UI_ARP);assert(u.page==6&&!e.mute);
@@ -724,12 +724,12 @@ static void pattern_keys(void) {
 static void hybrid_controls(void) {
     static const unsigned parameters[3]={3,MC_PARAM_FM_MIX,MC_PARAM_VA_MIX};
     init();
-    assert(MC_PRESETS==32&&u.preset[0]==0&&u.preset[1]==10&&u.preset[2]==20);
-    mc_ui_encoder(&e,&u,2,-1);assert(e.project.patch[0].profile==31&&u.preset[0]==31);
+    assert(MC_PRESETS==64&&u.preset[0]==0&&u.preset[1]==10&&u.preset[2]==20);
+    mc_ui_encoder(&e,&u,2,-1);assert(e.project.patch[0].profile==63&&u.preset[0]==63);
     mc_ui_encoder(&e,&u,2,1);assert(e.project.patch[0].profile==0);
-    timed(2,-1,100);assert(e.project.patch[0].profile==31);
-    timed(2,-1,159);assert(e.project.patch[0].profile==28);
-    timed(2,-1,219);assert(e.project.patch[0].profile==27);
+    timed(2,-1,100);assert(e.project.patch[0].profile==63);
+    timed(2,-1,159);assert(e.project.patch[0].profile==60);
+    timed(2,-1,219);assert(e.project.patch[0].profile==59);
     for(unsigned part=0;part<3;part++)for(unsigned preset=0;preset<MC_PRESETS;preset++) {
         init();e.selected=(uint8_t)part;mc_preset(&e,part,preset);u.page=11;
         const unsigned available=hy_profile(preset)->available_mask;
@@ -760,7 +760,7 @@ static void hybrid_controls(void) {
         mc_ui_encoder(&e,&u,6,-1);assert(!e.project.patch[part].source_mask);
         assert(e.project.patch[part].profile==preset&&e.project.preset[part]==origin);
         McProject before=e.project;
-        assert(mc_parameter_set(&e,part,MC_PARAM_PROFILE,(preset+1)%32)<0);
+        assert(mc_parameter_set(&e,part,MC_PARAM_PROFILE,(preset+1)%MC_PRESETS)<0);
         assert(!memcmp(&before,&e.project,sizeof before));
         mc_ui_button(&e,&u,UI_EDIT);assert(!u.editing&&u.page==11);
         draw(first);
@@ -783,7 +783,7 @@ static void hybrid_controls(void) {
     timed(3,1,102);assert(e.project.patch[0].pcm_mix==5);
     mc_preset(&e,0,MC_PRESET_SOFT_PIANO);pcm=e.project.patch[0].pcm_mix;
     timed(3,-1,103);assert(e.project.patch[0].pcm_mix==pcm-1);
-    puts("PASS: 32 wrap/explicit3x/59-60ms, all32x3 gain bounds/availability, sparse mask traversal/clamps/no acceleration, drums disabled, read-only profile/origin, HOME mode and context resets");
+    puts("PASS: 64 wrap/explicit3x/59-60ms, all64x3 gain bounds/availability, sparse mask traversal/clamps/no acceleration, drums disabled, read-only profile/origin, HOME mode and context resets");
 }
 static void hybrid_automation(void) {
     static const unsigned parameters[4]={3,MC_PARAM_FM_MIX,MC_PARAM_VA_MIX,MC_PARAM_SOURCE_MASK};
@@ -824,13 +824,65 @@ static void hybrid_pixels(void) {
     assert(memcmp(first,second,13*240*sizeof(uint16_t)));
     draw(first);
     uint16_t denominator[240*8]={0};Canvas small={49,8,denominator};
-    text(&small,207,49,"/32",WHITE,1);
+    text(&small,207,49,"/64",WHITE,1);
     for(unsigned row=0;row<8;row++)for(unsigned x=207;x<228;x++)
         assert((first[(49+row)*240+x]==WHITE)==(denominator[row*240+x]==WHITE));
     timed(2,1,100);draw(first);
-    memset(denominator,0,sizeof denominator);small.y=50;text(&small,207,50,"/32",WHITE,1);
+    memset(denominator,0,sizeof denominator);small.y=50;text(&small,207,50,"/64",WHITE,1);
     for(unsigned row=0;row<8;row++)for(unsigned x=207;x<228;x++)
         assert((first[(50+row)*240+x]==WHITE)==(denominator[row*240+x]==WHITE));
-    puts("PASS: actual RGB565 HYB/effective-source flags and HOME/popup32 denominators");
+    puts("PASS: actual RGB565 HYB/effective-source flags and HOME/popup64 denominators");
 }
-int main(void) { acceleration();small_ranges();metronome_ui();song_midi_ui();patterns64();popup();performance_ui();shared_fx_ui();readable_text();green_feedback();strip_equivalence();clipped_fill();frozen_frames();strip_validation();key_velocity();key_velocity_arp_drums();key_legacy_equality();key_glide_record();pitch_cache();pattern_keys();hybrid_controls();hybrid_automation();hybrid_pixels();return 0; }
+static void rendered_text(unsigned x,unsigned y,const char *name,uint16_t color) {
+    memset(second,0,sizeof second);Canvas canvas={0,240,second};
+    text(&canvas,(int)x,(int)y,name,WHITE,1);
+    unsigned end=x+(unsigned)strlen(name)*7u;if(end>240)end=240;
+    for(unsigned row=y;row<y+9;row++)for(unsigned col=x;col<end;col++)
+        assert((first[row*240+col]==color)==(second[row*240+col]==WHITE));
+}
+static void integrated64(void) {
+    static const unsigned boundaries[]={4,8,12,16,20,24,28,32,44,54};
+    for(unsigned part=0;part<3;part++) {
+        init();e.selected=(uint8_t)part;
+        for(unsigned i=0;i<sizeof boundaries/sizeof boundaries[0];i++) {
+            unsigned boundary=boundaries[i];mc_preset(&e,part,boundary-1);
+            mc_ui_encoder(&e,&u,2,1);assert(e.project.preset[part]==boundary);
+            mc_ui_encoder(&e,&u,2,-1);assert(e.project.preset[part]==boundary-1);
+        }
+        mc_preset(&e,part,63);timed(2,1,100);assert(e.project.preset[part]==0);
+        timed(2,-1,200);assert(e.project.preset[part]==63);
+    }
+    for(unsigned profile=0;profile<64;profile++) {
+        init();mc_preset(&e,0,profile);
+        const unsigned available=hy_profile(profile)->available_mask;
+        const char *slot0=hy_source_name(profile,0);
+        if(profile<32)assert(!strcmp(slot0,"PCM")&&!strcmp(hy_source_name(profile,1),"FM")&&!strcmp(hy_source_name(profile,2),"VA"));
+        else {
+            assert(!strcmp(mc_preset_categories[profile],profile<44?"80S SYNTH":profile<54?"90S SYNTH":"00S SYNTH"));
+            if(available&HY_PCM)assert(!strcmp(slot0,"FM2")||!strcmp(slot0,"VA2"));
+            else assert(strcmp(slot0,"PCM"));
+        }
+        e.project.patch[0].source_mask=(uint8_t)available;
+        if(available&HY_PCM)e.project.patch[0].pcm_mix=64;
+        if(available&HY_FM)e.project.patch[0].fm_mix=64;
+        if(available&HY_VA)e.project.patch[0].va_mix=64;
+        assert(!mc_parameter_set(&e,0,MC_PARAM_MODE,MC_POLY));draw(first);
+        char flags[4]={available&HY_PCM?slot0[0]:'-',
+            available&HY_FM?hy_source_name(profile,1)[0]:'-',
+            available&HY_VA?hy_source_name(profile,2)[0]:'-',0};
+        rendered_text(91,4,flags,WHITE);
+        rendered_text(205-(unsigned)(strlen(slot0)*7-1)/2,214,slot0,WHITE);
+        assert(!mc_parameter_set(&e,0,MC_PARAM_MODE,MC_MONO));draw(first);
+        rendered_text(188,214,"GLIDE",WHITE);
+        u.page=11;draw(first);rendered_text(14,82,slot0,WHITE);
+        if(!(available&HY_PCM))rendered_text(91,82,"UNAVAILABLE",WHITE);
+        u.preset[0]=(uint8_t)profile;u.preset_popup=1;draw(first);
+        rendered_text(12,50,mc_preset_categories[profile],ORANGE);
+        for(unsigned row=0;row<7;row++) {
+            unsigned index=wrap((int)profile+(int)row-3,64);
+            rendered_text(43,73+row*23,mc_preset_names[index],row==3?BG:WHITE);
+        }
+    }
+    puts("PASS: all-part 31/32 and 63/0 boundaries, 64 contiguous popup rows, per-profile categories, typed source flags/MIX/HOME and mono GLIDE pixels");
+}
+int main(void) { acceleration();small_ranges();metronome_ui();song_midi_ui();patterns64();popup();performance_ui();shared_fx_ui();readable_text();green_feedback();strip_equivalence();clipped_fill();frozen_frames();strip_validation();key_velocity();key_velocity_arp_drums();key_legacy_equality();key_glide_record();pitch_cache();pattern_keys();hybrid_controls();hybrid_automation();hybrid_pixels();integrated64();return 0; }

@@ -80,7 +80,15 @@ static void capture(unsigned id,unsigned mask,unsigned note,int16_t *out,int hel
                 CHECK(v->phase-old.phase==inc,id,note,"FM_shared_phase");
             if(v->hybrid.gain[2])CHECK(v->phase2-old.phase2==inc,id,note,"VA_shared_phase");
             CHECK(q.pitch_cache[0].increment==inc,id,note,"Analog0_fixed_pitch");
-            if(v->hybrid.gain[0]&&!(old.hybrid.ended_mask&HY_PCM)) {
+            const McAuxProfile *aux=hy_aux_profile(id);
+            if(aux&&v->hybrid.gain[0]) {
+                uint32_t advance=(uint32_t)((uint64_t)inc*aux->tuning_q16/65536u);
+                CHECK(v->aux.phase-old.aux.phase==advance,id,note,"AUX_shared_pitch_tuning");
+                if(aux->kind==HY_FM)
+                    CHECK(v->aux.modulator-old.aux.modulator==advance*aux->fm_ratio,
+                        id,note,"AUX_independent_modulator");
+                CHECK(!v->pcm_pos&&!q.pcm_cache[0].count,id,note,"synthetic_slot_never_reads_PCM");
+            } else if(v->hybrid.gain[0]&&!(old.hybrid.ended_mask&HY_PCM)) {
                 const McPcmZone *z=hy_pcm_zone(v->hybrid.pcm_zone);
                 uint32_t step=(uint32_t)((uint64_t)inc*MC_PCM_RATE/z->tuning_hz_q16);
                 unsigned mip=0;
@@ -103,7 +111,7 @@ static void capture(unsigned id,unsigned mask,unsigned note,int16_t *out,int hel
     }
 }
 static void contribution(void) {
-    for(unsigned id=0;id<32;id++) {
+    for(unsigned id=0;id<MC_PRESETS;id++) {
         unsigned mask=mc_presets[id].source_mask;
         capture(id,mask,60,mixed,0,0);
         CHECK(energy(mixed,0,MC_RATE)>0,id,60,"default_audible");
@@ -343,6 +351,27 @@ static void reviewed_roles(void) {
         28,79,"foreground_pop_has_reference_register_odd_harmonics");
     CHECK(energy(mixed,MC_RATE/10,MC_RATE/10)==0,28,79,"foreground_pop_ends_before_100_ms");
 }
+static void synthetic_distinction(void) {
+    static int16_t signatures[32][4096];
+    double powers[32];
+    for(unsigned id=32;id<MC_PRESETS;id++) {
+        capture(id,mc_presets[id].source_mask,60,reference,0,0);
+        double power=0;
+        for(unsigned n=0;n<4096;n++) {
+            int16_t value=reference[(uint64_t)n*Q_FRAMES/4096u];
+            signatures[id-32][n]=value;power+=(double)value*value;
+        }
+        powers[id-32]=power;
+        CHECK(power>0,id,60,"synthetic_dry_body_is_audible");
+        for(unsigned other=32;other<id;other++) {
+            double cross=0;
+            for(unsigned n=0;n<4096;n++)cross+=(double)signatures[id-32][n]*signatures[other-32][n];
+            double similarity=cross*cross/(power*powers[other-32]+1e-30);
+            CHECK(similarity<0.9999,id,other,"synthetic_not_a_gain_only_copy");
+        }
+    }
+    puts("SYNTH_DISTINCTION 32 dry recipes, 496 gain-invariant pair comparisons");
+}
 static void strings_attack(void) {
     unsigned id=25u;
     CHECK(mc_presets[id].source_mask==HY_PCM&&mc_presets[id].wave==2u,
@@ -366,7 +395,7 @@ static void strings_attack(void) {
 }
 int main(void) {
     setvbuf(stdout,NULL,_IONBF,0);
-    contribution();loops();sustained();harmonic_reference();transitions();reviewed_roles();strings_attack();
+    contribution();loops();sustained();harmonic_reference();transitions();reviewed_roles();strings_attack();synthetic_distinction();
     printf("MECHANICAL_%s failures=%u\n",failures?"FAIL":"PASS",failures);
     puts("QUALITY_UNRUN: 수치는 승인 기준이 아니다. AM/시간별 배음 비교는 추가 A/B 검토가 필요하다.");
     puts("UNRUN: 실제 청취, alias 전대역 판정, WASM 실행, 타깃, 장치");

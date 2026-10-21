@@ -8,7 +8,7 @@ LDLIBS += -lm
 CORE = src/effects.c src/demo.c src/engine.c src/factory.c src/project.c \
 	src/store.c src/ui.c src/midi.c src/hybrid.c src/tables.c
 HEADERS = src/mcfm.h src/parallel.h src/fixed.h src/midi.h src/presets.h \
-	src/store.h src/ui.h src/tables.h src/hybrid.h src/hybrid_profiles.h \
+	src/store.h src/ui.h src/tables.h src/hybrid.h src/hybrid_profiles.h src/aux_profiles.h \
 	src/pcm_types.h src/pcm_bank.h $(wildcard src/pcm/*.h)
 
 CORE_TESTS = core hybrid mixer hybrid-quality ui-input performance patterns output metronome song midi demo-songs \

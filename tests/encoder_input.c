@@ -72,7 +72,7 @@ int main(void)
         reset(6);mc_init(&engine);mc_ui_init(&ui);ui_encoder=2;
         mc_preset(&engine,0,MC_PRESET_DEEP_SUB);drain=1;
         turn(speed?1:20,16,1,0);
-        assert(engine.project.patch[0].profile==(speed?14:16));
+        assert(engine.project.patch[0].profile==(speed?46:16));
         assert(ui.preset[0]==engine.project.patch[0].profile);
     }
     puts("encoder input: fast/slow, all7, both directions, bounce and actual UI acceleration PASS");

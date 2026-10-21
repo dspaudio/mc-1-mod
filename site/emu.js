@@ -353,7 +353,7 @@ async function powerOn() {
         }),
     ]);
     sendMaster();
-    status.textContent = 'MC-1 MOD 0.0.1 experimental · 64 patterns · 32 profiles · audio ready' + (storageNotice ? ' · ' + storageNotice : '');
+    status.textContent = 'MC-1 MOD 0.0.1 experimental · 64 patterns · 64 profiles · audio ready' + (storageNotice ? ' · ' + storageNotice : '');
     power.remove();
     node.port.postMessage({ t: 'start' });
     } catch(e) {

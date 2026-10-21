@@ -10,7 +10,7 @@ static int16_t buffer[4096];
 static int16_t split[4096];
 _Static_assert(offsetof(McEngine,live_keys)==offsetof(McEngine,pcm_cache)+sizeof(((McEngine *)0)->pcm_cache),"Transient state must follow the PCM cache");
 _Static_assert(sizeof(McEngine)-offsetof(McEngine,pcm_cache)<=2400+2*sizeof(McSharedFx)+sizeof(((McEngine *)0)->analog_voice),"Transient state budget exceeded");
-_Static_assert(sizeof(McVoice)==140,"Hybrid voice layout includes the revision-2 source motion state");
+_Static_assert(sizeof(McVoice)==160,"Hybrid voice layout includes the typed auxiliary source state");
 static void render(unsigned n) { while(n) { unsigned k=n>2048?2048:n;mc_render(&e,buffer,k);n-=k; } }
 static void input(unsigned s,unsigned status,unsigned x,unsigned y) {
     mc_midi_byte(&e,s,(uint8_t)status);mc_midi_byte(&e,s,(uint8_t)x);
@@ -162,8 +162,12 @@ static void hybrid_midi_mapping(void) {
     mc_init(&e);
     e.project.patch[0]=mc_presets[MC_PRESET_STAGE_PIANO];
     input(1,0xc0,31,0);assert(e.project.preset[0]==31&&e.project.patch[0].profile==31);
-    input(1,0xc0,32,0);input(1,0xc0,127,0);
-    assert(e.project.preset[0]==31&&e.project.patch[0].profile==31);
+    input(1,0xc0,32,0);assert(e.project.preset[0]==32&&e.project.patch[0].profile==32);
+    input(1,0xc0,63,0);assert(e.project.preset[0]==63&&e.project.patch[0].profile==63);
+    McProject before=e.project;
+    input(1,0xc0,64,0);input(1,0xc0,127,0);
+    assert(!memcmp(&before,&e.project,sizeof before));
+    input(1,0xc0,31,0);
     input(1,0xb0,16,73);input(1,0xb0,17,61);input(1,0xb0,18,49);
     input(1,0xb0,19,3);assert(mc_parameter_get(&e,0,3)==73);
     assert(mc_parameter_get(&e,0,MC_PARAM_FM_MIX)==61);
@@ -179,7 +183,15 @@ static void hybrid_midi_mapping(void) {
     assert(mc_parameter_get(&e,0,MC_PARAM_PROFILE)==31);
     assert(mc_parameter_set(&e,0,MC_PARAM_PROFILE,1)<0);
     assert(!mc_midi_pop(&e,&m));
-    puts("PASS MIDI hybrid: PC 31/32/127, CC16-19 bounds, profile read-only and symmetric output");
+    for(unsigned part=0;part<3;part++) {
+        mc_preset(&e,part,63);
+        assert(mc_midi_pop(&e,&m)&&m.length==3&&m.data[0]==0xb0+part&&m.data[1]==123&&!m.data[2]);
+        assert(mc_midi_pop(&e,&m)&&m.length==2&&m.data[0]==0xc0+part&&m.data[1]==63);
+        assert(!mc_midi_pop(&e,&m));
+        before=e.project;mc_preset(&e,part,64);mc_preset(&e,part,127);
+        assert(!memcmp(&before,&e.project,sizeof before)&&!mc_midi_pop(&e,&m));
+    }
+    puts("PASS MIDI hybrid: PC 31/32/63 accepted, 64/127 rejected, CC16-19 bounds, profile read-only and symmetric output");
 }
 static void ignored_pressure_messages(void) {
     mc_init(&e);
@@ -204,7 +216,9 @@ int main(void) {
     input(1,0xb0,7,87);input(1,0xb0,10,23);input(1,0xb0,74,91);
     assert(e.project.level[0]==87&&e.project.pan[0]==23&&e.project.patch[0].cutoff==91&&!e.midi.count);
     input(1,0xc0,31,0);assert(e.project.preset[0]==31);
-    input(1,0xc0,32,0);input(1,0xc0,127,0);assert(e.project.preset[0]==31);
+    input(1,0xc0,32,0);assert(e.project.preset[0]==32);
+    input(1,0xc0,63,0);assert(e.project.preset[0]==63);
+    input(1,0xc0,64,0);input(1,0xc0,127,0);assert(e.project.preset[0]==63);
     input(1,0xc9,7,0);assert(e.project.drum_kit==7);
     input(1,0xe0,127,127);assert(e.midi.bend[0]==8191);input(1,0xe0,0,0);assert(e.midi.bend[0]==-8192);
     mc_midi_byte(&e,1,0xf0);mc_midi_byte(&e,1,60);mc_midi_byte(&e,1,0xf7);mc_midi_byte(&e,1,127);assert(!active(0,60));

@@ -15,24 +15,34 @@ for (const [rd,cf] of [[4,0],[26,22],[24,28],[12,0]]) {
  assert.equal(e.emu_state(12),3,'new projects use the shared HALL palette');
  e.emu_enc(0,1);
 }
-const presetCount=32;
-/* docs/SOUND_BANK_32.md §3의 8그룹(4개씩) 시작 ID */
-const categoryStarts=[0,4,8,12,16,20,24,28];
+const presetCount=64;
+/* Original eight groups, followed by the 80s, 90s and 00s synth groups. */
+const categoryStarts=[0,4,8,12,16,20,24,28,32,44,54];
 for(let part=0;part<3;part++){
  for(const boundary of categoryStarts.slice(1)){
   e.emu_enc(6,boundary-1-e.emu_state(6));assert.equal(e.emu_state(6),boundary-1);
   e.emu_enc(6,1);assert.equal(e.emu_state(6),boundary,'PRESETS crosses each profile group boundary forward');
   e.emu_enc(6,-1);assert.equal(e.emu_state(6),boundary-1,'PRESETS crosses each profile group boundary backward');
  }
- e.emu_enc(6,presetCount-1-e.emu_state(6));assert.equal(e.emu_state(6),presetCount-1,'PRESETS reaches profile 32 on all melodic parts');
- e.emu_enc(6,1);assert.equal(e.emu_state(6),0,'profile 32 wraps forward to profile 1');
- e.emu_enc(6,-1);assert.equal(e.emu_state(6),presetCount-1,'profile 1 wraps backward to profile 32');
+ e.emu_enc(6,presetCount-1-e.emu_state(6));assert.equal(e.emu_state(6),presetCount-1,'PRESETS reaches profile 64 on all melodic parts');
+ e.emu_enc(6,1);assert.equal(e.emu_state(6),0,'profile 64 wraps forward to profile 1');
+ e.emu_enc(6,-1);assert.equal(e.emu_state(6),presetCount-1,'profile 1 wraps backward to profile 64');
  e.emu_enc(1,1);assert.equal(e.emu_state(9),1,'ALGORITHM selects patterns on every melodic part');
  assert.equal(e.emu_state(6),presetCount-1,'ALGORITHM leaves the melodic profile unchanged');
  e.emu_enc(1,-1);assert.equal(e.emu_state(9),0);
  e.emu_enc(0,1);
 }
 e.emu_enc(0,-3);
+const lastProfile=boot();lastProfile.emu_enc(6,63-lastProfile.emu_state(6));
+assert.equal(lastProfile.emu_state(6),63);
+lastProfile.emu_enc(2,lastProfile.emu_parameter(0,4)===127?-1:1);
+const lastCutoff=lastProfile.emu_parameter(0,4);
+tap(lastProfile,9);tap(lastProfile,9);assert(lastProfile.emu_flash_gen()>0);
+const lastRestored=boot(new Uint8Array(lastProfile.memory.buffer,lastProfile.emu_flash_ptr(),lastProfile.emu_flash_size()).slice());
+assert.equal(lastRestored.emu_state(25),63,'edited profile63 origin survives save/reboot');
+assert.equal(lastRestored.emu_parameter(0,4),lastCutoff,'profile63 edit survives save/reboot');
+lastRestored.emu_enc(6,1);
+assert.equal(lastRestored.emu_state(6),0,'preset selection wraps from the restored profile63 origin');
 tap(e,7);assert.equal(e.emu_state(2),5);tap(e,7);assert.equal(e.emu_state(2),2);tap(e,7);assert.equal(e.emu_state(2),4);e.emu_enc(5,1);assert.equal(e.emu_state(3),1);assert.equal(e.emu_state(5),48);
 tap(e,8);tap(e,2);assert.equal(e.emu_state(2),3);assert.equal(e.emu_state(10),8);
 e.emu_enc(2,1);assert.equal(e.emu_state(10),9);assert.equal(e.emu_state(5),48,'track FX preserves inactive demo master metadata');
@@ -67,8 +77,8 @@ for(let id=0;id<presetCount;id++){
  const selected=boot();selected.emu_enc(6,id-selected.emu_state(6));
  assert.equal(melodyHash(selected),native.profileHashes[id],`profile ${id}: all note/gate PCM matches native`);
 }
-console.log('PASS all32 profile native/WASM PCM parity');
-console.log(JSON.stringify({wasmBytes:bytes.length,presetCount,categoryStarts,peak,energy,audioHash:hash,flashBytes:flash.length,tests:'32-profile and group boundaries on all melodic parts, panel, FX, demo completion, A/B save/reboot and full demo native/WASM parity'},null,2));
+console.log('PASS all64 profile native/WASM PCM parity');
+console.log(JSON.stringify({wasmBytes:bytes.length,presetCount,categoryStarts,peak,energy,audioHash:hash,flashBytes:flash.length,tests:'64-profile and group boundaries on all melodic parts, panel, FX, demo completion, A/B save/reboot and full demo native/WASM parity'},null,2));
 
 const sends=[40,41,44,45],types=[42,43,46,47];
 assert.equal(native.fourBankHashes.length,32);

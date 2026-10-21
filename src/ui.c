@@ -349,7 +349,7 @@ static void preset_popup(Canvas *c,const McUiFrame *f,const McUi *u) {
     rect(c,4,22,232,214,GRID);rect(c,6,24,228,210,BG);
     text(c,12,30,drums?"DRUM KITS":"PRESETS",WHITE,2);
     text(c,12,50,drums?"DRUMS":mc_preset_categories[selected],ORANGE,1);
-    number(c,185,50,selected+1,WHITE);text(c,207,50,drums?"/8":"/32",DIM,1);
+    number(c,185,50,selected+1,WHITE);text(c,207,50,drums?"/8":"/64",DIM,1);
     for(unsigned row=0;row<7;row++) {
         unsigned index=wrap((int)selected+(int)row-3,total);
         int y=66+(int)row*23;uint16_t color=row==3?BG:WHITE;
@@ -486,8 +486,9 @@ void mc_ui_strip_frame(const McEngine *e,const McUi *u,const McUiFrame *f,unsign
     else {
         const McPatch *patch=&e->project.patch[p];
         unsigned active=patch->source_mask&hy_profile(patch->profile)->available_mask;
-        char sources[4]={active&HY_PCM&&patch->pcm_mix?'P':'-',
-            active&HY_FM&&patch->fm_mix?'F':'-',active&HY_VA&&patch->va_mix?'V':'-',0};
+        char sources[4]={active&HY_PCM&&patch->pcm_mix?hy_source_name(patch->profile,0)[0]:'-',
+            active&HY_FM&&patch->fm_mix?hy_source_name(patch->profile,1)[0]:'-',
+            active&HY_VA&&patch->va_mix?hy_source_name(patch->profile,2)[0]:'-',0};
         text(&c,63,4,"HYB",WHITE,1);text(&c,91,4,sources,WHITE,1);
     }
     if(p==3||u->page>1||u->preset_popup) {
@@ -662,7 +663,8 @@ void mc_ui_strip_frame(const McEngine *e,const McUi *u,const McUiFrame *f,unsign
         else {
             const McPatch *s=&e->project.patch[p];
             unsigned available=hy_profile(s->profile)->available_mask;
-            static const char *const names[4]={"PCM","FM","VA","MASK"};
+            const char *names[4]={hy_source_name(s->profile,0),
+                hy_source_name(s->profile,1),hy_source_name(s->profile,2),"MASK"};
             unsigned values[4]={s->pcm_mix,s->fm_mix,s->va_mix,s->source_mask};
             text(&c,14,62,"PART",ORANGE,1);number(&c,44,62,p+1,ORANGE);
             for(unsigned k=0;k<4;k++) {
@@ -709,7 +711,7 @@ void mc_ui_strip_frame(const McEngine *e,const McUi *u,const McUiFrame *f,unsign
         text(&c,8,49,"CUR-NEXT",DIM,1);
         if(match<MC_PRESETS) {
             text(&c,84,49,mc_preset_categories[match],DIM,1);
-            number(&c,185,49,match+1,ORANGE);text(&c,207,49,"/32",DIM,1);
+            number(&c,185,49,match+1,ORANGE);text(&c,207,49,"/64",DIM,1);
         }
         for(unsigned t=0;t<4&&u->page!=1;t++) {
             int yy=59+(int)t*27;
@@ -741,7 +743,7 @@ void mc_ui_strip_frame(const McEngine *e,const McUi *u,const McUiFrame *f,unsign
         else if(u->editing) {
             const McStep *st=&e->project.step[f->pattern][p][f->edit_step];
             knob(&c,26,"STEP",f->edit_step+1,0x3317);knob(&c,85,"VEL",st->velocity,0x3d48);knob(&c,145,"GATE",st->gate,DIM);knob(&c,205,"A/S",st->flags,HIT);
-        } else { knob(&c,26,"CUT",s->cutoff,0x3317);knob(&c,85,"RES",s->resonance,0x3d48);knob(&c,145,"DEC",s->decay,DIM);knob(&c,205,s->mode==MC_MONO?"GLIDE":"PCM",s->mode==MC_MONO?s->glide:s->pcm_mix,HIT); }
+        } else { knob(&c,26,"CUT",s->cutoff,0x3317);knob(&c,85,"RES",s->resonance,0x3d48);knob(&c,145,"DEC",s->decay,DIM);knob(&c,205,s->mode==MC_MONO?"GLIDE":hy_source_name(s->profile,0),s->mode==MC_MONO?s->glide:s->pcm_mix,HIT); }
     }
     if(!u->message&&u->page<2&&p!=3) {
         char count[6];unsigned n=0,value=f->pattern+1;

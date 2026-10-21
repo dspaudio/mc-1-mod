@@ -20,7 +20,7 @@
 #define MC_STEPS 16
 #define MC_PARTS 4
 #define MC_FX_BANKS 4
-#define MC_PRESETS 32
+#define MC_PRESETS 64
 #define MC_KITS 8
 #define MC_DEMOS 4
 enum { MC_DEMO_HIPHOP=2, MC_DEMO_TECHNO=3 };
@@ -92,11 +92,16 @@ typedef struct {
     int32_t va_colour_step;
 } McHybridState;
 typedef struct {
+    uint32_t phase, modulator, env, step;
+    int32_t previous_mod;
+} McAuxState;
+typedef struct {
     uint32_t phase, phase2, increment, target, pcm_pos, gate_left, age, sample_step;
     int32_t envelope, attack_step, decay_step, release_step, filter[4];
     uint8_t active, part, note, velocity, stage, accent, sample_level, midi_out;
     McPatch patch;
     McHybridState hybrid;
+    McAuxState aux;
 } McVoice;
 typedef struct { uint32_t phase, age; int32_t env, noise_lp; uint8_t velocity, sound, kit; } McDrum;
 /* Per-track state: drive/modulation history and the two filters. */

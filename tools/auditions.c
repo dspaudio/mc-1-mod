@@ -272,7 +272,7 @@ static int aud_stress(AudResult *r) {
     return aud_until(r,r->frames);
 }
 static unsigned aud_loop_issues(unsigned preset,unsigned mask) {
-    if(!(mask&HY_PCM))return 0;
+    if(!(mask&HY_PCM)||hy_profile(preset)->pcm_family==HY_PCM_NONE)return 0;
     unsigned count=0;
     for(unsigned zi=0;zi<MC_PCM_ZONES;zi++) {
         const McPcmZone *z=hy_pcm_zone(zi);
@@ -290,6 +290,32 @@ static unsigned aud_loop_issues(unsigned preset,unsigned mask) {
         }
     }
     return count;
+}
+static void aud_sources(FILE *report,unsigned profile,unsigned mask) {
+    fputs(",\"source_names\":[",report);
+    for(unsigned slot=0;slot<3;slot++) {
+        if(slot)fputc(',',report);
+        json_string(report,hy_source_name(profile,slot));
+    }
+    fputs("],\"source_configuration\":\"",report);
+    unsigned count=0;
+    for(unsigned n=0;n<3;n++) {
+        unsigned slot=profile>=32?(n+1u)%3u:n;
+        if(!(mask&hy_profile(profile)->available_mask&(1u<<slot)))continue;
+        if(count++)fputs(" + ",report);
+        fputs(hy_source_name(profile,slot),report);
+    }
+    fputs("\",\"aux_profile\":",report);
+    const McAuxProfile *aux=hy_aux_profile(profile);
+    if(!aux)fputs("null",report);
+    else {
+        fputs("{\"kind\":",report);json_string(report,hy_source_name(profile,0));
+        fprintf(report,",\"tuning_q16\":%u,\"wave\":%u,\"colour_q15\":%u,"
+            "\"fm_ratio\":%u,\"fm_index\":%u,\"fm_feedback\":%u,"
+            "\"fm_decay_ms\":%u,\"fm_body_q15\":%u}",
+            aux->tuning_q16,aux->wave,aux->colour_q15,aux->fm_ratio,aux->fm_index,
+            aux->fm_feedback,aux->fm_decay_ms,aux->fm_body_q15);
+    }
 }
 static int aud_file(FILE *report,const char *dir,const char *name,const char *kind,
                     int preset,int kit,unsigned mask,int song,int mode,const char *paired,int *first) {
@@ -358,7 +384,8 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
         "P E H","H P E","H P","P E","H P E","H P","T H P E","H P E",
         "H P E","T P E","T P E","H P E","E P T","E P H","H P E","T P E",
         "H P E","P E H","H P E","T H P E","T P E","T P E","T H P E","T H P E"};
-    fputs(",\"genre_tags\":",report);json_string(report,issong?(song==MC_DEMO_HIPHOP?"H":"T"):preset>=0?genres[preset]:"T H P E");
+    fputs(",\"genre_tags\":",report);json_string(report,issong?(song==MC_DEMO_HIPHOP?"H":"T"):preset>=0&&preset<32?genres[preset]:"T H P E");
+    if(preset>=0)aud_sources(report,(unsigned)preset,mask);
     unsigned loop_issues=preset>=0?aud_loop_issues((unsigned)preset,mask):stress?aud_loop_issues(27,7):0;
     unsigned actual_mask=mask,available=preset>=0?hy_profile((unsigned)preset)->available_mask:0;
     if(isdemo||stress||issong)for(unsigned p=0;p<3;p++) {
@@ -458,10 +485,13 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
         const McPatch *v=&aud_engine.project.patch[p];
         fprintf(report,"%s{\"profile\":%u,\"mask\":%u,\"gains\":[%u,%u,%u],"
             "\"cutoff\":%u,\"resonance\":%u,\"adsr\":[%u,%u,%u,%u],\"wave\":%u,\"mode\":%u,\"glide\":%u,"
-            "\"fixed_gain_q8\":%u}",
+            "\"fixed_gain_q8\":%u",
             p?",":"",v->profile,v->source_mask,v->pcm_mix,v->fm_mix,v->va_mix,
             v->cutoff,v->resonance,v->attack,v->decay,v->sustain,v->release,v->wave,v->mode,v->glide,
             (unsigned)hy_profile(v->profile)->gain_q8);
+        aud_sources(report,v->profile,v->source_mask);
+        fprintf(report,",\"available_source_flags\":%u",hy_profile(v->profile)->available_mask);
+        fputc('}',report);
     }
     /* fx_types/fx_sends are the renderer's initial state captured before the first sample. */
     fputs("],\"fx_types\":[",report);
@@ -494,9 +524,10 @@ int auditions(const char *dir,const char *json) {
         "\"quality_status\":\"UNAPPROVED_CANDIDATE\",\"wasm_test_performed\":false,"
         "\"device_test_performed\":false,\"comparison_policy\":\"same events and gain; mask only, no loudness matching; "
         "full files carry intended FX, -dry/-source files are separate diagnostics\","
-        "\"files\":[\n",f);
+        "\"source_mask_semantics\":\"slot-bits\",\"profile_count\":",f);
+    fprintf(f,"%u,\"files\":[\n",(unsigned)MC_PRESETS);
     int first=1,failed=0;char name[80],dry[80];
-    for(unsigned id=0;id<32&&!failed;id++) {
+    for(unsigned id=0;id<MC_PRESETS&&!failed;id++) {
         snprintf(name,sizeof name,"preset-%02u.wav",id);
         snprintf(dry,sizeof dry,"preset-%02u-dry.wav",id);
         failed=aud_file(f,dir,name,"preset",(int)id,-1,mc_presets[id].source_mask,-1,AUD_FULL,dry,&first);

@@ -1,16 +1,30 @@
-# Modern hybrid 32-role bank, revision 5
+# Integrated 64-profile bank, revision 5
 
-Date: 2026-10-21. Status: revoiced implementation candidates; **all 32 sounds remain unapproved, including IDs 04 and 05**. The old bank is a rejected A/B reference, not protected material. These tables describe the actual immutable recipes and default patches, not measured listening success. Follow [audio acceptance](AUDIO_ACCEPTANCE.md).
+Date: 2026-10-21. Status: implementation candidates; **all 64 sounds remain unapproved, including IDs 04 and 05**. IDs 00..31 retain their existing recipes, defaults and source availability. IDs 32..63 append PCM-free synth profiles. The original 32 tables below describe immutable recipes and default patches, not measured listening success. Follow [audio acceptance](AUDIO_ACCEPTANCE.md).
+
+## Integrated synth expansion
+
+| IDs | Category | Count |
+|---|---|---|
+| 32..43 | 80S SYNTH | 12 |
+| 44..53 | 90S SYNTH | 10 |
+| 54..63 | 00S SYNTH | 10 |
+
+The new 32 contain 16 parallel FM + VA duals (active/available mask 6) and 16 triples (mask 7): eight FM + VA + FM2 and eight VA + FM + VA2. All are PCM-free. Slot 0 contains the typed auxiliary or is unavailable; slots 1/2 remain FM/VA. `hy_source_name(profile, slot)` supplies the actual names; `hy_aux_profile(profile)` is null for original profiles and new duals. Auxiliary tuning Q16, wave, colour Q15 and FM parameters are immutable source data. Auxiliary phase is independent, but the source sum uses ONE shared filter and amplitude envelope. These are not three full engines, seven saws, hard sync or a PWM clone.
+
+The slot-0 gain still occupies `pcm_mix`, parameter 3, CC16 and source-mask bit 1. Neither the 15-byte patch, wire v9, MOD1/schema 1/bank 5 identity nor the browser save identity changes. Existing bank-5 saves load without clearing or migration; banks 1..4 remain foreign/protected. Original 32 audio intent, source availability and all original 141 audition conditions remain, including the MC-1 demo ordering and unchanged NEON SPIRAL mix from `76eeeb2`.
+
+Auditions use the actual same C renderer: 64 full + 64 dry + 144 source-only + 8 kits + 4 performances + 1 stress = 285 files, including 208 diagnostics. These are exact generation/validation expectations, not evidence of a completed render. Metadata exposes `profile_count: 64`, `source_mask_semantics: slot-bits`, slot-ordered `source_names[3]`, active `source_configuration`, and nullable `aux_profile` descriptors. Every `patches[]` entry also carries these source fields and its available slot mask. Original names are PCM/FM/VA; new slot 0 is FM2, VA2 or `---`, never PCM.
 
 ## Direction and fixed resources
 
 The selected direction is the entire first Shorts F4_2MaZXeOA, user-identified as "The best Serum 2 presets", Spaces. Its reference audio has NOT been directly auditioned here. No equivalence, reference breakdown or listening approval is claimed. The foreground anchors are an immediately distinctive bass AND arpeggio for Lose Control, and a weighty kick AND textured 303 for the user's sgad li mi. These are comparison directions, not copied melodies or audio. Kick material and song composition are separate work; no kick improvement is claimed by this recipe change.
 
-Each note still occupies one of eight melody slots, with one PCM stream, two FM operators and one phase-coherent VA oscillator sharing pitch, gate, velocity, amplitude EG and filter. Six drum voices, 16 drum lanes and four SHARED FX banks remain. No unison, extra oscillator, per-preset processor, master normalization or acoustic-replica claim is introduced. IDs and order are unchanged; ID26 is the authorized Hollow Pad replacement. Only zero-based IDs 01/22 are mono. Display numbers are ID + 1.
+Each note still occupies one of eight melody slots. The original 32 use one PCM stream, two FM operators and one phase-coherent VA oscillator sharing pitch, gate, velocity, amplitude EG and filter. Six drum voices, 16 drum lanes and four SHARED FX banks remain. The expansion adds the typed auxiliary described above, not extra logical voices or per-preset full engines. Original IDs and order are unchanged; ID26 retains Hollow Pad. Among the original 32, only zero-based IDs 01/22 are mono. Display numbers are ID + 1.
 
 Revision 5 keeps MOD1, schema 1, the 15-byte McPatch and v9's 35134-byte payload/35154-byte record. Source envelopes, colour and fixed Q8 output trim are immutable profile data, never patch/project bytes. Revision-1/2/3/4 records are foreign/unsupported under the revised pack identity, not silently migrated; resolving/exporting an older stored bank is separate work.
 
-Groups remain BASS CORE (00..03), BASS SEQ (04..07), PIANO EP (08..11), PLUCK MALLET (12..15), COMP STAB (16..19), LEAD (20..23), PAD TEXTURE (24..27), MOTION (28..31).
+Original groups remain BASS CORE (00..03), BASS SEQ (04..07), PIANO EP (08..11), PLUCK MALLET (12..15), COMP STAB (16..19), LEAD (20..23), PAD TEXTURE (24..27), MOTION (28..31), followed by the three synth eras above.
 
 ## Source identity and articulation
 
@@ -53,7 +67,7 @@ For family-1 piano profiles, `hy_source_sample` suppresses the combined FM/VA ou
 
 ## Actual editable defaults
 
-All values below are existing 0..127 control units, not milliseconds or independent element envelopes. Masks use PCM=1, FM=2, VA=4. There are 8 single-source, 21 dual-source and 3 triple-source defaults. IDs 08..11 enable PCM and disable VA; Strings (25) is PCM-only. Glass Pad (27) and Bell Bloom (31) disable their optional PCM. All available sources retain nonzero stored gains. IDs 01/22 are mono; all others are poly. Fixed profile trim is unity except ID28 (Q8 448/256); it applies in the shared live C renderer, not during preview export.
+All values below describe the original 32 and use existing 0..127 control units, not milliseconds or independent element envelopes. Their masks use PCM=1, FM=2, VA=4; the new profiles reuse bit 1 for AUX. The original defaults have 8 single-source, 21 dual-source and 3 triple-source sounds. IDs 08..11 enable PCM and disable VA; Strings (25) is PCM-only. Glass Pad (27) and Bell Bloom (31) disable their optional PCM. All available sources retain nonzero stored gains. Among these 32, IDs 01/22 are mono; all others are poly. Fixed profile trim is unity except ID28 (Q8 448/256); it applies in the shared live C renderer, not during preview export.
 
 | ID | Active/available mask | PCM family | Wave | PCM/FM/VA gain | CUT/RES | A/D/S/R | Glide/level |
 |---|---|---|---|---|---|---|---|
@@ -153,6 +167,6 @@ Recipe bounds: ratio 1..8, index/velocity 0..127, feedback <=24, source times <=
 
 ## Verification and remaining approval
 
-Run make test-profiles for all 32 masks/gains/families, new-field bounds, sustained/finite FM exceptions, sine/static colour exceptions, preserved roots, factory palette ordering and 00/10/20 plus drum sends. The full runtime suite separately owns exact FM/VA trajectory oracles, all-note pitch/bend/glide/Analog bounds, shared-history isolation, partition/dualcore parity and storage round trips. Passing data checks is not a spectrum, alias, timing or sound-quality approval.
+Run make test-profiles for all 64 masks/gains/families, typed auxiliary bounds, sustained/finite FM exceptions, sine/static colour exceptions, preserved roots, factory palette ordering and 00/10/20 plus drum sends. The full runtime suite separately owns exact FM/VA trajectory oracles, all-note pitch/bend/glide/Analog bounds, shared-history isolation, partition/dualcore parity and storage round trips. Passing data checks is not a spectrum, alias, timing or sound-quality approval.
 
-Still required: full-FX and paired dry renders at the listening grid, source timing and folded-residual measurements, clipping/limiter/12 s tail checks, all 32 user listening decisions, direct reference listening, WASM/target/resource/hardware checks and completed song auditions. Assess 04 and 05 separately. Source motion, modern bass/arp foreground identity, hybrid keys handoff and each complete FX tone can fail listening even when every assertion passes.
+Still required: full-FX and paired dry renders at the listening grid, source timing and folded-residual measurements, clipping/limiter/12 s tail checks, all 64 user listening decisions, direct reference listening, WASM/target/resource/hardware checks and completed song auditions. Assess 04 and 05 separately. Source motion, modern bass/arp foreground identity, hybrid keys handoff and each complete FX tone can fail listening even when every assertion passes.

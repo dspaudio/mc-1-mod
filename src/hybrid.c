@@ -1,12 +1,24 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 #include "hybrid.h"
 #include "hybrid_profiles.h"
+#include "aux_profiles.h"
 #include "pcm_bank.h"
 #include "tables.h"
 #include "fixed.h"
 
 const McHybridProfile *hy_profile(unsigned profile) {
     return profile<MC_PRESETS?&mc_hybrid_profiles[profile]:0;
+}
+const McAuxProfile *hy_aux_profile(unsigned profile) {
+    return profile>=32&&profile<MC_PRESETS&&mc_aux_profiles[profile-32].kind?
+        &mc_aux_profiles[profile-32]:0;
+}
+const char *hy_source_name(unsigned profile,unsigned source) {
+    if(!source) {
+        const McAuxProfile *aux=hy_aux_profile(profile);
+        return aux?(aux->kind==HY_FM?"FM2":"VA2"):profile<32?"PCM":"---";
+    }
+    return source==1?"FM":"VA";
 }
 const McPcmZone *hy_pcm_zone(unsigned zone) {
     return zone<MC_PCM_ZONES?&mc_pcm_zones[zone]:0;
@@ -48,6 +60,15 @@ void hy_source_init(McVoice *v) {
     h->gain[0]=h->target[0]=(uint8_t)(mask&HY_PCM?v->patch.pcm_mix:0);
     h->gain[1]=h->target[1]=(uint8_t)(mask&HY_FM?v->patch.fm_mix:0);
     h->gain[2]=h->target[2]=(uint8_t)(mask&HY_VA?v->patch.va_mix:0);
+    v->aux=(McAuxState){0};
+    const McAuxProfile *aux=hy_aux_profile(v->patch.profile);
+    if(aux&&aux->kind==HY_FM) {
+        uint32_t frames=(uint32_t)aux->fm_decay_ms*MC_RATE/1000u;
+        uint32_t body=(uint32_t)aux->fm_body_q15<<16;
+        uint32_t depth=UINT32_C(0x80000000)-body;
+        v->aux.env=frames?UINT32_C(0x80000000):body;
+        v->aux.step=frames?depth/frames+(depth%frames!=0):0;
+    }
 }
 static int32_t pcm(McVoice *v,McVoiceRender *r) {
     const McPcmMip *level=r->pcm;
@@ -128,6 +149,35 @@ static int32_t va(McVoice *v,const McVoiceRender *r) {
     v->phase2+=r->increment;
     return out;
 }
+static int32_t auxiliary(McVoice *v,const McVoiceRender *r) {
+    const McAuxProfile *p=r->aux;
+    McAuxState *a=&v->aux;
+    int32_t out=0;
+    if(p->kind==HY_FM) {
+        uint32_t feedback=(uint32_t)((int64_t)a->previous_mod*p->fm_feedback*1024);
+        int32_t mod=sine(a->modulator+feedback);
+        a->previous_mod=mod;
+        mod=(int32_t)mc_div_pow2_64((int64_t)mod*a->env,31);
+        uint32_t offset=(uint32_t)((int64_t)mod*p->fm_index*2048);
+        out=sine(a->phase+offset);
+        a->modulator+=r->aux_increment*p->fm_ratio;
+        uint32_t body=(uint32_t)p->fm_body_q15<<16;
+        uint32_t depth=a->env-body;
+        a->env-=depth>a->step?a->step:depth;
+    } else if(r->aux_increment<=mc_va_max_increment[6]) {
+        if(p->wave==MC_WAVE_SINE)out=sine(a->phase);
+        else if(r->aux_table) {
+            if(p->colour_q15==32768u)out=table_sample(r->aux_table_colour,a->phase);
+            else {
+                out=table_sample(r->aux_table,a->phase);
+                if(p->colour_q15)out+=(int32_t)mc_div_pow2_64(
+                    (int64_t)(table_sample(r->aux_table_colour,a->phase)-out)*p->colour_q15,15);
+            }
+        }
+    }
+    a->phase+=r->aux_increment;
+    return out;
+}
 int32_t hy_source_sample(McVoice *v,McVoiceRender *r) {
     McHybridState *h=&v->hybrid;
     unsigned mask=v->patch.source_mask&r->profile->available_mask;
@@ -145,7 +195,8 @@ int32_t hy_source_sample(McVoice *v,McVoiceRender *r) {
         h->va_colour_step=0;
     }
     int32_t sample=0;
-    if(h->gain[0]&&!(h->ended_mask&HY_PCM))sample+=pcm(v,r)*h->gain[0];
+    if(h->gain[0]&&!(h->ended_mask&HY_SLOT1))
+        sample+=(r->aux?auxiliary(v,r):pcm(v,r))*h->gain[0];
     int32_t body=0;
     if(h->gain[1]&&!(h->ended_mask&HY_FM))body+=fm(v,r)*h->gain[1];
     if(h->gain[2])body+=va(v,r)*h->gain[2];

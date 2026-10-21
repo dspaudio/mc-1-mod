@@ -32,6 +32,16 @@ The combined status priority for both banks is IO_ERROR → UNSUPPORTED → CURR
 
 ## Web scope
 
+### Integrated 64 profiles and typed third source
+
+Preserve IDs 0..31 and append 32..43 = 80S SYNTH (12), 44..53 = 90S SYNTH (10), 54..63 = 00S SYNTH (10). All new profiles are PCM-free: 16 duals (mask 6) and 16 triples (mask 7, eight FM2 and eight VA2). The real parallel configurations are FM + VA, FM + VA + FM2 and VA + FM + VA2. Auxiliary phase is independent; the summed sources share one filter and amplitude EG. Do not claim three full engines, seven-saw synthesis, hard sync or PWM cloning.
+
+Source-mask values are three slot bits, not a universal PCM/FM/VA type enum. Slot 0 is old32 PCM, new FM2/VA2, or unavailable. Its existing `pcm_mix` byte, parameter 3, CC16 and bit 1 carry auxiliary gain without a format change. `hy_source_name(profile, slot_index)` and nullable `hy_aux_profile(profile)` own source identity; labels must not infer PCM from bit 1. Audition metadata adds slot-ordered `source_names`, active `source_configuration`, nullable `aux_profile` (kind, tuning Q16, wave, colour Q15 and FM parameters), and per-patch available masks. Native schema 3 and public schema 4 remain; hashes still identify actual WAV/MP3 bytes respectively.
+
+Keep MOD1/schema 1/bank 5 and wire v9. Existing bank-5 saves load as before; banks 1..4 remain protected. No forced clear, browser identity change or migration is required. Program Change extends to 0..63. No emulator geometry, faceplate, framework or layout changes are authorized by this expansion.
+
+Pages requires exactly 285 actual-C entries: 64 full, 64 dry, 144 source-only, 8 kits, 4 performances and 1 stress; 208 are diagnostics. Validate IDs and counts against generated metadata. Preserve all original 141 score/render conditions, MC-1 demos first and the NEON SPIRAL mix from `76eeeb2`. No fake audio, normalization, listening approval or hardware-performance claim follows from these contracts.
+
 - The version is `0.0.1` from `VERSION`, labeled experimental.
 - `install.html` is a firmware download, SHA256, build provenance, and verification-scope page. Do not add device connection/installation buttons, a Web MIDI updater UI, or V15 restoration.
 - Retain ordinary MIDI performance in the emulator. Do not interpret this as authorization to install on a device.
@@ -52,4 +62,4 @@ Strings replaces the old Slow Strings label at stable ID25. Its source is one mo
 
 Organ and brass keep their smooth attack and static FM modulation while replacing pulse/saw bodies with sine/FM recipes. Glass Pad and Bell Bloom disable the former Soft Air PCM layer. Pulse Arp retains its short articulation, with level 127 and a fixed Q8 448/256 output trim; HIPHOP POCKET's per-patch lead level 73 compensates to retain the existing kick balance. This is factory voicing shared by firmware and WASM, not export normalization.
 
-The primary listening previews use MC-1's original NIGHT CIRCUIT pattern (8-bar excerpt) and complete 32-bar NEON SPIRAL arrangement. Notes, gates, flags, drums, original shared FX and scene automation are preserved. New roles are 1/25/8 for NIGHT and ACID4 square 1/ACID4 saw 1/Soft Mallet 15 for NEON; no old LA bank is copied. The additional fast hiphop/techno songs remain available. All 32 presets and 8 kits still need listening evaluation; neither source substitution nor these measurements approve the timbres.
+The primary listening previews use MC-1's original NIGHT CIRCUIT pattern (8-bar excerpt) and complete 32-bar NEON SPIRAL arrangement. Notes, gates, flags, drums, original shared FX and scene automation are preserved. New roles are 1/25/8 for NIGHT and ACID4 square 1/ACID4 saw 1/Soft Mallet 15 for NEON; no old LA bank is copied. The additional fast hiphop/techno songs remain available. All 64 presets and 8 kits still need listening evaluation; neither source substitution nor these measurements approve the timbres.

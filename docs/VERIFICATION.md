@@ -2,7 +2,73 @@
 
 2026-10-21. This record covers local builds and web verification. The firmware was not installed/flashed on an FM-1, and the new image's boot, analog output, CPU1 timing, and real-time deadlines were not measured. Sound quality also remains unapproved by listening.
 
-## Revision 5 candidate: current local evidence
+## Integrated 64-profile candidate: current local evidence
+
+The expansion appends IDs 32..63 to the revision-5 bank without changing
+IDs 0..31 or the NEON SPIRAL mix from `76eeeb2`. It adds 16 FM+VA duals,
+eight FM+VA+FM2 triples and eight VA+FM+VA2 triples. Auxiliary phase,
+modulator/envelope and feedback are independent; pitch, gate, filter and
+amplitude envelope remain shared.
+
+- All 141 previous canonical WAV SHA-256 values match `76eeeb2` exactly.
+  The fresh gallery contains 285 actual-C renders, with zero mechanical,
+  clipping or unfinished-tail failures. The 32 new dry renders also pass
+  all 496 pair comparisons against gain-only duplicates.
+- All 64 profiles match native and WASM PCM. The four complete performances
+  still match sample for sample, including their stopped tails. All 285 MP3
+  controls, typed source labels, exact-ID validation, hashes, cache identity,
+  download links pass. All 285 MP3 files decode to the exact canonical
+  frame counts; lossy sample equality is not claimed.
+- Existing bank-5 records retain MOD1/schema 1, wire v9, a 15-byte patch
+  and a 35,154-byte record. Native and WASM tests cover selecting/editing/
+  saving profile 63, rebooting and wrapping to profile 0. MIDI accepts
+  Program Change 0..63 and rejects 64/127. Foreign banks 1..4 remain protected.
+- The complete native suite and VA-table regeneration pass, as does the
+  complete LLVM 23 ASan/UBSan suite and demo render. The macOS 15.1 SDK
+  configuration below is unchanged. Auxiliary integer FM/VA reference
+  trajectories, mute/resume, main-FM expiry isolation, independent VA bands
+  under bend/glide/Analog, and serial/worker/fallback parity pass.
+  Existing encoder fixtures now wrap at 64 instead of 32; PCM cursor tests
+  identify actual PCM families rather than assuming that slot bit 1 means PCM.
+  The authoritative sanitizer output is `sanitize-final.log` with its separate
+  exit-0 receipt. The earlier shared-path log is retained as mixed intermediate
+  failure evidence, not used to claim success.
+- Fresh Chrome at 390 CSS pixels (DPR 3, touch), 1,440 and 1,920 loads all
+  three routes without horizontal overflow in default and system-light
+  captures, with explicit light/dark pairs at 1,920; the accepted design
+  remains dark-only. The 56 captures include top/bottom,
+  new synth cards and panel interactions. New MP3 playback advances at every
+  width. The actual C MIX screen shows VA2 for
+  profile 33 and FM2 for 37, with independent gain editing. Profile 63
+  produces a nonzero 0.086883544921875 worklet peak at 44.1 kHz. Pressing
+  SAVE twice writes a 73,728-byte image identical to IndexedDB; reconnect
+  restores Future Bell at ID63 with edited cutoff 122. This is browser
+  evidence, not a hardware or listening test.
+- One independent source/functional gate review and two independent visual
+  reviews pass with no blockers. The visual reviewers opened all 56 captures
+  and distinguished accepted faceplate/bitmap/status-bar debt from regressions.
+  Their reports and the clean sanitizer receipt remain local engineering
+  evidence alongside the captures.
+- The actual pi32v2 app is 560,192 / 581,564 bytes, leaving 21,372 bytes.
+  Globals remain 55,708 bytes, pool reservation is 304,408 and RAM text
+  5,568. Target ABI sizes are McVoice 160, McWorkerVoice 308, McSynthJob
+  1,324, McDual 75,836 and McEngine 113,368 bytes. FWSC remains 610,089
+  bytes. Actual offline OTA and RAM-loader simulation pass.
+
+App SHA-256:
+`a903a0ab23db8a75e1871b657d19d52479b5825a466da14fd2b7d0abb851a931`
+
+FWSC SHA-256:
+`928aab3d745f551b5dcd6d479f3c579530df4a5b536dafd959a5675650068d36`
+
+Target-input SHA-256:
+`614c1fc203da4dd689039351ee92b069872b51d711519b223c2bf7069428f476`
+
+Evidence is local under `build/sound-quality/synth64/`. These results do
+not establish listening approval, device boot, analog output or real-time
+CPU deadlines. No device was flashed.
+
+## Revision 5 original 32-profile candidate: historical local evidence
 
 NEON SPIRAL mix follow-up: track 2's mixer level changes from 100 to 127;
 track 3 changes from 104 to 72. Eight-bar solo renders with the same score,

@@ -27,7 +27,7 @@ Identity rules:
 - The emulator is an **instrument exterior** traced from the panel drawing in the FM-1 user manual. This exterior is outside the work's scope and must be preserved except for the changes enumerated in §8.
 - The landing surface continues the mood of `Product original`: "unfold a small instrument into a readable product sheet." A dark circuit board, a large pixel display, an oversized wordmark, and wide rows of actual screenshots.
 - The download surface is **a separate static page**, not an overlay on the instrument. Package version, bytes, hashes, build provenance, and the "not verified on hardware" status must always be clear. It provides no browser-to-device write functionality.
-- mc-1-mod is **a different sound pack**, not an upgrade to MC-1's timbre reproduction (`Current:README.md`). Rewrite landing copy around 32 profiles and the PCM/FM/VA source configuration instead of reusing MC-1 1.2.0's "112 LA timbre replacements" narrative.
+- mc-1-mod is **a different sound pack**, not an upgrade to MC-1's timbre reproduction (`Current:README.md`). Landing copy covers 64 integrated profiles: the original 32 PCM/FM/VA profiles plus 32 PCM-free synth profiles, instead of MC-1 1.2.0's "112 LA timbre replacements" narrative.
 - Do not describe the absence of device verification as success (installation complete, measured performance, hardware passed). Do not use fabricated hardware photos or screen mockups depicting assets that do not exist.
 
 ## 2. Color
@@ -273,7 +273,7 @@ Download surface: there is no state machine. Neither opening the page nor any in
 
 Allowed changes (**all** changes to the emulator exterior):
 
-1. Copy, titles, links: `<title>`, `h1#title`, title assignment in `emu.js`, `#power small`, `#status`, `#help`, `#manual` body, and `.src` provenance paragraph. Reflect the preset count (128 → 32 profiles), MIX page, parameters 49..51, and read-only 2 (core.md §3).
+1. Copy, titles, links: `<title>`, `h1#title`, title assignment in `emu.js`, `#power small`, `#status`, `#help`, `#manual` body, and `.src` provenance paragraph. Reflect the integrated count (64 profiles; original 0..31 retained, 32..43 80S SYNTH, 44..53 90S SYNTH, 54..63 00S SYNTH), MIX page, parameters 49..51, and read-only 2 (core.md §3). Count/data/copy updates retain this frozen layout. The generated gallery expects 285 entries: 64 full + 64 dry + 144 source-only + 8 kits + 4 performances + 1 stress, with 208 diagnostics.
 2. Dead-rule removal: `#fw`/`body.compact #fw`/`body.compact.rotated #fw` (no corresponding DOM element in `index.html`), `h1 .orbit-mark` (no uses of that class), `fonts.gstatic.com` preconnect.
 3. Resource version queries `?v=1.2.0` → `?v=<VERSION>`.
 4. Identifiers: wasm filename, AudioWorklet processor name, IndexedDB DB/key (`mc-1-mod:MOD1:s1:b1` in core.md §6).
