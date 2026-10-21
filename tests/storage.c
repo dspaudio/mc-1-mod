@@ -78,7 +78,7 @@ static void reject(unsigned n) {
 static void wire_tests(void) {
     assert(mc_encode(&original,71,encoded,sizeof encoded)==MC_RECORD_BYTES);
     assert(!memcmp(encoded,"MCHY",4)&&encoded[4]==9&&!encoded[5]);
-    assert(!memcmp(encoded+20,"MOD1\1\0\1\0",8));
+    assert(!memcmp(encoded+20,"MOD1\1\0\2\0",8));
     assert(!memcmp(encoded+20,mc_pack_id,8));
     assert((encoded[6]|(unsigned)encoded[7]<<8)==35134);
     memcpy(other,encoded,sizeof other);
@@ -118,6 +118,10 @@ static void wire_tests(void) {
         changed.patch[0].cutoff^=1;
         changed.midi_channel[0]=15;changed.midi_channel[1]=0;
         changed.midi_channel[2]=7;changed.midi_channel[3]=9;changed.clock_source=3;
+        for(unsigned part=0;part<MC_PARTS;part++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+            changed.fx_send[part][bank]=(uint8_t)((profile*17u+part*31u+bank*7u)%128u);
+        for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+            changed.fx_bus_type[bank]=(uint8_t)((profile+bank*3u)%8u);
         for(unsigned custom=0;custom<2;custom++) {
             if(custom) changed.preset[0]=255;
             assert(mc_encode(&changed,profile,encoded,sizeof encoded)>0);
@@ -147,11 +151,16 @@ static void wire_tests(void) {
         changed.automation[0].address=0;
     }
     changed=original;changed.automation_count=1;
+    changed.patch[0]=mc_presets[MC_PRESET_REED_PULSE];
+    changed.preset[0]=MC_PRESET_REED_PULSE;
     changed.automation[0]=(McAutomation){0,0,MC_PARAM_FM_MIX,1};
     assert(!mc_project_valid(&changed));
     changed.automation[0].parameter=MC_PARAM_SOURCE_MASK;
     changed.automation[0].value=1;assert(!mc_project_valid(&changed));
-    assert(mc_encode(&original,1,encoded,sizeof encoded)>0);
+    changed=original;
+    changed.patch[0]=mc_presets[MC_PRESET_REED_PULSE];
+    changed.preset[0]=MC_PRESET_REED_PULSE;
+    assert(mc_encode(&changed,1,encoded,sizeof encoded)>0);
     memcpy(other,encoded,sizeof other);
     const unsigned unavailable[]={3,12,14};
     for(unsigned i=0;i<sizeof unavailable/sizeof unavailable[0];i++) {
@@ -185,6 +194,27 @@ static void bank_state(unsigned bank,int state) {
     if(state==MC_STORE_UNSUPPORTED) {p[20]^=1;checksums(p);}
 }
 static void status_tests(void) {
+    /* CRC-valid revision-1 banks remain foreign, not migrated or erased. */
+    for(unsigned foreign=1;foreign<4;foreign++) {
+        reset_io();bank_state(0,MC_STORE_CURRENT);bank_state(1,MC_STORE_CURRENT);
+        for(unsigned bank=0;bank<2;bank++)if(foreign&(1u<<bank)) {
+            uint8_t *record=flash+((bank?MC_STORE_B:MC_STORE_A)-BASE);
+            record[26]=1;record[27]=0;checksums(record);
+            uint32_t sequence=999;
+            assert(mc_record_valid(record,MC_RECORD_BYTES,&sequence)==-3&&sequence==999);
+            before=loaded;
+            assert(mc_decode(&loaded,&sequence,record,MC_RECORD_BYTES)==-3&&sequence==999);
+            assert(!memcmp(&before,&loaded,sizeof loaded));
+        }
+        memcpy(snapshot,flash,sizeof flash);
+        assert(mc_store_status(&io)==MC_STORE_UNSUPPORTED);
+        uint32_t sequence=999;
+        int result=mc_store_load(&io,&loaded,&sequence);
+        assert(result==(foreign==3?-3:foreign==1?1:0));
+        assert(sequence==(foreign==3?999u:foreign==1?2u:1u));
+        assert(mc_store_save(&io,&original)<0&&!erase_calls&&!program_calls);
+        assert(!memcmp(snapshot,flash,sizeof flash));
+    }
     for(int a=0;a<5;a++) for(int b=0;b<5;b++) {
         reset_io();bank_state(0,a);bank_state(1,b);
         if(a==MC_STORE_IO_ERROR) unreadable=MC_STORE_A;

@@ -7,6 +7,7 @@
 static McEngine e;
 static McProject decoded;
 static uint8_t record[MC_RECORD_BYTES],again[MC_RECORD_BYTES];
+static McEngine dry;
 static McUi ui;
 static uint16_t pixels[240*8];
 static void drain(void) { McMidiMessage m;while(mc_midi_pop(&e,&m)) {} }
@@ -59,40 +60,84 @@ static void midi(void) {
     }
     puts("PASS all four demo MIDI loads: programs, pending notes, ARP, sustain, overflow, Stop and channel cleanup");
 }
+/* Explicit demo loads use the shared palette and each role's preset sends; no song-specific edits. */
+static void fx_contract(unsigned demo) {
+    static const uint8_t drum_sends[MC_FX_BANKS]={12,0,6,0};
+    mc_init(&e);mc_demo_load(&e,demo);
+    assert(!memcmp(e.project.fx_bus_type,mc_factory_fx_types,sizeof e.project.fx_bus_type));
+    for(unsigned part=0;part<3;part++) {
+        unsigned live=0;
+        assert(!memcmp(e.project.fx_send[part],mc_preset_fx_send[e.project.preset[part]],MC_FX_BANKS));
+        for(unsigned bank=0;bank<MC_FX_BANKS;bank++)live+=e.project.fx_send[part][bank];
+        assert(live);
+    }
+    assert(!memcmp(e.project.fx_send[3],drum_sends,sizeof drum_sends));
+}
+/* Full-tone and zero-send renders of the same loaded song must differ; sends are cleared after load. */
+static void wet_dry(unsigned demo) {
+    mc_init(&e);mc_demo_load(&e,demo);
+    mc_init(&dry);mc_demo_load(&dry,demo);
+    memset(dry.project.fx_send,0,sizeof dry.project.fx_send);
+    mc_start(&e);mc_start(&dry);
+    uint64_t diff=0,energy=0;
+    for(unsigned n=0;n<4*MC_RATE;n++) {
+        int16_t a[2],b[2];mc_render(&e,a,1);mc_render(&dry,b,1);
+        for(unsigned c=0;c<2;c++) {
+            int d=a[c]-b[c];diff+=(uint64_t)(d<0?-d:d);energy+=(uint64_t)(b[c]<0?-b[c]:b[c]);
+        }
+        if(e.midi.count)drain();
+        if(dry.midi.count) { McMidiMessage m;while(mc_midi_pop(&dry,&m)) {} }
+    }
+    assert(energy&&diff);
+    printf("PASS %s wet-vs-dry: dry_abs=%llu wet_minus_dry_abs=%llu\n",mc_demo_names[demo],
+        (unsigned long long)energy,(unsigned long long)diff);
+}
 static void song(unsigned demo) {
-    static const uint8_t presets[2][3]={{5,10,12},{2,17,29}};
+    static const uint8_t presets[2][3]={{2,29,17},{1,18,7}};
     unsigned techno=demo==MC_DEMO_TECHNO,bars=techno?32u:24u;
     mc_init(&e);mc_demo_load(&e,demo);
     assert(!e.playing&&!e.project.demo&&e.project.song_mode&&!e.project.song_loop);
     assert(e.project.bpm==(techno?144:128)&&e.project.swing==(techno?0:12));
-    assert(e.project.drum_kit==(techno?1:4)&&mc_project_valid(&e.project));
+    assert(e.project.drum_kit==1&&mc_project_valid(&e.project));
     assert(!memcmp(e.project.preset,presets[techno],3));
     unsigned total=0,parts[4]={0},used=0;
     for(unsigned i=0;i<e.project.song_length;i++) {
         total+=e.project.song[i].repeats;used|=1u<<e.project.song[i].pattern;
     }
-    assert(total==bars&&used==255);
-    for(unsigned p=0;p<8;p++) {
-        for(unsigned q=p+1;q<8;q++)assert(memcmp(e.project.step[p],e.project.step[q],sizeof e.project.step[p]));
+    assert(total==bars&&used==65535u);
+    unsigned accents=0,slides=0;
+    for(unsigned p=0;p<16;p++) {
+        for(unsigned q=p+1;q<16;q++)assert(memcmp(e.project.step[p],e.project.step[q],sizeof e.project.step[p]));
         for(unsigned t=0;t<4;t++)for(unsigned s=0;s<16;s++) {
             const McStep *step=&e.project.step[p][t][s];
             if(t==3)parts[t]+=step->drums!=0;
-            else parts[t]+=step->velocity!=0;
+            else {
+                parts[t]+=step->velocity!=0;
+                accents+=(step->flags&MC_ACCENT)!=0;
+                slides+=(step->flags&MC_SLIDE)!=0;
+            }
         }
     }
     for(unsigned t=0;t<4;t++)assert(parts[t]);
-    for(unsigned p=1;p<7;p++)if(p!=4)for(unsigned s=0;s<16;s+=4)
-        assert(e.project.step[p][3][s].drums&1);
+    assert(accents&&slides&&e.project.patch[0].mode==MC_MONO);
+    assert(e.project.step[0][3][0].drums&1);
+    assert(e.project.step[0][3][0].velocity>=110&&e.project.drum_level[0]==120);
     if(!techno) {
-        assert(e.project.step[1][0][3].velocity&&e.project.step[1][0][6].velocity);
-        assert(e.project.step[5][0][7].velocity&&e.project.step[5][0][15].velocity);
-        assert(e.project.step[1][1][2].velocity&&e.project.step[1][1][7].velocity&&e.project.step[1][1][10].velocity);
+        assert(e.project.step[0][0][0].note[0]==36&&e.project.step[0][0][0].velocity==112);
+        assert(e.project.step[0][1][1].note[0]==67&&e.project.step[0][1][1].velocity==101);
+        assert(!e.project.automation_count);
+    } else {
+        assert(e.project.step[0][0][1].note[0]==43&&e.project.step[0][0][1].velocity==108);
+        assert(e.project.automation_count==112);
+        unsigned cutoff_changes=0,resonance_changes=0;
+        for(unsigned i=0;i<e.project.automation_count;i++) {
+            const McAutomation *a=&e.project.automation[i];
+            assert(a->address/5<16&&a->address%5==0&&a->step<16&&a->value<=127);
+            assert(a->parameter==4||a->parameter==5);
+            cutoff_changes+=a->parameter==4;resonance_changes+=a->parameter==5;
+        }
+        assert(cutoff_changes&&resonance_changes);
     }
-    for(unsigned s=0;s<16;s++)assert(!e.project.step[4][0][s].velocity&&!(e.project.step[4][3][s].drums&1));
-    assert(e.project.step[3][3][14].drums&(1u<<5));
-    assert(e.project.step[3][3][15].drums&(1u<<9));
-    for(unsigned s=8;s<16;s++)for(unsigned t=0;t<4;t++)
-        assert(!e.project.step[7][t][s].velocity&&!e.project.step[7][t][s].drums);
     uint32_t sequence=0;
     assert(mc_encode(&e.project,23,record,sizeof record)==MC_RECORD_BYTES);
     assert(!mc_decode(&decoded,&sequence,record,sizeof record)&&sequence==23);
@@ -117,16 +162,17 @@ static void song(unsigned demo) {
         }
         if(e.midi.count)drain();
     }
-    assert(!e.playing&&e.song_finished&&seen==255&&e.events==bars*16);
+    assert(!e.playing&&e.song_finished&&seen==65535u&&e.events==bars*16);
     /* 내부 시계는 각 스텝의 나머지를 다음 스텝에 누적한다. */
     assert(frames==(MC_RATE*240u*bars+e.project.bpm-1u)/e.project.bpm);
     assert(energy&&peak<MC_OUTPUT_CEILING&&!e.clips&&!e.limiter_hits&&!e.steals);
     assert(max_voice<=8&&max_drum<=6&&e.master==MC_MASTER_DEFAULT);
     /* 종결의 빈 후반부와 짧은 EG 뒤에는 FX 꼬리도 충분히 작아진다. */
     unsigned tail_peak=0;
-    for(unsigned n=0;n<MC_RATE;n++) {
+    /* Render 12 s after the scheduled performance; an unfinished tail fails, history is never cleared. */
+    for(unsigned n=0;n<12u*MC_RATE;n++) {
         int16_t audio[2];mc_render(&e,audio,1);
-        if(n>=MC_RATE-1024)for(unsigned c=0;c<2;c++) {
+        if(n>=12u*MC_RATE-1024)for(unsigned c=0;c<2;c++) {
             unsigned value=(unsigned)(audio[c]<0?-(int)audio[c]:audio[c]);
             if(value>tail_peak)tail_peak=value;
         }
@@ -137,6 +183,10 @@ static void song(unsigned demo) {
         mc_demo_names[demo],e.project.bpm,e.project.swing,bars,frames,e.events,peak,e.clips,e.limiter_hits,e.steals,max_voice,max_drum,tail_peak);
 }
 int main(void) {
-    selection();midi();song(MC_DEMO_HIPHOP);song(MC_DEMO_TECHNO);
+    selection();midi();
+    for(unsigned demo=0;demo<MC_DEMOS;demo++)fx_contract(demo);
+    puts("PASS demo FX: candidate palette and role sends set after the final preset in all four loads");
+    wet_dry(MC_DEMO_HIPHOP);wet_dry(MC_DEMO_TECHNO);
+    song(MC_DEMO_HIPHOP);song(MC_DEMO_TECHNO);
     puts("demo-songs: PASS");
 }

@@ -35,6 +35,17 @@ The current 16kHz/224KiB allocation is a design budget, not a user requirement t
 - Distinguish band limiting needed for anti-aliasing from unnecessary removal of harmonics. Reduced aliasing alone does not justify accepting a dull sound. Check per-mip spectra and output-rate conversion across the actual supported range.
 - Do not call the work complete merely because short loops, low-order harmonics, or excessive low-pass filtering meet the budget.
 
+## Complete-tone auditions and diagnostics
+
+A preset's sound is source + shared envelope/filter + shared FX. The default audition files are therefore rendered with the intended FX; dry clips are separate diagnostics, never the quality showcase.
+
+- `preset-%02u.wav`, `modern-demo.wav`, `hiphop-pocket.wav`, `techno-drive.wav` and `kit-%02u.wav` use the candidate shared FX palette (`mc_factory_fx_types`) and each selected role's `mc_preset_fx_send` row, applied AFTER every `mc_preset` call. Drum sends are the new-project row `12,0,6,0`. The two dance songs keep their arrangements and notes; no song-specific send edits are applied, and any such edit must be recorded in the metadata.
+- `preset-%02u-dry.wav` is the matched diagnostic: identical note, event and gain timeline, with all sends cleared after all preset calls. `preset-%02u-source-%u.wav` isolates one source, also with sends cleared. Neither is loudness-matched, and no file is normalized.
+- `modern-stress.wav` keeps uniform send 24 and its own bank types only as a labelled stress fixture, applied after its preset calls.
+- Default preset phrases play in the role's register (bass IDs 00..07 in MIDI 24..48, all others in 48..84): three short velocity-layered notes (articulation), one sustained note or chord (body and motion), then an eight-step role phrase. All MIDI 12..108 still need separate measurement.
+- Every file renders 12 s after its scheduled performance. A file whose voices, drums or final 100 ms are not finished is marked `mechanical_status: FAIL` and the run exits non-zero; histories are never cleared to hide a tail.
+- `auditions.json` schema 3 keeps the real `fx_types[4]` and `fx_sends[4][4]` captured from the renderer before the first sample, the hashes, gains and normalization fields, and adds `render_mode` (`full`, `dry-diagnostic`, `source-diagnostic`, `stress`), `diagnostic`, `bank_revision`, `fx_origin`, `paired_file`, `reference_video_id` (`F4_2MaZXeOA`) and `reference_audio_auditioned` (`false`). The reference audio has not been auditioned; no file implies equivalence or listening approval.
+
 ## Evidence and verdicts
 
 Keep isolated-source/mixed WAVs, exact events and source/mix/filter settings, loudness-matching methods, and pitch/envelope/time-resolved spectrum comparisons. State the genre, role, and intended character of all 32 sounds, and render both single notes and short real phrases. Comparing original materials is a means of finding unintended degradation, not a score for traditional instrument reproduction.

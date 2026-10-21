@@ -84,15 +84,20 @@ static void demos(void) {
             assert(a.project.fx_bus_type[0]<6&&a.project.fx_bus_type[2]>=6);
             assert(a.project.fx_send[1][0]&&a.project.fx_send[1][2]&&a.project.analog[1]);
             assert(a.project.patch[2].profile==(demo?MC_PRESET_SOFT_MALLET:MC_PRESET_STAGE_PIANO));
-            assert(a.project.patch[2].source_mask==(demo?2:7));
-            assert(demo?!a.project.patch[2].pcm_mix:a.project.patch[2].pcm_mix==108);
+            unsigned preset=demo?MC_PRESET_SOFT_MALLET:MC_PRESET_STAGE_PIANO;
+            assert(a.project.patch[2].source_mask==mc_presets[preset].source_mask);
+            assert(demo?a.project.patch[2].pcm_mix==mc_presets[preset].pcm_mix:a.project.patch[2].pcm_mix==108);
             mc_demo_load(&a,demo);mc_demo_load(&b,demo);
             memset(b.project.fx_send,0,sizeof b.project.fx_send);
             mc_start(&a);mc_start(&b);uint64_t dry=0,difference=0;
+            unsigned fx_seen=0,fx_expected=0;
+            for(unsigned part=0;part<MC_PARTS;part++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+                if(a.project.fx_send[part][bank])fx_expected|=1u<<bank;
             for(unsigned offset=0;offset<frames;) {
                 unsigned n=frames-offset>4096?4096:frames-offset;
                 mc_render(&a,x,n);mc_render(&b,y,n);
-                if(!offset)assert(a.shared_fx.rd_active&&a.shared_fx.cf_active&&a.extra_fx.rd_active&&a.extra_fx.cf_active);
+                fx_seen|=(a.shared_fx.rd_active?1u:0u)|(a.shared_fx.cf_active?2u:0u)|
+                    (a.extra_fx.rd_active?4u:0u)|(a.extra_fx.cf_active?8u:0u);
                 for(unsigned i=0;i<n*2;i++) {
                     int32_t delta=(int32_t)x[i]-y[i];
                     dry+=(uint64_t)((int32_t)y[i]*y[i]);
@@ -100,6 +105,7 @@ static void demos(void) {
                 }
                 offset+=n;
             }
+            assert(fx_seen==fx_expected);
             /* 구 LA golden은 새 bank의 기준이 아니다. 실제 dry 에너지와 FX 기여를 검사한다. */
             double dry_rms=10*log10((double)dry/(frames*2.0*32768.0*32768.0));
             printf("Demo %u dry RMS=%.9f dBFS\n",demo,dry_rms);

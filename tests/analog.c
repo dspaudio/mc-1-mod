@@ -11,7 +11,6 @@ static int16_t a[514],b[514],c[514];
 static void fixture(McEngine *e,unsigned amount) {
     mc_init(e);
     memset(e->project.step,0,sizeof e->project.step);
-    memset(e->project.fx_send,0,sizeof e->project.fx_send);
     for(unsigned p=0;p<3;p++) {
         mc_preset(e,p,MC_PRESET_STAGE_PIANO);
         McPatch *patch=&e->project.patch[p];
@@ -19,6 +18,7 @@ static void fixture(McEngine *e,unsigned amount) {
         patch->sustain=127;patch->release=100;patch->glide=0;patch->level=100;
         assert(!mc_parameter_set(e,p,MC_PARAM_ANALOG,amount));
     }
+    memset(e->project.fx_send,0,sizeof e->project.fx_send);
 }
 static void notes(McEngine *e) {
     for(unsigned i=0;i<MC_VOICES;i++)mc_note(e,i%3,60,100,0,0);

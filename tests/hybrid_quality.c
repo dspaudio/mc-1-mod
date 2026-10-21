@@ -17,12 +17,12 @@ static unsigned failures;
 
 static void setup(unsigned id,unsigned mask,int held) {
     mc_init(&q);
-    memset(q.project.fx_send,0,sizeof q.project.fx_send);
     memset(q.project.analog,0,sizeof q.project.analog);
     memset(q.project.arp,0,sizeof q.project.arp);
     memset(q.project.track_filter,0,sizeof q.project.track_filter);
     q.master=32768;
     mc_preset(&q,0,id);
+    memset(q.project.fx_send,0,sizeof q.project.fx_send);
     q.project.patch[0].source_mask=(uint8_t)mask;
     if(held) {
         /* 피치/루프 관찰용 hold다. 음색 기본값 검사는 별도로 수행한다. */
@@ -190,8 +190,10 @@ static void harmonic_reference(void) {
         v.patch=mc_presets[id];v.patch.source_mask=HY_VA;v.note=60;v.velocity=110;
         hy_source_init(&v);
         unsigned band=0;uint32_t inc=mc_frequency[60];
-        while(band<6&&inc>=mc_frequency[36u+12u*band])band++;
-        McVoiceRender r={.profile=hy_profile(id),.cache=&cache,.increment=inc,.table=mc_saw[band]};
+        while(band<6&&inc>mc_va_max_increment[band])band++;
+        McVoiceRender r={.profile=hy_profile(id),.cache=&cache,.increment=inc,
+            .table=mc_saw[band],.table_colour=mc_saw_colour[band],
+            .va_morph_frames=(uint32_t)hy_profile(id)->va_morph_ms*MC_RATE/1000u};
         for(unsigned i=0;i<Q_FRAMES;i++) { reference[i]=(int16_t)hy_source_sample(&v,&r);v.age++; }
         double hz=(double)inc*MC_RATE/4294967296.0;
         double raw_fund=harmonic(reference,2*MC_RATE,Q_WINDOW,hz);

@@ -5,11 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 
-/* 실행 kernel과 독립적으로 실제 factory 데이터와 후보 PCM의 계약을 검사한다. */
+/* Validate immutable recipes and real factory data, not perceived sound quality. */
 int main(void) {
     static const uint8_t masks[32]={
-        4,4,6,6,6,5,4,6,7,5,6,3,1,3,6,2,
-        6,6,4,7,6,4,6,6,5,5,5,7,4,3,5,6};
+        6,4,6,6,6,7,4,6,7,5,6,7,5,7,6,6,
+        6,6,4,7,6,4,6,6,5,5,5,7,6,7,5,7};
     static const uint8_t families[32]={
         255,255,255,255,0,0,255,255,1,1,1,1,2,3,255,255,
         255,255,255,4,255,255,255,255,5,5,6,6,255,2,5,6};
@@ -17,14 +17,21 @@ int main(void) {
         "BASS CORE","BASS SEQ","PIANO EP","PLUCK MALLET",
         "COMP STAB","LEAD","PAD TEXTURE","MOTION"};
     _Static_assert(MC_PRESETS==32&&sizeof(McPatch)==15,"profile ABI");
-    _Static_assert(MC_KITS==8&&MC_DRUMS==16&&MC_VOICES==8,"resource ABI");
+    _Static_assert(MC_KITS==8&&MC_DRUMS==16&&MC_VOICES==8&&MC_DRUM_VOICES==6,"resource ABI");
+    _Static_assert(MC_FX_BANKS==4&&MC_PARTS==4,"shared FX ABI");
+    _Static_assert(MC_PCM_FAMILIES==7&&MC_PCM_ZONES==9,"PCM family ABI");
+    _Static_assert(sizeof(((McHybridProfile *)0)->fm_body_q15)==2&&
+        sizeof(((McHybridProfile *)0)->va_colour_start_q15)==2&&
+        sizeof(((McHybridProfile *)0)->va_colour_end_q15)==2&&
+        sizeof(((McHybridProfile *)0)->va_morph_ms)==2,"immutable recipe units");
     unsigned singles=0,triples=0,used=0;
     for(unsigned id=0;id<MC_PRESETS;id++) {
         const McPatch *p=&mc_presets[id];
         const McHybridProfile *r=&mc_hybrid_profiles[id];
-        unsigned available=masks[id]|((id==4||id==10||id==31)?HY_PCM:0);
+        unsigned available=masks[id]|((id==4||id==10)?HY_PCM:0);
         assert(p->profile==id&&p->source_mask==masks[id]);
         assert(r->available_mask==available&&r->pcm_family==families[id]);
+        assert(available&&!(available&~HY_ALL));
         assert(!(p->source_mask&~r->available_mask));
         assert(p->mode==((id==1||id==22)?MC_MONO:MC_POLY));
         assert(p->wave<=MC_WAVE_SINE&&p->level>0);
@@ -39,9 +46,26 @@ int main(void) {
         assert(r->fm_index<=127&&r->fm_feedback<=24);
         assert(r->velocity_index<=127&&r->velocity_cutoff<=127);
         assert(r->fm_decay_ms<=10000&&r->fm_duration_ms<=10000);
+        assert(r->fm_body_q15<=32768);
+        assert(r->va_colour_start_q15<=32768&&r->va_colour_end_q15<=32768);
+        assert(!r->va_morph_ms||(r->va_morph_ms>=80&&r->va_morph_ms<=10000));
+        if(!r->va_morph_ms)assert(r->va_colour_start_q15==r->va_colour_end_q15);
+        if(!(available&HY_VA)||p->wave==MC_WAVE_SINE)
+            assert(!r->va_colour_start_q15&&!r->va_colour_end_q15&&!r->va_morph_ms);
         assert(r->filter_kind==(id==1?HY_FILTER_ACID4:HY_FILTER_2POLE));
-        if(available&HY_FM)assert(r->fm_index>0&&r->fm_decay_ms>0);
+        if(available&HY_FM) {
+            assert(r->fm_index>0&&r->fm_decay_ms>0);
+            if(r->fm_duration_ms) {
+                assert(!r->fm_body_q15&&r->fm_duration_ms>=r->fm_decay_ms);
+            } else if(p->sustain)assert(r->fm_body_q15>0);
+        } else {
+            assert(!r->fm_body_q15&&!r->fm_index&&!r->fm_feedback);
+            assert(!r->velocity_index&&!r->fm_decay_ms&&!r->fm_duration_ms);
+        }
+        for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+            assert(mc_preset_fx_send[id][bank]<=(id<8?24:64));
         if(available&HY_PCM) {
+            assert(r->pcm_family<MC_PCM_FAMILIES);
             unsigned zones=0;
             for(unsigned z=0;z<MC_PCM_ZONES;z++)zones+=mc_pcm_zones[z].family==r->pcm_family;
             assert(zones==(r->pcm_family==1?3u:1u));
@@ -50,17 +74,19 @@ int main(void) {
         assert(!strcmp(mc_preset_categories[id],groups[id/4]));
         assert(mc_preset_names[id][0]&&strlen(mc_preset_names[id])<=12);
         for(unsigned other=0;other<id;other++) {
-            /* profile ID 자체를 빼도 실제 편집값/recipe가 서로 달라야 한다. */
+            /* Distinction must survive removal of the profile ID itself. */
             McPatch lhs=*p,rhs=mc_presets[other];lhs.profile=rhs.profile=0;
             assert(memcmp(&lhs,&rhs,sizeof lhs)||memcmp(r,&mc_hybrid_profiles[other],sizeof *r));
         }
         singles+=(masks[id]&(masks[id]-1u))==0;
         triples+=masks[id]==HY_ALL;
     }
-    assert(singles==8&&triples==3&&used==127);
+    assert(singles==4&&triples==8&&used==127);
     for(unsigned z=0;z<MC_PCM_ZONES;z++) {
         const McPcmZone *zone=&mc_pcm_zones[z];
+        static const uint8_t roots[MC_PCM_ZONES]={36,48,60,72,60,60,60,60,60};
         assert(zone->family<MC_PCM_FAMILIES&&zone->tuning_hz_q16&&zone->levels==7);
+        assert(zone->root==roots[z]);
         for(unsigned mip=0;mip<zone->levels;mip++) {
             const McPcmMip *m=&zone->mip[mip];unsigned nonzero=0;
             assert(m->data&&m->length>1);
@@ -70,11 +96,14 @@ int main(void) {
             assert(nonzero);
         }
     }
-    /* 수치로 입증하는 제작 의도다. 청취 승인을 대신하지 않는다. */
+    /* Structural role intent; these assertions cannot approve listening. */
     assert(mc_presets[0].wave==MC_WAVE_SINE&&mc_presets[1].glide>0);
     assert(mc_presets[2].wave==MC_WAVE_SQUARE&&mc_hybrid_profiles[2].fm_duration_ms<=80);
     assert(mc_presets[6].source_mask==HY_VA);
-    assert(mc_presets[8].pcm_mix>mc_presets[8].fm_mix&&mc_presets[8].fm_mix>mc_presets[8].va_mix);
+    assert(mc_presets[0].fm_mix>0&&mc_hybrid_profiles[0].fm_body_q15>0);
+    assert(mc_presets[5].source_mask==HY_ALL&&mc_hybrid_profiles[5].fm_body_q15>0);
+    assert(mc_presets[8].pcm_mix>mc_presets[8].fm_mix&&mc_presets[8].va_mix>mc_presets[8].fm_mix);
+    assert(mc_hybrid_profiles[8].fm_duration_ms>0&&mc_presets[8].sustain>=80);
     assert(mc_presets[9].wave==MC_WAVE_SAW&&mc_presets[9].va_mix>mc_presets[8].va_mix);
     assert(mc_presets[9].sustain>mc_presets[8].sustain&&mc_presets[9].release>mc_presets[8].release);
     assert(mc_presets[10].fm_mix>mc_presets[10].va_mix&&mc_presets[11].cutoff>mc_presets[10].cutoff);
@@ -86,9 +115,37 @@ int main(void) {
     assert(mc_presets[25].pcm_mix>mc_presets[25].va_mix);
     assert(mc_presets[26].wave==MC_WAVE_SINE&&mc_presets[27].fm_mix>mc_presets[27].pcm_mix);
     assert(mc_presets[28].sustain==0&&mc_presets[29].sustain==0);
+    assert(mc_presets[28].source_mask==(HY_FM|HY_VA)&&mc_presets[29].source_mask==HY_ALL);
+    assert(mc_hybrid_profiles[28].fm_duration_ms&&mc_hybrid_profiles[29].fm_duration_ms);
     assert(mc_presets[30].attack>mc_presets[24].attack&&mc_hybrid_profiles[30].filter_depth>10000);
     assert(mc_hybrid_profiles[31].fm_decay_ms>1000&&mc_presets[31].fm_mix>mc_presets[31].va_mix);
-    puts("PASS: 32 profiles, masks/optional sources, 15-byte parameters, 8 roles, 7 families/9 zones/63 mips");
+    {
+        static McProject project;
+        static const uint8_t types[4]={3,1,7,5},drums[4]={12,0,6,0},ids[3]={0,10,20};
+        memset(&project,0xa5,sizeof project);
+        mc_factory(&project);
+        assert(mc_project_valid(&project));
+        assert(!memcmp(mc_factory_fx_types,types,sizeof types));
+        assert(!memcmp(project.fx_bus_type,types,sizeof types));
+        assert(!memcmp(project.fx_send[3],drums,sizeof drums));
+        for(unsigned part=0;part<3;part++) {
+            assert(project.preset[part]==ids[part]);
+            assert(!memcmp(&project.patch[part],&mc_presets[ids[part]],sizeof(McPatch)));
+            assert(!memcmp(project.fx_send[part],mc_preset_fx_send[ids[part]],MC_FX_BANKS));
+        }
+        mc_project_defaults(&project);
+        for(unsigned bank=0;bank<MC_FX_BANKS;bank++) {
+            assert(!project.fx_bus_type[bank]);
+            for(unsigned part=0;part<MC_PARTS;part++)assert(!project.fx_send[part][bank]);
+        }
+        mc_factory(&project);
+        assert(!memcmp(project.fx_bus_type,types,sizeof types));
+        for(unsigned part=0;part<3;part++)
+            assert(!memcmp(project.fx_send[part],mc_preset_fx_send[ids[part]],MC_FX_BANKS));
+        assert(!memcmp(project.fx_send[3],drums,sizeof drums));
+    }
+    puts("PASS: 32 revoiced profiles, body/colour bounds, masks/gains, 15-byte patches, 7 families/9 zones/63 mips");
+    puts("PASS: factory 00/10/20, shared palette, melodic/drum sends after defaults clear");
     puts("UNRUN: audio rendering/listening, WASM execution, target/device approval");
     return 0;
 }

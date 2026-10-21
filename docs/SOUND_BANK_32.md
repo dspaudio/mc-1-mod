@@ -1,209 +1,154 @@
-# Initial 32-sound selection and layout
+# Modern hybrid 32-role bank, revision 2
 
-Date: 2026-10-21\
-Status: production specification for 32 product sounds. The original mathematical PCM candidates in 7 families/9 zones have passed data checks only; product audio quality has not been approved. The goal is usable modern sounds for songs in each genre, not realistic reproduction of traditional instruments. The 32 finished presets are still in production. Apply the [required audio acceptance criteria](AUDIO_ACCEPTANCE.md); data checks and implementation verification do not confer listening approval.
+Date: 2026-10-21. Status: revoiced implementation candidates; **all 32 sounds remain unapproved, including IDs 04 and 05**. The old bank is a rejected A/B reference, not protected material. These tables describe the actual immutable recipes and default patches, not measured listening success. Follow [audio acceptance](AUDIO_ACCEPTANCE.md).
 
-## 1. Goals
+## Direction and fixed resources
 
-Select 32 sounds to build techno, hiphop, pop, and eurosynth songs with three melody tracks and the existing drums. References to the recent MODx family concern the breadth of instrument roles, analog/digital contrasts, performance response, and ease of searching found in official MODX M materials. The goal is neither to copy the sounds, names, or data of specific Yamaha Performances nor to match their operator counts.
+The selected direction is the entire first Shorts F4_2MaZXeOA, user-identified as "The best Serum 2 presets", Spaces. Its reference audio has NOT been directly auditioned here. No equivalence, reference breakdown or listening approval is claimed. The foreground anchors are an immediately distinctive bass AND arpeggio for Lose Control, and a weighty kick AND textured 303 for the user's sgad li mi. These are comparison directions, not copied melodies or audio. Kick material and song composition are separate work; no kick improvement is claimed by this recipe change.
 
-The user's concrete criterion is **modern hybrid sounds such as synth piano rather than plain piano, or piano containing strings sounds**. The piano, EP, and pad names below therefore do not instruct traditional instrument imitation. Roles should flow within a single sound: strings-like sustain after a piano attack, FM bell clarity with a warm synth body, or the contrast of a short pluck followed by a lingering pad. Simply renaming a sound "synth" or adding a sine wave to its attack does not satisfy this goal.
+Each note still occupies one of eight melody slots, with one PCM stream, two FM operators and one phase-coherent VA oscillator sharing pitch, gate, velocity, amplitude EG and filter. Six drum voices, 16 drum lanes and four SHARED FX banks remain. No unison, extra oscillator, per-preset processor, master normalization or acoustic-replica claim is introduced. Names, IDs and order are unchanged; only zero-based IDs 01/22 are mono. Display numbers are ID + 1.
 
-Retain the lightweight architecture. A piano-attack PCM can combine with a VA strings-like body, or a single prepared PCM material can contain an attack-to-texture transition over time. These examples do not require additional independent full-engine layers, logical voices, or multiple PCM streams. Verify consistent pitch and natural transitions under a shared gate, pitch, final amplitude EG, and filter.
+Revision 2 keeps MOD1, schema 1, the 15-byte McPatch and v9's 35134-byte payload/35154-byte record. The four new uint16 source fields are immutable profile data, never patch/project bytes. Revision-1 records are foreign/unsupported under the revised pack identity, not silently migrated; resolving/exporting an older stored bank is separate work.
 
-The 32 count refers to melody presets. Existing drum kits and 16 lanes are separate and do not count toward it. Reducing the preset count is a decision to manage sound production, listening verification, and PCM assets, not a reduction in CPU cost per voice.
+Groups remain BASS CORE (00..03), BASS SEQ (04..07), PIANO EP (08..11), PLUCK MALLET (12..15), COMP STAB (16..19), LEAD (20..23), PAD TEXTURE (24..27), MOTION (28..31).
 
-The earlier draft's PCM 8/FM 12/VA 12 allocation and "one preset, one engine" rule are discarded. Each preset lightly mixes only the sound-generating elements it needs within one logical voice.
+## Source identity and articulation
 
-| Element | Basic form | Main roles |
+| ID | Name | Actual change and intended complete identity |
 |---|---|---|
-| PCM | Short mono source, one-shot or short loop | Attack, hammer, pick, texture, acoustic body |
-| FM | 2op, limited feedback, short per-element modulation EG | Harmonics, metallic character, bell, bright attack |
-| VA | Existing band-limited tables, 1osc | Low end, body, sustain, filter movement |
+| 00 | Deep Sub | Added quiet ratio-1 FM with a retained harmonic floor beneath the sine foundation; short release keeps bass weight ahead of space. |
+| 01 | Slide Bass | Opened the saw/ACID4 working range, shortened glide and reshaped common decay; a small 160 ms colour change adds texture without replacing accent/slide. |
+| 02 | Pulse Drive | Reduced FM ratio/index/feedback load to a 52 ms strike; a descending pulse colour trajectory leaves a firm sustained bass body. |
+| 03 | Solid FM | Replaced collapsing high-index attack with ratio-1, 160 ms settling and a 37.5% modulation floor over stronger sine support. |
+| 04 | Rubber FM | Extended the elastic attack to 240 ms with strong velocity-index response and a 25% floor; finger PCM remains optional, not an approved legacy anchor. |
+| 05 | Round Finger | Enabled low-ratio FM alongside the reworked finger family and sine; the 37.5% floor and higher sustain make this an electro bass, not an acoustic replica. |
+| 06 | Reed Pulse | Kept the hollow pulse identity but added a 420 ms colour transition, stronger filter articulation and a firmer held body. |
+| 07 | Metal Seq | Replaced ratio-7/high-feedback FM with a bounded ratio-3 metallic strike ending at 180 ms; saw colour settles underneath. |
+| 08 | Stage Piano | Rebalanced PCM/FM/VA to 100/32/100; the 320 ms FM attack hands over to a 1.1 s changing saw body with sustain 82. |
+| 09 | Soft Piano | Reduced PCM dominance and raised VA to 116; a 2.1 s colour bloom, sustain 96 and longer release distinguish soft hybrid strings-like keys. |
+| 10 | Warm Tines | Changed sine support to coloured square, retained optional hammer PCM, and gave ratio-2 FM a 31.25% floor after 720 ms. |
+| 11 | Clear EP | Added saw support to PCM/FM, reduced ratio/index, and retained a 25% FM floor; the 650 ms reverse colour change separates it from Warm Tines. |
+| 12 | Muted Gtr | Added a short coloured pulse body under the muted-family transient; zero sustain and a tight echo keep repeated synthetic stabs separated. |
+| 13 | Nylon Pick | Added a low-level evolving saw to the pick/FM blend; ratio-1 FM retains 25% modulation beneath a short low-sustain pluck. |
+| 14 | Glass Pluck | Rebalanced FM/pulse to 90/78 with a 180 ms reverse colour change; zero sustain lets the bell edge finish as a pluck rather than a held beep. |
+| 15 | Soft Mallet | Added sine support to a longer 110 ms low-index FM strike; zero sustain deliberately permits a round carrier tail before common decay ends. |
+| 16 | Perc Organ | Lowered percussion ratio/index and capped it at 70 ms; static alternate pulse colour and high sustain feed chorus-led width. |
+| 17 | Brass Stab | Strengthened common filter articulation and saw body; a 90 ms FM strike and 210 ms colour change frame the short stab. |
+| 18 | Chord Pluck | Replaced static saw with a fast reverse colour transition and stronger filter depth; zero sustain still plays only the notes actually supplied. |
+| 19 | Orch Hit | Rebalanced the hit family with a ratio-3 110 ms FM onset and coloured saw; the tail is spatial, not a baked chord or orchestra replica. |
+| 20 | Euro Saw | Raised saw-body sustain and changed its colour over 850 ms; restrained finite FM defines the attack while chorus/echo provide width. |
+| 21 | Pulse Lead | Used a descending 1.2 s pulse colour change and high sustain; a distinct hollow lead rather than a second saw or PWM claim. |
+| 22 | Porta Lead | Increased FM support with a 37.5% floor and a 1.1 s saw trajectory; mono slide preserves existing source clocks and phase. |
+| 23 | Bright FM | Reduced FM ratio/index/feedback while retaining a 37.5% floor; reverse saw colour over 1.6 s supports a sustained digital lead. |
+| 24 | Warm Pad | Rebalanced strings PCM/saw to 48/110, shortened attack and increased sustain; a 3 s colour bloom supplies source motion before the shared FX. |
+| 25 | Slow Strings | Raised VA support to 80 beneath strings-family PCM; a 4.4 s trajectory reaches full alternate colour under a slow high-sustain envelope. |
+| 26 | Air Choir | Rebalanced formant PCM/sine to 112/52, shortened onset and used negative filter depth; movement comes from the synthetic family and shared FX, not VA colour. |
+| 27 | Glass Pad | Reduced FM ratio/index but retained a 37.5% floor after 1.8 s; more choir PCM supplies texture beneath the digital body. |
+| 28 | Pulse Arp | Added a 60 ms FM strike to a full-level pulse with a 110 ms reverse colour snap and stronger filter depth; dry foreground definition precedes rhythmic echo. |
+| 29 | Digital Arp | Enabled saw body alongside a stronger muted-family transient and 180 ms finite FM; short common decay gives the arpeggio a textured attack/body instead of a pure beep. |
+| 30 | Soft Sweep | Raised strings texture and sustain while retaining slow common filter opening; the saw reaches full alternate colour at 5 s, then holds. |
+| 31 | Bell Bloom | Enabled choir PCM by default, reduced FM ratio/index/feedback, and retained a 31.25% floor after 2.4 s; a bell attack now has a textured sustained body. |
 
-These three elements are not three independent complete synthesizers. A voice has one shared gate, pitch, velocity, final amplitude EG, and filter. Short element-specific envelopes, such as the FM 2op modulation EG, are limited to what the sound's character requires. FM 4op and VA 2osc are optional extensions, not conditions for completing the 32 sounds.
+## Actual editable defaults
 
-In this draft, eurosynth means a eurodance/synthpop palette using bright saw/pulse leads, short pluck/brass comp, digital bells, and strings/choir pads. It does not assume large unison stacks or independent part layers. This interpretation is the project's production direction, not an official Yamaha genre classification.
+All values below are existing 0..127 control units, not milliseconds or independent element envelopes. Masks use PCM=1, FM=2, VA=4. There are 4 single-source, 20 dual-source and 8 triple-source defaults. Only 04/10 retain optional disabled PCM with a nonzero stored gain. All available sources have nonzero stored gains. IDs 01/22 are mono; all others are poly.
 
-## 2. MODX M reference criteria and boundaries
+| ID | Active/available mask | PCM family | Wave | PCM/FM/VA gain | CUT/RES | A/D/S/R | Glide/level |
+|---|---|---|---|---|---|---|---|
+| 00 | 6/6 | none | sine | 0/32/127 | 108/3 | 1/56/106/18 | 0/108 |
+| 01 | 4/4 | none | saw | 0/0/127 | 70/74 | 0/40/60/10 | 46/104 |
+| 02 | 6/6 | none | square | 0/44/122 | 88/24 | 1/42/82/12 | 0/104 |
+| 03 | 6/6 | none | sine | 0/108/62 | 104/10 | 1/50/86/18 | 0/108 |
+| 04 | 6/7 | 0 | sine | 28/104/68 | 92/14 | 1/64/82/20 | 0/104 |
+| 05 | 7/7 | 0 | sine | 118/36/66 | 98/8 | 1/76/88/20 | 0/108 |
+| 06 | 4/4 | none | square | 0/0/127 | 78/20 | 1/46/64/12 | 0/108 |
+| 07 | 6/6 | none | saw | 0/88/88 | 100/18 | 0/40/28/12 | 0/100 |
+| 08 | 7/7 | 1 | saw | 100/32/100 | 112/6 | 1/88/82/42 | 0/100 |
+| 09 | 5/5 | 1 | saw | 76/0/116 | 96/4 | 4/106/96/58 | 0/100 |
+| 10 | 6/7 | 1 | square | 24/104/64 | 104/5 | 2/90/74/40 | 0/104 |
+| 11 | 7/7 | 1 | saw | 66/92/62 | 116/6 | 1/76/64/34 | 0/98 |
+| 12 | 5/5 | 2 | square | 112/0/64 | 96/18 | 0/30/0/12 | 0/108 |
+| 13 | 7/7 | 3 | saw | 100/48/58 | 101/8 | 1/70/18/28 | 0/100 |
+| 14 | 6/6 | none | square | 0/90/78 | 108/10 | 0/48/0/22 | 0/104 |
+| 15 | 6/6 | none | sine | 0/112/40 | 102/3 | 1/62/0/24 | 0/112 |
+| 16 | 6/6 | none | square | 0/32/118 | 102/8 | 0/28/108/14 | 0/104 |
+| 17 | 6/6 | none | saw | 0/36/122 | 76/28 | 2/48/30/16 | 0/104 |
+| 18 | 4/4 | none | saw | 0/0/127 | 80/22 | 0/44/0/20 | 0/108 |
+| 19 | 7/7 | 4 | saw | 110/32/66 | 104/12 | 0/52/0/26 | 0/96 |
+| 20 | 6/6 | none | saw | 0/32/124 | 108/18 | 1/74/102/28 | 0/102 |
+| 21 | 4/4 | none | square | 0/0/127 | 102/16 | 1/64/104/26 | 0/106 |
+| 22 | 6/6 | none | saw | 0/52/108 | 94/10 | 3/82/110/32 | 64/104 |
+| 23 | 6/6 | none | saw | 0/100/54 | 112/8 | 1/78/94/28 | 0/102 |
+| 24 | 5/5 | 5 | saw | 48/0/110 | 84/8 | 46/108/108/62 | 0/98 |
+| 25 | 5/5 | 5 | saw | 110/0/80 | 96/5 | 68/116/114/72 | 0/96 |
+| 26 | 5/5 | 6 | sine | 112/0/52 | 108/4 | 40/110/110/64 | 0/104 |
+| 27 | 7/7 | 6 | sine | 62/90/44 | 112/5 | 36/116/100/66 | 0/100 |
+| 28 | 6/6 | none | square | 0/38/127 | 94/22 | 0/36/0/12 | 0/110 |
+| 29 | 7/7 | 2 | saw | 72/88/80 | 108/12 | 0/42/0/16 | 0/100 |
+| 30 | 5/5 | 5 | saw | 54/0/108 | 58/22 | 82/120/108/70 | 0/96 |
+| 31 | 7/7 | 6 | sine | 40/100/44 | 114/5 | 3/112/78/60 | 0/102 |
 
-The official MODX M Data List's Performance Category List divides roles into Piano, Keyboard, Organ, Guitar, Bass, Strings, Brass, Woodwind, Syn Lead, Pad/Choir, Syn Comp, Chromatic Perc, and others, and also offers classifications such as R&B/Hip Hop, Electronic, and Rock/Pop. Official guidance describes searching by engine type and Single/Multi Part.
+## Actual immutable source and send data
 
-This project adopts only the following:
+FM duration 0 means unlimited lifetime, not zero decay. FM body is the fraction of velocity-adjusted modulation retained after decay; it is NOT carrier amplitude. Every sustained unlimited FM role has a positive body. Finite FM is deliberately attack-only and has zero body; IDs 14/15 have zero sustain and deliberately allow modulation to end before their common amplitude tail. Times are milliseconds. Q15 uses 32768=unity. VA colour redistributes harmonics at one phase; it does not detune or create PWM. A one-shot morph holds its endpoint, not a repeating LFO. Sine VA has zero colour/time; static colour has equal endpoints and zero time.
 
-- Find sounds by instrument role and compare PCM/FM/VA character ratios within the same role.
-- Provide a balanced selection of piano, EP, bass, comp, lead, and pad.
-- Use velocity and basic knobs to vary brightness, attack, and length.
-- Reference only the idea of mixing different synthesis characters to create a mood, without following the part structure or operator counts.
+| ID | FM ratio/index/feedback | Velocity index/cutoff | FM decay/duration ms | Filter depth | FM body Q15 | VA start/end Q15 | Morph ms | Sends H/C/D/F |
+|---|---|---|---|---|---|---|---|---|
+| 00 | 1/18/0 | 12/4 | 90/0 | 1800 | 8192 | 0/0 | 0 | 4/0/0/0 |
+| 01 | 1/0/0 | 0/0 | 0/0 | 0 | 0 | 0/8192 | 160 | 6/0/14/4 |
+| 02 | 2/26/2 | 18/12 | 24/52 | 9000 | 0 | 24576/4096 | 140 | 6/4/8/0 |
+| 03 | 1/38/4 | 18/10 | 160/0 | 4800 | 12288 | 0/0 | 0 | 8/4/0/0 |
+| 04 | 2/32/5 | 36/16 | 240/0 | 7800 | 8192 | 0/0 | 0 | 10/6/8/0 |
+| 05 | 1/20/2 | 20/10 | 310/0 | 3200 | 12288 | 0/0 | 0 | 8/6/4/0 |
+| 06 | 1/0/0 | 0/18 | 0/0 | 10000 | 0 | 16384/28672 | 420 | 10/8/14/4 |
+| 07 | 3/32/4 | 20/12 | 105/180 | 6500 | 0 | 28672/8192 | 220 | 12/4/18/6 |
+| 08 | 2/26/1 | 16/12 | 220/320 | 2800 | 0 | 2048/24576 | 1100 | 30/22/12/0 |
+| 09 | 1/0/0 | 0/10 | 0/0 | -1800 | 0 | 12288/28672 | 2100 | 38/30/10/4 |
+| 10 | 2/24/1 | 18/8 | 720/0 | 2200 | 10240 | 8192/20480 | 1400 | 26/22/14/0 |
+| 11 | 3/28/2 | 14/12 | 480/0 | 3200 | 8192 | 24576/8192 | 650 | 24/16/20/4 |
+| 12 | 1/0/0 | 0/18 | 0/0 | 11500 | 0 | 28672/4096 | 90 | 12/6/16/0 |
+| 13 | 1/20/1 | 18/12 | 280/0 | 4800 | 8192 | 4096/20480 | 360 | 22/12/18/0 |
+| 14 | 3/30/1 | 16/10 | 210/0 | 5500 | 0 | 24576/8192 | 180 | 28/12/26/4 |
+| 15 | 2/24/1 | 12/8 | 110/0 | 2200 | 0 | 0/0 | 0 | 20/8/14/0 |
+| 16 | 2/22/1 | 16/10 | 35/70 | 3500 | 0 | 12288/12288 | 0 | 18/28/8/4 |
+| 17 | 2/26/2 | 18/16 | 50/90 | 15500 | 0 | 4096/20480 | 210 | 20/16/14/4 |
+| 18 | 1/0/0 | 0/18 | 0/0 | 14500 | 0 | 28672/4096 | 160 | 22/18/22/4 |
+| 19 | 3/24/2 | 16/14 | 60/110 | 8500 | 0 | 4096/16384 | 180 | 30/12/16/0 |
+| 20 | 2/22/1 | 16/12 | 40/75 | 4800 | 0 | 2048/20480 | 850 | 24/28/24/6 |
+| 21 | 1/0/0 | 0/14 | 0/0 | 6500 | 0 | 24576/8192 | 1200 | 22/20/28/8 |
+| 22 | 1/18/1 | 16/10 | 420/0 | 4200 | 12288 | 8192/24576 | 1100 | 28/26/22/4 |
+| 23 | 2/30/2 | 18/10 | 760/0 | 3200 | 12288 | 20480/4096 | 1600 | 24/18/26/8 |
+| 24 | 1/0/0 | 0/8 | 0/0 | 4800 | 0 | 0/24576 | 3000 | 40/34/18/10 |
+| 25 | 1/0/0 | 0/8 | 0/0 | 3800 | 0 | 8192/32768 | 4400 | 44/38/16/8 |
+| 26 | 1/0/0 | 0/10 | 0/0 | -2800 | 0 | 0/0 | 0 | 44/32/22/12 |
+| 27 | 3/24/1 | 14/8 | 1800/0 | -3600 | 12288 | 0/0 | 0 | 40/28/28/12 |
+| 28 | 2/18/1 | 18/18 | 28/60 | 16000 | 0 | 32768/4096 | 110 | 12/12/24/4 |
+| 29 | 3/24/1 | 20/16 | 90/180 | 8500 | 0 | 4096/16384 | 180 | 16/10/28/6 |
+| 30 | 1/0/0 | 0/10 | 0/0 | 18000 | 0 | 0/32768 | 5000 | 44/30/30/16 |
+| 31 | 4/26/1 | 14/10 | 2400/0 | -2400 | 10240 | 0/0 | 0 | 38/24/32/8 |
 
-These 32 sounds do not claim to provide MODX M's layered Performances, Motion Control, realistic instrument reproduction, or memory/polyphony/effect scale. The names below are project working names, not a list copied from Yamaha factory names. As production and listening are not complete, they also do not imply verified final audio quality or suitability for a particular genre.
+## One shared full-tone FX palette
 
-## 3. Layout principles
+The single factory type array is {3,1,7,5}: bank 0 HALL1, bank 1 CHORUS2, bank 2 PANNING DLY, bank 3 FLANGER. H/C/D/F above are four send AMOUNTS, each 0..127, not algorithm IDs. Bass sends stay <=24; other melody sends stay <=64. Hall gives release context, chorus widens sustained bodies, panning delay articulates hooks and flanger adds restrained moving texture. Low bass sends and lower arp hall sends keep foreground attacks ahead of the FX field. These are intended full tones; paired dry/source-only renders diagnose source problems rather than substitute for the finished sound.
 
-- Display order is 01~32; the order below is the baseline for the initial bank.
-- Arrange four consecutive sounds in each of 8 role groups. Do not register the same sound more than once for different genres.
-- Each sound has an active-element indicator (for example, `P+F` or `V`) and genre tags. Genre tags are aids for finding sounds.
-- Names are ASCII working names of up to 12 characters for the current small display. Actual screen implementation and display verification are subsequent work.
-- The groups below classify presets. They do not refer to existing pattern banks or new hardware bank-button behavior.
-- One note occupies only one allocator voice. Two or three internal elements do not consume hidden additional voices.
-- Using all three elements is not the goal. Enable only what the role needs; use a single element where sufficient.
+mc_factory sets this palette and all four send rows AFTER mc_project_defaults clears them. Factory melody parts keep 00 Deep Sub, 10 Warm Tines, 20 Euro Saw and receive their exact rows above; drums receive {12,0,6,0}. Only explicit factory/new-project/demo loads may assign global types. Program Change copies only the selected part's send row: user global types, other-part/drum sends and all shared FX histories remain authoritative. Saved projects retain their serialized sends/types; loading one must not reapply factory settings. If a user selects different global types, these sends feed those types rather than secretly restoring this palette.
 
-| Display range | Group | Intended roles |
-|---|---|---|
-| 01~04 | BASS CORE | Sub, slide, pulse, solid digital bass |
-| 05~08 | BASS SEQ | Expressive bass, acoustic body, rhythmic sequences |
-| 09~12 | PIANO EP | Acoustic-style piano and two contrasting EPs |
-| 13~16 | PLUCK MALLET | Guitar, short digital pluck, mallet |
-| 17~20 | COMP STAB | Organ, brass, short poly comp, hit |
-| 21~24 | LEAD | Euro saw, pulse, portamento, digital lead |
-| 25~28 | PAD TEXTURE | Warm, strings, choir, glass pad |
-| 29~32 | MOTION | Short sounds suited to ARP, sweep, bell movement |
+## Registers, velocity and existing performance limits
 
-## 4. Specifications for 32 sounds
+Initial listening grid: MIDI 24/36/48 for 00..07, MIDI 48/60/84 for 08..31, each at velocity 32/80/127. Also inspect every playable MIDI 12..108 for pitch, zone/mip transitions, aliasing, thin high-register VA and bass/filter register changes; the initial grid is not an approved range. Keys and plucks need staccato and held-note comparisons; pads need three-note chords, long holds and release overlap; leads need retrigger and connected notes. ARP sequences for 28/29 are external track behavior, never embedded patterns or automatic ARP activation.
 
-Tags: `T` techno, `H` hiphop, `P` pop, `E` eurosynth. Tags express selection intent and may be adjusted after listening.
+Velocity always scales common amplitude. With FM available, the initial index is min(127, base index + floor(velocity * velocity-index / 127)); its retained floor therefore preserves velocity articulation. The ordinary two-pole filter also uses floor(velocity * velocity-cutoff / 127) and signed common-EG filter depth. Higher velocity is not a new sample layer. PCM chooses the nearest existing family root with calibrated playback; only one family/stream is used at a time.
 
-Element indicators: `P` PCM, `F` FM 2op, `V` VA 1osc. Parentheses mark optional elements, enabled only if listening shows a need. "Primary" identifies the central element.
+Slide Bass uses existing ACID4: cutoff is derived from CUT plus the shared envelope with coefficient 3500, or 8000 on accent, clamped to 250..14000. RES supplies existing feedback and accent also increases final amplitude by 5/4. This branch does NOT consume recipe filter-depth/velocity-cutoff, so both are zero for ID 01 rather than misleading controls. Existing mono slide preserves source phase, age, filter and common envelope; it updates target pitch/accent but does not retrigger velocity-index or a separate filter EG. Glide remains the existing exponential approach. No independent 303 filter-decay, new saturation circuit or separate accent envelope is claimed. Low/high-register 303 weight and articulation still need listening.
 
-| Number | Working name | Elements | Tags | Sound and performance goal | Element roles and constraints |
-|---:|---|---|---|---|---|
-| 01 | Deep Sub | V | T H P E | Clean low end for both short notes and sustained bass | VA sine only. Other elements would blur the low end and are omitted |
-| 02 | Slide Bass | V | T H E | Solid saw bass responding to slide/accent | VA saw only. Reuse existing Acid mono/glide/filter behavior; the filter defines its character |
-| 03 | Pulse Drive | V+F | T E | Pulse-style synth bass with a defined low-mid range | Primary VA pulse body. FM supplies only brief attack harmonics lasting tens of ms, then stops |
-| 04 | Solid FM | F+V | T H P E | Short, solid low notes with an adjustable bright attack | Primary FM 2op attack/harmonics, shaped by index/decay. VA sine reinforces the low-end body |
-| 05 | Rubber FM | F+V(+P) | H P E | Expressive bass with a round body and elastic attack | Primary FM 2op, velocity→index. VA sine body. Optional PCM adds only the initial finger bass attack at a low level |
-| 06 | Round Finger | P+V | H P | Short, natural finger bass attack/body | Primary PCM finger bass. VA sine stabilizes the low end after the loop |
-| 07 | Reed Pulse | V | T E | Rhythmic bass with a hollow pulse character | VA pulse only. Unlike 03, stays light without added attack harmonics |
-| 08 | Metal Seq | F+V | T E | Short, metallic low/mid sequence | Primary FM 2op metallic character at a high ratio. VA saw anchors the low-end pitch even at high index |
-| 09 | Stage Piano | P+F+V | P E H | Clear synth piano that stands out in pop/dance comp | PCM piano attack, FM bell harmonics, restrained VA synth sustain. Hybrid keys, not traditional piano reproduction |
-| 10 | Soft Piano | P+V | H P E | Soft hybrid keys leaving a strings/pad character after the piano attack | PCM attack/texture and VA strings-like body. Distinguish brightness and sustain character from 09; not a small-sounding PCM-only replica |
-| 11 | Warm Tines | F+V(+P) | H P | Warm EP with a round body and gentle bell attack | Primary FM 2op tine. VA sine body. Optional PCM uses only a short hammer region from the piano source |
-| 12 | Clear EP | F+P | P E | Bright, clear digital EP for pop/euro comp | Primary FM 2op bright harmonics. PCM piano attack adds definition. Distinguish attack/harmonics/decay from 11 |
-| 13 | Muted Gtr | P | H P E | Short muted guitar rhythms/repeated figures | PCM only. A short one-shot leaves little room for another element to contribute |
-| 14 | Nylon Pick | P+F | H P | Nylon-style single-note hooks/gentle comp | Primary PCM nylon pick. Low-index FM 2op extends decay after the short source. Limit the verified range for excessive pitch shifts |
-| 15 | Glass Pluck | F+V | T H P E | Clear, short pluck whose repeated notes do not blur together | Primary FM 2op. Low-mix VA square supplies midrange body |
-| 16 | Soft Mallet | F | H P E | Soft pitched mallet between wood and metal | FM 2op only. Low index/fast modulation EG gives a rounder attack than 15 |
-| 17 | Perc Organ | F+V | H P E | Short organ/percussive keys for rhythmic comp | Primary VA sine/square sustain. FM 2op supplies percussive click harmonics. Rotary/tonewheel reproduction is not required |
-| 18 | Brass Stab | V+F | T P E | Short, bright synth brass accents/chords | Primary VA saw and filter EG. FM 2op supplies short attack harmonics |
-| 19 | Chord Pluck | V | T P E | Short poly synth comp for chord playing | VA saw only. Keep it light because chords consume more voices. Not a fixed triad/chord sample |
-| 20 | Orch Hit | P+V+F | H P E | Short orchestral-style accent | Primary PCM tonal hit. VA saw body, FM 2op metallic attack. Focus on single notes/octaves; no fixed major triad |
-| 21 | Euro Saw | V+F | E P T | Bright saw lead at the front of the mix | Primary VA saw. FM 2op bright attack. No large supersaw/unison; 2osc detune is an extension |
-| 22 | Pulse Lead | V | E P H | Hollow, clear pulse lead | VA pulse only. Complete fixed pulse first; PWM is an extension |
-| 23 | Porta Lead | V+F | H P E | Smoothly connected mono lead | Primary VA, based on existing glide. Gentle FM 2op harmonics follow shared pitch. Do not force legato at all times |
-| 24 | Bright FM | F+V | T P E | Bright, solid digital lead contrasting with saw/pulse | Primary FM 2op. Low-mix VA saw adds thickness. Limit high-note aliasing/feedback |
-| 25 | Warm Pad | V+P | H P E | Restrained analog pad supporting chords | Primary VA saw/sine. Low-mix PCM strings texture. Manage release overlap and low end |
-| 26 | Slow Strings | P+V | P E H | Slow strings pad with a simple ensemble texture | Primary PCM strings mono loop. VA saw body covers the loop seam. Not intended to reproduce a real section |
-| 27 | Air Choir | P+V | H P E | Airy, vowel-like choir texture | Primary PCM choir. VA sine body. No extracted Yamaha vocals |
-| 28 | Glass Pad | F+P+V | T H P E | Transparent digital pad with slowly changing brightness | Primary FM 2op. PCM choir air, VA sine low end. Limit long releases |
-| 29 | Pulse Arp | V | T P E | Well-separated pulse/saw sounds for ARP/short sequences | VA only. Reduce element count for many short notes. No pattern embedded in the sound |
-| 30 | Digital Arp | F+P | T P E | Short, light digital sequences and hooks | Primary FM 2op. Use only a very short initial transient from the muted guitar source. Brighter, lighter range than 08 |
-| 31 | Soft Sweep | V+P | T H P E | Tonal texture/transitions with slow filter movement | Primary VA, moving through shared EG filter depth. Low-mix PCM strings texture. No general LFO or new noise FX engine |
-| 32 | Bell Bloom | F+V(+P) | T H P E | Texture with harmonics gently opening or settling after a bell attack | Primary FM 2op bell, shaped by modulation EG. VA sine supplies the remaining body. Optional PCM choir air. Pitch-riser behavior is not required |
+## Shared PCM material and bounds
 
-The planned distribution is 8 single-element sounds (VA 01·02·07·19·22·29, PCM 13, FM 16), 21 with two always-active elements, and 3 with three always-active elements (09·20·28). 05·11·32 become three-element sounds when optional PCM is enabled. Numbers using PCM are 05 (optional)·06·09·10·11 (optional)·12·13·14·20·25·26·27·28·30·31·32 (optional).
+Seven existing family IDs remain: 0 Finger Body; 1 Piano Low/Mid/High; 2 Muted Pick; 3 Nylon Pluck; 4 Tonal Hit; 5 String Texture; 6 Vowel Air. These are original mathematical synthetic materials, not verified realistic recordings. The joined generator designs evolving partial beds/transients, grid-locked loop animation and seven mip levels; material production, hashes, tuning/loop/alias validation and the 224 KiB budget belong to its separate writer. Profiles do not add streams or families. Roots remain 36; 48/60/72; then 60 for the other five zones.
 
-### Criteria for keeping sounds distinct
+Recipe bounds: ratio 1..8, index/velocity 0..127, feedback <=24, source times <=10000 ms, body/colour 0..32768, morph 0 or 80..10000 ms; no morph requires equal endpoints. Unavailable FM has zero body; unavailable or default sine VA has zero colour/time. Active FM requires positive decay. Current conservative FM ratios/index/feedback reduce excitation relative to rejected recipes, but do not establish alias safety. The fixed source divisor remains 381; no gain normalization hides overloaded wet mixes.
 
-- 09·10 should contrast as modern hybrid keys, not two copies of plain piano differing only in brightness. Prioritize evaluating 09's clear piano attack/FM harmonics/synth sustain against 10's soft attack followed by strings/pad character. User intent takes precedence over the earlier P+F/P-only table draft; update required VA/texture configurations and default masks together when creating actual recipes.
-- 03 and 07: distinguish solid bass with FM attack from a light, hollow VA-only sequence.
-- 09 and 10: even with the same source, distinguish clear synth piano with FM bell from soft hybrid keys with strings/pad sustain.
-- 11 and 12: distinguish warm EP with a VA body from bright comp led by a PCM attack.
-- 15 and 16: distinguish glass pluck with a VA body from round FM-only mallet.
-- 08 and 30: distinguish low/mid metallic sequence with VA low end from high/mid ARP using a PCM transient.
-- 21·22·23·24: keep saw, pulse, mono glide, and digital characters distinct.
-- 25·26·27·28: provide four textures: analog, strings, choir, and digital. Distinguish 25·26·31, which use the same PCM source, through mix ratios and the primary element.
+## Verification and remaining approval
 
-If sounds overlap, do not fill slots merely by renaming them. Revise the production goal or element configuration at the same number when listening reveals insufficient role differences. Before listening, do not treat current working names as final factory identities.
+Run make test-profiles for all 32 masks/gains/families, new-field bounds, sustained/finite FM exceptions, sine/static colour exceptions, preserved roots, factory palette ordering and 00/10/20 plus drum sends. The full runtime suite separately owns exact FM/VA trajectory oracles, all-note pitch/bend/glide/Analog bounds, shared-history isolation, partition/dualcore parity and storage round trips. Passing data checks is not a spectrum, alias, timing or sound-quality approval.
 
-## 5. Genre palettes
-
-The following examples assign presets to three tracks. In addition to lightweight mixing within each preset, contrasting characters appear across tracks.
-
-| Use | Bass track candidates | Comp/pad track candidates | Lead/hook track candidates |
-|---|---|---|---|
-| Techno | 02 Slide Bass, 03 Pulse Drive, 04 Solid FM | 18 Brass Stab, 19 Chord Pluck, 28 Glass Pad | 08 Metal Seq, 29 Pulse Arp, 30 Digital Arp |
-| Hiphop | 01 Deep Sub, 05 Rubber FM, 06 Round Finger | 10 Soft Piano, 11 Warm Tines, 17 Perc Organ | 13 Muted Gtr, 15 Glass Pluck, 23 Porta Lead |
-| Pop | 04 Solid FM, 05 Rubber FM, 06 Round Finger | 09 Stage Piano, 12 Clear EP, 25 Warm Pad | 14 Nylon Pick, 22 Pulse Lead, 24 Bright FM |
-| Eurosynth | 02 Slide Bass, 07 Reed Pulse, 04 Solid FM | 09 Stage Piano, 18 Brass Stab, 26 Slow Strings | 21 Euro Saw, 22 Pulse Lead, 15 Glass Pluck |
-| Modern hybrid sound palette | 04 Solid FM, 06 Round Finger | 11 Warm Tines, 27 Air Choir, 28 Glass Pad | 14 Nylon Pick, 24 Bright FM, 32 Bell Bloom |
-
-MODX M is a reference product, not a genre. The last row illustrates contrasting presets combining acoustic attacks, FM harmonics, and VA bodies within a song; it is not a combination reproducing a specific MODX M Performance.
-
-The proposed initial three-track assignment is 01 Deep Sub / 11 Warm Tines / 21 Euro Saw. Keep the preset list's role-based order unchanged and set only the initial selection to bass/comp/lead. This default assignment has not yet been reflected in code or the factory project.
-
-## 6. PCM asset budget
-
-The number of presets using PCM is not the number of sample banks. The initial plan has 7 source families and 9 zones in total, including 3 piano zones. Choose materials from mathematical candidates or lawful recordings that meet the intended modern character, harmonics, and role in songs. Names such as piano, guitar, and strings do not impose traditional instrument reproduction. Do not import Yamaha data or the existing LA bank. Processing original recordings for the new PCM path is allowed; record provenance, hashes, and processing. In hybrid configurations, multiple presets reuse attack/texture regions of the same source.
-
-| source family | Presets using it | Initial length budget | Production direction |
-|---|---|---:|---|
-| finger bass | 06, 05 (optional attack) | 0.25 seconds × 1 zone | Short attack, stable body loop |
-| piano | 09·10·12, 11 (optional hammer) | 0.40 seconds × 3 zones | Limited low/mid/high splits |
-| muted guitar | 13, 30 (initial transient) | 0.20 seconds × 1 zone | Short one-shot |
-| nylon guitar | 14 | 0.35 seconds × 1 zone | Focus on pluck/decay |
-| tonal orchestral hit | 20 | 0.25 seconds × 1 zone | Original production centered on single notes/octaves |
-| strings texture | 26, 25·31 (low mix) | 0.40 seconds × 1 zone | Natural mono loop |
-| choir texture | 27·28, 32 (optional) | 0.40 seconds × 1 zone | Original vowel synthesis or lawful recordings |
-
-The 16kHz/mono/16bit base level totals 97,600B. The actual 7-level mip data totals 193,678B, including rounding up odd lengths, or 194,830B including descriptors under the host ABI. `tests/pcm_bank.c` was compiled as actual C to check non-silence, levels, loop ranges, and boundary differences for every zone/mip. Raw sample hashes, lengths, roots, loops, and RMS are in `data/pcm-manifest.json`; generation source is `tools/gen_pcm.py`. Full app linking, target ABI sizes, aliasing, hybrid sounds, and listening still require separate verification. The sample bank budget including metadata is 224KiB.
-
-Hybrid configurations sometimes mean PCM need not carry the entire sound alone, but short piano/guitar material may still fall short of expected audio quality. If so, adjust in this order:
-
-1. Improve source selection, root key, loop, interpolation, and envelope.
-2. Adjust mix and roles so FM/VA elements share the decay or body.
-3. Reallocate length, zone, and mip budgets only to sources that need them.
-4. Do not hide listening failures; revise roles/source configurations within the 32 sounds.
-
-Do not solve this by lowering the 8-voice goal or secretly retaining the original LA hybrid body. The new structure replaces existing LA; mixing does not mean retaining LA's fixed attack+sustain path under another name. Separate samples for every preset, velocity layers, stereo, and streaming are not part of the initial plan.
-
-## 7. Voice, effects, and editing policies
-
-- The 32 sounds are stored choices; simultaneous playback is a total of 8 melody voices across three tracks. Retain the existing 6 drum voices and four shared FX banks.
-- Elements within a voice share gate, pitch, velocity, final amplitude EG, and filter. Note-off, pitch bend, and voice stealing apply to all active elements together.
-- Explicitly stop elements whose roles have ended (PCM after its attack, FM after brief harmonics) and perform no further computation for them. Use a short ramp to prevent clicks when an element ends or its mix is disabled.
-- 19 Chord Pluck does not generate an internal three-note chord from one key.
-- 02·23 have explicit mono/glide character. Do not restrict every other default preset to mono.
-- ARP for 29·30 is demonstrated using the existing track ARP. Selecting a preset alone does not change ARP, BPM, pattern, or external clock.
-- Selecting a preset alone does not change the four shared FX algorithms or other tracks' sends.
-- Finish the dry character first. Manage FX, ARP, and sequences for genre demonstrations as separate project settings.
-- Check velocity response through MIDI input and step velocity. Do not assume new velocity/aftertouch sensing is provided for the device keyboard.
-- The shared sound page adjusts roles such as BODY/COLOR; detailed pages edit per-element mix and parameters. Detailed UI follows the shared design in the [feasibility report](FEASIBILITY.md).
-- Evaluate release with genre-specific chord progressions. Do not hide voice stealing behind excessive tails to make sounds appear richer.
-
-## 8. Production and listening acceptance criteria
-
-Follow the [benchmark plan](BENCHMARK_PLAN.md) for concrete test execution. Passing the host POC confirms the engine/mixing structure; the following criteria apply to the stage of 32 finished presets.
-
-### Individual sounds
-
-- Listen to all 32 at low/mid/high velocity, with single notes, staccato, sustain, and release.
-- Focus on C1~C3 for bass, C3~C6 for keys/comp, and C3~C6 for lead. Label each PCM source's supported range separately and do not hide quality outside that range.
-- Evaluate pads with three-note chords and release overlap into the next chord.
-- Check FM ratio/index/feedback, VA cutoff/resonance, and PCM loops/maximum pitch shifts.
-- Compare hybrid presets with each element muted in turn to confirm its actual role. Remove elements whose contribution is inaudible, reducing to single- or two-element configurations.
-- Check for clicks or volume discontinuities where elements stop or mixes change.
-- Complete every item first with 2op FM/1osc VA. Record items that appear to need 4op/2osc separately as extension candidates, not completion requirements.
-- Compare dry and under identical FX conditions; do not judge quality solely by loudness differences.
-
-### Roles in songs
-
-Propose four short original demos for techno, hiphop, pop, and eurosynth, plus one demo contrasting hybrid sounds. Use the existing drums and only three melody tracks per demo.
-
-- Bass/comp/lead or bass/pad/hook roles must be audible.
-- Arrange within a maximum of 8 voices, counting previous releases as well as each track's current notes.
-- Confirm a role for all 32 sounds in at least one usage example. They need not all be forced into five short demos; use separate category auditions.
-- Distinguish musical usefulness from maximum-load verification. Passing a demo does not prove worst cases such as simultaneous attacks of 8 three-element voices.
-
-### Stable layout
-
-When finalizing the initial 32 sounds, fix the pack ID, bank revision, and stable preset IDs together. Name changes and internal renumbering must not alter a project's element configuration or sample meanings. Future expansion to 64·128 sounds is not required and should be considered only after listening and resource verification for these 32.
-
-## 9. Official references
-
-Checked: 2026-10-21. The following materials support classification, editing, and engine contrasts. The selection, element configurations, names, genre tags, and PCM budget for the 32 sounds above are this project's own design.
-
-- [Official MODX M product page](https://usa.yamaha.com/products/music_production/synthesizers/modxm/index.html): roles of the three engines and performance/editing direction.
-- [MODX M Data List B0](https://usa.yamaha.com/files/download/other_assets/9/2574209/MODX-M_data_list_En_B0.pdf): the cover specifies firmware 3.00. Performance Category List is on document p.27.
-- [Official YamahaSynth guide](https://yamahasynth.com/learn/modx-m/welcome-to-modx-m/): category/engine/Single/Multi Part search and the role of Live Set.
-
-Do not extract or distribute original waves, patches, Performances, or demos. PCM source/DSP license management follows the provenance/license section of the [feasibility report](FEASIBILITY.md).
+Still required: full-FX and paired dry renders at the listening grid, source timing and folded-residual measurements, clipping/limiter/12 s tail checks, all 32 user listening decisions, direct reference listening, WASM/target/resource/hardware checks and completed song auditions. Assess 04 and 05 separately. Source motion, modern bass/arp foreground identity, hybrid keys handoff and each complete FX tone can fail listening even when every assertion passes.

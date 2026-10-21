@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 dspaudio */
 #include "../src/parallel.h"
+#include "../src/hybrid.h"
 #include "../src/ui.h"
 #include "../firmware/perf_fixture.h"
 #include <assert.h>
@@ -375,6 +376,53 @@ static void envelope_timeline(void) {
     }
     puts("PASS dualcore: gates 1/16/17, final-inactive worker DSP, exact MIDI slot order/overflow and all fallback modes");
 }
+static void evolving_timeline(void) {
+    const unsigned sizes[]={1,3,16,17,127,128,255};
+    const unsigned ids[]={MC_PRESET_STAGE_PIANO,MC_PRESET_GLASS_PAD,MC_PRESET_SOFT_SWEEP};
+    uint32_t decay=(uint32_t)hy_profile(ids[0])->fm_decay_ms*MC_RATE/1000u;
+    uint32_t duration=(uint32_t)hy_profile(ids[0])->fm_duration_ms*MC_RATE/1000u;
+    uint32_t body=(uint32_t)hy_profile(ids[1])->fm_decay_ms*MC_RATE/1000u;
+    uint32_t boundaries[]={127,255,decay-1u,decay,decay+1u,duration-1u,duration,duration+1u,
+        MC_RATE,body-1u,body,body+1u,2u*MC_RATE,5u*MC_RATE-1u,
+        5u*MC_RATE,5u*MC_RATE+1u,9u*MC_RATE,10u*MC_RATE+1u};
+    for(unsigned i=1;i<sizeof boundaries/sizeof *boundaries;i++)
+        for(unsigned j=i;j&&boundaries[j]<boundaries[j-1];j--) {
+            uint32_t value=boundaries[j];boundaries[j]=boundaries[j-1];boundaries[j-1]=value;
+        }
+    for(unsigned fault=0;fault<=2;fault++) {
+        mc_init(&reference);
+        for(unsigned part=0;part<3;part++) {
+            mc_preset(&reference,part,ids[part]);
+            reference.project.patch[part].attack=0;reference.project.patch[part].sustain=127;
+            reference.project.patch[part].mode=MC_POLY;reference.project.analog[part]=127;
+        }
+        for(unsigned i=0;i<8;i++)mc_note(&reference,i%3,48+i*3,100,0,0);
+        parallel_engine=reference;boot(0);
+        unsigned chunk=0;
+        for(unsigned event=0;event<sizeof boundaries/sizeof *boundaries;event++) {
+            while(reference.voice[0].age<boundaries[event]) {
+                uint32_t remaining=boundaries[event]-reference.voice[0].age;
+                unsigned n=sizes[chunk++%7u];
+                if(n>remaining)n=remaining;
+                compare(n);
+            }
+            for(unsigned copy=0;copy<2;copy++) {
+                McEngine *e=copy?&parallel_engine:&reference;
+                if(boundaries[event]==127||boundaries[event]==255)assert(!mc_parameter_set(e,1,MC_PARAM_SOURCE_MASK,
+                    boundaries[event]==255?hy_profile(ids[1])->available_mask:0));
+                if(boundaries[event]==MC_RATE||boundaries[event]==2u*MC_RATE) {
+                    e->midi.bend[2]=(int16_t)(boundaries[event]==MC_RATE?8191:-8192);
+                    assert(!mc_parameter_set(e,2,MC_PARAM_WAVE,boundaries[event]==MC_RATE?MC_WAVE_SINE:MC_WAVE_SAW));
+                }
+                if(boundaries[event]==9u*MC_RATE)mc_off(e,1,51);
+            }
+            /* Inject faults after real source evolution, not only at trigger. */
+            if(boundaries[event]==2u*MC_RATE&&fault) { halt(&worker);boot(fault); }
+        }
+        if(live)halt(&worker);
+    }
+    puts("PASS dualcore: 10-second evolving sources, 1/3/16/17/127/128/255 splits, complete state, late timeout/partial fallback");
+}
 #if MC_PERF_PROBE == 1
 static void probe_masks(void) {
     four_fixture(0);boot(0);
@@ -387,7 +435,7 @@ static void probe_masks(void) {
 }
 #endif
 int main(void) {
-    envelope_timeline();full_load();changes_and_tails();failures();lookahead_automation();block_tails();analog_voices();sparse_reads();drums_without_fx();
+    evolving_timeline();envelope_timeline();full_load();changes_and_tails();failures();lookahead_automation();block_tails();analog_voices();sparse_reads();drums_without_fx();
 #if MC_PERF_PROBE == 1
     probe_masks();
 #endif

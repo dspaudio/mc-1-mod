@@ -39,7 +39,8 @@ static void both(McPcmCache *c,McVoice *v,McVoice *o,uint32_t ratio) {
     McPcmCache before=*c;
     const McPcmMip *level=level_of(v->hybrid.pcm_zone,v->sample_level);
     uint32_t step=(uint32_t)(((uint64_t)v->sample_step*ratio)>>16);
-    McVoiceRender r={.profile=hy_profile(v->patch.profile),.pcm=level,.cache=c,.pcm_step=step};
+    McVoiceRender r={.profile=hy_profile(v->patch.profile),.pcm=level,.cache=c,.pcm_step=step,
+        .va_morph_frames=(uint32_t)hy_profile(v->patch.profile)->va_morph_ms*MC_RATE/1000u};
     int32_t got=hy_source_sample(v,&r),want=oracle(o,step,level);
     assert(got==want&&v->pcm_pos==o->pcm_pos&&v->hybrid.ended_mask==o->hybrid.ended_mask);
     calls++;
@@ -112,7 +113,8 @@ static void multi_loop(void) {
     const int16_t data[5]={12000,-8000,5000,-13000,11000};
     const McPcmMip level={data,5,2,5};
     McVoice v,o;McPcmCache c={0};retarget(&v,&o,2,0,4u<<16,UINT32_MAX);
-    McVoiceRender r={.profile=hy_profile(v.patch.profile),.pcm=&level,.cache=&c,.pcm_step=UINT32_MAX};
+    McVoiceRender r={.profile=hy_profile(v.patch.profile),.pcm=&level,.cache=&c,.pcm_step=UINT32_MAX,
+        .va_morph_frames=(uint32_t)hy_profile(v.patch.profile)->va_morph_ms*MC_RATE/1000u};
     for(unsigned i=0;i<128;i++) {
         assert(hy_source_sample(&v,&r)==oracle(&o,UINT32_MAX,&level));
         assert(v.pcm_pos==o.pcm_pos&&v.pcm_pos>=(2u<<16)&&v.pcm_pos<(5u<<16));
@@ -249,7 +251,43 @@ static void slice_preparation(void) {
     assert(!memcmp(&eng,&other,sizeof eng));
     puts("PASS: demo filter automation inside a slice preserves PCM and complete state");
 }
+static void safe_va_bands(void) {
+    const unsigned harmonics[]={32,24,16,8,4,2,1};
+    const int bends[]={-8192,0,8191};
+    for(unsigned note=12;note<=108;note++)for(unsigned bend=0;bend<3;bend++)
+        for(unsigned amount=0;amount<=127;amount+=127)for(unsigned wave=0;wave<2;wave++)
+            for(unsigned polarity=0;polarity<2;polarity++) {
+            mc_init(&eng);mc_preset(&eng,0,MC_PRESET_STAGE_PIANO);
+            eng.project.patch[0].wave=(uint8_t)wave;mc_note(&eng,0,note,127,0,0);
+            McVoice *v=&eng.voice[0];McVoiceRender r;
+            McAnalogVoice *analog=&eng.analog_voice[0];
+            analog->random=123;analog->tuning=polarity?306:-307;
+            analog->drift=polarity?32512:-32768;analog->target=analog->drift;analog->clock=1;
+            uint32_t ratio=(uint32_t)(65536+bends[bend]*(bends[bend]<0?7150:8026)/8192);
+            prepare_voice(v,&eng.pcm_cache[0],&eng.pitch_cache[0],analog,amount,ratio,&r);
+            McHybridState initial=v->hybrid;
+            prepare_voice(v,&eng.pcm_cache[0],&eng.pitch_cache[0],analog,amount,ratio,&r);
+            assert(!memcmp(&initial,&v->hybrid,sizeof initial));
+            /* Cross bands during actual glide and inspect post-Analog increments. */
+            v->target=mc_frequency[note==108?12:108];v->patch.glide=127;
+            for(unsigned sample=0;sample<128;sample++) {
+                uint32_t phase=v->phase2;
+                (void)melodic_sample(v,0,&r,32767);
+                unsigned band=0;
+                while(band<7&&(uint64_t)harmonics[band]*r.increment>=UINT32_C(0x73333333))band++;
+                assert(r.table==(band<7?(wave?mc_square[band]:mc_saw[band]):0));
+                assert(r.table_colour==(band<7?(wave?mc_square_colour[band]:mc_saw_colour[band]):0));
+                assert(v->phase2-phase==r.increment);
+            }
+        }
+    for(unsigned band=0;band<7;band++) {
+        assert((uint64_t)mc_va_max_increment[band]*harmonics[band]<UINT32_C(0x73333333));
+        assert((uint64_t)(mc_va_max_increment[band]+1u)*harmonics[band]>=UINT32_C(0x73333333));
+    }
+    puts("PASS: VA richest safe shared-phase band, MIDI 12..108/bend/Analog extremes and post-glide increments");
+}
 int main(void) {
+    safe_va_bands();
     sweep_all_levels();
     multi_loop();
     zone_selection();

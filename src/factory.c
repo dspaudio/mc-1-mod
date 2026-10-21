@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 dspaudio */
 #include "mcfm.h"
-/* 순서는 docs/SOUND_BANK_32.md의 ID와 같다. */
+/* Stable order matches the zero-based IDs in docs/SOUND_BANK_32.md. */
 const char *const mc_preset_names[MC_PRESETS] = {
     "Deep Sub",
     "Slide Bass",
@@ -72,38 +72,75 @@ const char *const mc_preset_categories[MC_PRESETS] = {
 };
 /* mode,wave,profile,PCM,CUT,RES,A,D,S,R,glide,level,FM,VA,mask */
 const McPatch mc_presets[MC_PRESETS] = {
-    {0,2,0,0,112,0,1,68,110,20,0,112,0,127,4}, /* Deep Sub */
-    {1,0,1,0,52,82,1,48,46,12,58,98,0,127,4}, /* Slide Bass */
-    {0,1,2,0,92,18,1,46,72,14,0,100,42,116,6}, /* Pulse Drive */
-    {0,2,3,0,112,6,1,38,68,18,0,110,112,40,6}, /* Solid FM */
-    {0,2,4,22,102,9,2,58,76,22,0,108,102,48,6}, /* Rubber FM */
-    {0,2,5,120,114,4,1,70,66,24,0,112,0,40,5}, /* Round Finger */
-    {0,1,6,0,80,12,2,34,56,12,0,104,0,127,4}, /* Reed Pulse */
-    {0,0,7,0,112,12,0,32,20,12,0,100,106,38,6}, /* Metal Seq */
-    {0,0,8,112,122,4,1,88,48,44,0,108,58,34,7}, /* Stage Piano */
-    {0,0,9,92,101,2,3,104,76,60,0,106,0,72,5}, /* Soft Piano */
-    {0,2,10,20,112,2,2,92,56,46,0,112,110,42,6}, /* Warm Tines */
-    {0,2,11,64,125,3,0,74,34,34,0,108,118,0,3}, /* Clear EP */
-    {0,2,12,127,121,3,0,26,0,10,0,120,0,0,1}, /* Muted Gtr */
-    {0,2,13,112,119,2,1,68,20,30,0,112,38,0,3}, /* Nylon Pick */
-    {0,1,14,0,122,4,0,44,0,20,0,108,116,30,6}, /* Glass Pluck */
-    {0,2,15,0,115,0,1,56,0,24,0,120,127,0,2}, /* Soft Mallet */
-    {0,1,16,0,113,5,0,24,102,12,0,104,36,114,6}, /* Perc Organ */
-    {0,0,17,0,82,22,3,42,24,16,0,100,36,118,6}, /* Brass Stab */
-    {0,0,18,0,88,14,1,38,0,18,0,108,0,127,4}, /* Chord Pluck */
-    {0,0,19,115,120,6,0,45,0,22,0,96,40,46,7}, /* Orch Hit */
-    {0,0,20,0,119,12,2,68,96,28,0,98,32,120,6}, /* Euro Saw */
-    {0,1,21,0,113,10,1,60,100,24,0,104,0,127,4}, /* Pulse Lead */
-    {1,0,22,0,96,7,4,76,106,30,72,102,30,114,6}, /* Porta Lead */
-    {0,0,23,0,124,5,1,66,86,26,0,104,116,30,6}, /* Bright FM */
-    {0,0,24,36,89,5,55,100,101,65,0,100,0,108,5}, /* Warm Pad */
-    {0,0,25,112,106,3,74,112,110,74,0,102,0,42,5}, /* Slow Strings */
-    {0,2,26,112,118,2,48,106,104,66,0,110,0,38,5}, /* Air Choir */
-    {0,2,27,38,120,3,42,112,88,68,0,106,104,30,7}, /* Glass Pad */
-    {0,1,28,0,94,16,0,28,0,10,0,108,0,127,4}, /* Pulse Arp */
-    {0,2,29,32,126,2,0,36,0,14,0,114,120,0,3}, /* Digital Arp */
-    {0,0,30,32,62,18,88,118,100,68,0,98,0,112,5}, /* Soft Sweep */
-    {0,2,31,24,122,2,5,108,62,62,0,110,114,34,6}, /* Bell Bloom */
+    {0,2,0,0,108,3,1,56,106,18,0,108,32,127,6}, /* Deep Sub */
+    {1,0,1,0,70,74,0,40,60,10,46,104,0,127,4}, /* Slide Bass */
+    {0,1,2,0,88,24,1,42,82,12,0,104,44,122,6}, /* Pulse Drive */
+    {0,2,3,0,104,10,1,50,86,18,0,108,108,62,6}, /* Solid FM */
+    {0,2,4,28,92,14,1,64,82,20,0,104,104,68,6}, /* Rubber FM */
+    {0,2,5,118,98,8,1,76,88,20,0,108,36,66,7}, /* Round Finger */
+    {0,1,6,0,78,20,1,46,64,12,0,108,0,127,4}, /* Reed Pulse */
+    {0,0,7,0,100,18,0,40,28,12,0,100,88,88,6}, /* Metal Seq */
+    {0,0,8,100,112,6,1,88,82,42,0,100,32,100,7}, /* Stage Piano */
+    {0,0,9,76,96,4,4,106,96,58,0,100,0,116,5}, /* Soft Piano */
+    {0,1,10,24,104,5,2,90,74,40,0,104,104,64,6}, /* Warm Tines */
+    {0,0,11,66,116,6,1,76,64,34,0,98,92,62,7}, /* Clear EP */
+    {0,1,12,112,96,18,0,30,0,12,0,108,0,64,5}, /* Muted Gtr */
+    {0,0,13,100,101,8,1,70,18,28,0,100,48,58,7}, /* Nylon Pick */
+    {0,1,14,0,108,10,0,48,0,22,0,104,90,78,6}, /* Glass Pluck */
+    {0,2,15,0,102,3,1,62,0,24,0,112,112,40,6}, /* Soft Mallet */
+    {0,1,16,0,102,8,0,28,108,14,0,104,32,118,6}, /* Perc Organ */
+    {0,0,17,0,76,28,2,48,30,16,0,104,36,122,6}, /* Brass Stab */
+    {0,0,18,0,80,22,0,44,0,20,0,108,0,127,4}, /* Chord Pluck */
+    {0,0,19,110,104,12,0,52,0,26,0,96,32,66,7}, /* Orch Hit */
+    {0,0,20,0,108,18,1,74,102,28,0,102,32,124,6}, /* Euro Saw */
+    {0,1,21,0,102,16,1,64,104,26,0,106,0,127,4}, /* Pulse Lead */
+    {1,0,22,0,94,10,3,82,110,32,64,104,52,108,6}, /* Porta Lead */
+    {0,0,23,0,112,8,1,78,94,28,0,102,100,54,6}, /* Bright FM */
+    {0,0,24,48,84,8,46,108,108,62,0,98,0,110,5}, /* Warm Pad */
+    {0,0,25,110,96,5,68,116,114,72,0,96,0,80,5}, /* Slow Strings */
+    {0,2,26,112,108,4,40,110,110,64,0,104,0,52,5}, /* Air Choir */
+    {0,2,27,62,112,5,36,116,100,66,0,100,90,44,7}, /* Glass Pad */
+    {0,1,28,0,94,22,0,36,0,12,0,110,38,127,6}, /* Pulse Arp */
+    {0,0,29,72,108,12,0,42,0,16,0,100,88,80,7}, /* Digital Arp */
+    {0,0,30,54,58,22,82,120,108,70,0,96,0,108,5}, /* Soft Sweep */
+    {0,2,31,40,114,5,3,112,78,60,0,102,100,44,7}, /* Bell Bloom */
+};
+/* One shared factory palette: HALL1, CHORUS2, PANNING DLY, FLANGER.
+ * Program selection consumes only the send row, never these global types. */
+const uint8_t mc_factory_fx_types[MC_FX_BANKS]={3,1,7,5};
+const uint8_t mc_preset_fx_send[MC_PRESETS][MC_FX_BANKS] = {
+    {4,0,0,0}, /* Deep Sub */
+    {6,0,14,4}, /* Slide Bass */
+    {6,4,8,0}, /* Pulse Drive */
+    {8,4,0,0}, /* Solid FM */
+    {10,6,8,0}, /* Rubber FM */
+    {8,6,4,0}, /* Round Finger */
+    {10,8,14,4}, /* Reed Pulse */
+    {12,4,18,6}, /* Metal Seq */
+    {30,22,12,0}, /* Stage Piano */
+    {38,30,10,4}, /* Soft Piano */
+    {26,22,14,0}, /* Warm Tines */
+    {24,16,20,4}, /* Clear EP */
+    {12,6,16,0}, /* Muted Gtr */
+    {22,12,18,0}, /* Nylon Pick */
+    {28,12,26,4}, /* Glass Pluck */
+    {20,8,14,0}, /* Soft Mallet */
+    {18,28,8,4}, /* Perc Organ */
+    {20,16,14,4}, /* Brass Stab */
+    {22,18,22,4}, /* Chord Pluck */
+    {30,12,16,0}, /* Orch Hit */
+    {24,28,24,6}, /* Euro Saw */
+    {22,20,28,8}, /* Pulse Lead */
+    {28,26,22,4}, /* Porta Lead */
+    {24,18,26,8}, /* Bright FM */
+    {40,34,18,10}, /* Warm Pad */
+    {44,38,16,8}, /* Slow Strings */
+    {44,32,22,12}, /* Air Choir */
+    {40,28,28,12}, /* Glass Pad */
+    {12,12,24,4}, /* Pulse Arp */
+    {16,10,28,6}, /* Digital Arp */
+    {44,30,30,16}, /* Soft Sweep */
+    {38,24,32,8}, /* Bell Bloom */
 };
 static void clear_bytes(void *p, unsigned n) { uint8_t *b=p; while(n--) *b++=0; }
 void mc_factory(McProject *p)
@@ -115,10 +152,14 @@ void mc_factory(McProject *p)
     p->bpm=118; p->swing=10;
     p->patch[0]=mc_presets[MC_PRESET_DEEP_SUB]; p->patch[1]=mc_presets[MC_PRESET_WARM_TINES]; p->patch[2]=mc_presets[MC_PRESET_EURO_SAW];
     mc_project_defaults(p);
-    { /* subtle shared ROOM2 reverb on new projects only; stored projects keep their own sends */
-        static const uint8_t reverb_send[MC_PARTS]={12,72,24,8};
-        p->fx_bus_type[0]=1;
-        for(unsigned t=0;t<MC_PARTS;t++) { p->fx_send[t][0]=reverb_send[t]; p->fx_send[t][1]=0; }
+    { /* Defaults above clear sends/types; explicit factory loads set them here. */
+        static const uint8_t drum_send[MC_FX_BANKS]={12,0,6,0};
+        for(unsigned bank=0;bank<MC_FX_BANKS;bank++) {
+            p->fx_bus_type[bank]=mc_factory_fx_types[bank];
+            for(unsigned part=0;part<3;part++)
+                p->fx_send[part][bank]=mc_preset_fx_send[p->preset[part]][bank];
+            p->fx_send[3][bank]=drum_send[bank];
+        }
     }
     for(unsigned t=0;t<4;t++) { p->level[t]=t==1?75:100; p->pan[t]=t==1?42:t==2?88:64; }
     for(unsigned b=0;b<4;b++) for(unsigned s=0;s<16;s++) {

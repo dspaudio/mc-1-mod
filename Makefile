@@ -21,7 +21,7 @@ TESTS = $(CORE_TESTS) $(INFRA_TESTS) $(PRIMITIVE_TESTS)
 CORE_BINS = $(addprefix $(OUT)/test-,$(CORE_TESTS))
 
 .PHONY: all native target web wasm render auditions test test-primitives test-infrastructure \
-	test-fx test-ota sanitize $(addprefix test-,$(TESTS))
+	test-fx test-ota test-va-tables sanitize $(addprefix test-,$(TESTS))
 all: native
 native: $(OUT)/mc1mod-host
 target:
@@ -92,6 +92,8 @@ test: $(addprefix test-,$(TESTS))
 test-primitives: $(addprefix test-,$(PRIMITIVE_TESTS))
 test-infrastructure: $(addprefix test-,$(INFRA_TESTS))
 test-fx: test-effects-modes
+test-va-tables:
+	$(PYTHON) tools/gen_va.py --check
 $(OUT)/test-ota: tests/ota_test.c firmware/update/ota.c | $(OUT)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $< $(LDFLAGS) -o $@
 $(OUT)/ldr-test: tests/ldr_test.c firmware/loader/ldr_core.c firmware/update/ota.c | $(OUT)

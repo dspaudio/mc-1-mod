@@ -90,8 +90,17 @@ typedef struct {
     uint32_t frame,frames;
     uint64_t squares,nonzero,rails,triple_frames,drum_six_frames,all_fx_frames,fx_active_frames,full_stress_frames;
     unsigned peak,peak_voices,peak_drums,end_voices,end_drums,tail_peak,drum_steals;
+    uint32_t perf;
     AudEvent events[512];unsigned count;
 } AudResult;
+/* Render modes: full is the product audition; the others are labelled diagnostics or a stress fixture. */
+enum { AUD_FULL,AUD_DRY,AUD_SOURCE,AUD_STRESS };
+static const char *const aud_mode_names[4]={"full","dry-diagnostic","source-diagnostic","stress"};
+static const uint8_t aud_stress_types[MC_FX_BANKS]={3,1,6,4};
+static const uint8_t aud_drum_sends[MC_FX_BANKS]={12,0,6,0};
+#define AUD_TAIL_SECONDS 12u
+static uint8_t aud_init_types[MC_FX_BANKS],aud_init_sends[MC_PARTS][MC_FX_BANKS];
+static unsigned aud_mech_failures;
 static McEngine aud_engine;
 static unsigned active_voices(void) {
     unsigned n=0;
@@ -103,10 +112,22 @@ static unsigned active_drums(void) {
     for(unsigned i=0;i<MC_DRUM_VOICES;i++)n+=aud_engine.drum[i].env!=0;
     return n;
 }
-static void aud_setup(unsigned preset,unsigned mask,int effects) {
+static void aud_snapshot(void) {
+    memcpy(aud_init_types,aud_engine.project.fx_bus_type,sizeof aud_init_types);
+    memcpy(aud_init_sends,aud_engine.project.fx_send,sizeof aud_init_sends);
+}
+/* Apply FX state only AFTER every mc_preset call: Program Change owns the selected part's sends. */
+static void aud_fx(int mode) {
+    McProject *p=&aud_engine.project;
+    memcpy(p->fx_bus_type,mode==AUD_STRESS?aud_stress_types:mc_factory_fx_types,sizeof p->fx_bus_type);
+    for(unsigned part=0;part<MC_PARTS;part++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+        p->fx_send[part][bank]=mode==AUD_FULL?(part<3?mc_preset_fx_send[p->preset[part]][bank]:aud_drum_sends[bank]):
+            mode==AUD_STRESS?24:0;
+    aud_snapshot();
+}
+static void aud_setup(unsigned preset,unsigned mask) {
     mc_init(&aud_engine);
     memset(aud_engine.project.analog,0,sizeof aud_engine.project.analog);
-    memset(aud_engine.project.fx_send,0,sizeof aud_engine.project.fx_send);
     memset(aud_engine.project.arp,0,sizeof aud_engine.project.arp);
     memset(aud_engine.project.track_filter,0,sizeof aud_engine.project.track_filter);
     for(unsigned p=0;p<4;p++) {
@@ -115,11 +136,6 @@ static void aud_setup(unsigned preset,unsigned mask,int effects) {
             mc_preset(&aud_engine,p,preset);
             aud_engine.project.patch[p].source_mask=(uint8_t)mask;
         }
-        if(effects)for(unsigned b=0;b<4;b++)aud_engine.project.fx_send[p][b]=24;
-    }
-    if(effects) {
-        const uint8_t types[4]={3,1,6,4};
-        memcpy(aud_engine.project.fx_bus_type,types,sizeof types);
     }
 }
 static int aud_until(AudResult *r,uint32_t end) {
@@ -159,7 +175,7 @@ static int aud_until(AudResult *r,uint32_t end) {
     return 0;
 }
 static int aud_event(AudResult *r,unsigned part,unsigned note,unsigned velocity,unsigned flags,uint32_t gate,int drum) {
-    if(r->count>=512)return -1;
+    if(r->count>=512||(!drum&&r->frame+gate>r->perf))return -1;
     r->events[r->count++]=(AudEvent){r->frame,gate,part,note,velocity,flags,(unsigned)drum};
     if(drum) {
         unsigned empty=0,matching=0;
@@ -173,16 +189,26 @@ static int aud_event(AudResult *r,unsigned part,unsigned note,unsigned velocity,
     } else mc_note(&aud_engine,part,note,velocity,flags,gate);
     return 0;
 }
+/* Role phrase in the preset's own register: bass IDs 00..07 sit in MIDI 24..48, all others in 48..84.
+ * 0-3 s: three short velocity/register notes (articulation); 3-6 s: one sustained note or chord
+ * (body and motion); 6-10.1 s: eight-step role phrase. The timeline never depends on the FX mode. */
 static int aud_phrase(AudResult *r,unsigned id) {
-    unsigned base=id<8?36:60;
+    int bass=id<8;
+    unsigned base=bass?36:60;
+    static const unsigned low[3]={28,36,43},high[3]={55,67,79};
     const unsigned velocities[3]={40,85,120};
-    /* 세 velocity와 세 음역을 함께 노출하고, 뒤에 별도 역할 프레이즈를 둔다. */
-    for(unsigned i=0;i<3;i++) {
-        if(aud_event(r,0,base+12*i,velocities[i],0,MC_RATE,0)||
-           aud_until(r,(i+1u)*2u*MC_RATE))return -1;
-    }
-    uint32_t start=r->frame;
     int chord=(id>=8&&id<12)||(id>=16&&id<20)||(id>=24&&id<28)||id==30;
+    for(unsigned i=0;i<3;i++) {
+        if(aud_until(r,i*MC_RATE)||
+           aud_event(r,0,bass?low[i]:high[i],velocities[i],0,MC_RATE/2u,0))return -1;
+    }
+    if(aud_until(r,3u*MC_RATE))return -1;
+    if(chord&&!bass) {
+        for(unsigned k=0;k<3;k++)
+            if(aud_event(r,0,60+(k==1?3u:k==2?7u:0u),90,0,MC_RATE*5u/2u,0))return -1;
+    } else if(aud_event(r,0,bass?36u:64u,90,0,MC_RATE*5u/2u,0))return -1;
+    if(aud_until(r,6u*MC_RATE))return -1;
+    uint32_t start=r->frame;
     static const unsigned offsets[8]={0,0,7,10,12,7,3,7};
     for(unsigned step=0;step<8;step++) {
         if(aud_until(r,start+step*MC_RATE/2u))return -1;
@@ -221,6 +247,7 @@ static int aud_demo(AudResult *r,int stress) {
             McPatch *v=&aud_engine.project.patch[p];
             v->source_mask=HY_ALL;v->sustain=127;v->attack=0;
         }
+        aud_fx(AUD_STRESS);
         for(unsigned i=0;i<8;i++)
             if(aud_event(r,i%3,pitches[i],100,0,4u*MC_RATE,0))return -1;
         for(unsigned step=0;step<16;step++) {
@@ -231,6 +258,7 @@ static int aud_demo(AudResult *r,int stress) {
         mc_preset(&aud_engine,0,MC_PRESET_DEEP_SUB);
         mc_preset(&aud_engine,1,MC_PRESET_STAGE_PIANO);
         mc_preset(&aud_engine,2,MC_PRESET_PULSE_LEAD);
+        aud_fx(AUD_FULL);
         for(unsigned step=0;step<32;step++) {
             if(aud_until(r,step*MC_RATE/4u))return -1;
             unsigned root=step<16?36:41;
@@ -266,20 +294,29 @@ static unsigned aud_loop_issues(unsigned preset,unsigned mask) {
     return count;
 }
 static int aud_file(FILE *report,const char *dir,const char *name,const char *kind,
-                    int preset,int kit,unsigned mask,int song,int *first) {
+                    int preset,int kit,unsigned mask,int song,int mode,const char *paired,int *first) {
     char path[4096],hash[65];
     if(snprintf(path,sizeof path,"%s/%s",dir,name)>=(int)sizeof path)return -1;
     AudResult r={0};
     int isdemo=!strcmp(kind,"demo"),stress=!strcmp(kind,"stress"),issong=song>=0;
-    aud_setup(preset<0?0u:(unsigned)preset,mask,isdemo||stress);
-    unsigned bars=0;
+    aud_setup(preset<0?0u:(unsigned)preset,mask);
+    unsigned bars=0,automation_count=0;
+    uint8_t song_default_sends[MC_PARTS][MC_FX_BANKS]={{0}};
     if(issong) {
-        mc_demo_load(&aud_engine,(unsigned)song);
+        /* An explicit demo load owns its FX state; nothing is reapplied afterwards. */
+        mc_demo_load(&aud_engine,(unsigned)song);aud_snapshot();
+        for(unsigned part=0;part<MC_PARTS;part++)
+            memcpy(song_default_sends[part],part<3?
+                mc_preset_fx_send[aud_engine.project.preset[part]]:aud_drum_sends,
+                sizeof song_default_sends[part]);
+        automation_count=aud_engine.project.automation_count;
         for(unsigned i=0;i<aud_engine.project.song_length;i++)bars+=aud_engine.project.song[i].repeats;
-    }
-    r.frames=(stress?7u:isdemo?11u:13u)*MC_RATE;
-    if(issong)r.frames=(uint32_t)(((uint64_t)MC_RATE*240u*bars+aud_engine.project.bpm-1u)/
-                               aud_engine.project.bpm)+10u*MC_RATE;
+    } else if(!isdemo&&!stress)aud_fx(mode);
+    /* Scheduled performance length; every file then renders a further 12 s for FX/voice tails. */
+    r.perf=stress?5u*MC_RATE:isdemo?9u*MC_RATE:kit>=0?10u*MC_RATE:11u*MC_RATE;
+    if(issong)r.perf=(uint32_t)(((uint64_t)MC_RATE*240u*bars+aud_engine.project.bpm-1u)/
+                               aud_engine.project.bpm);
+    r.frames=r.perf+AUD_TAIL_SECONDS*MC_RATE;
     /* 기존 POC/이전 실행 산출물을 덮어쓰지 않는다. */
     r.wav=fopen(path,"wbx");
     if(!r.wav) { perror(path);return -1; }
@@ -296,6 +333,10 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
     } else failed=kit>=0?aud_kit(&r,(unsigned)kit):
         (isdemo||stress)?aud_demo(&r,stress):aud_phrase(&r,(unsigned)preset);
     r.end_voices=active_voices();r.end_drums=active_drums();
+    unsigned end_fx_active=(unsigned)(aud_engine.shared_fx.rd_active!=0)+(unsigned)(aud_engine.shared_fx.cf_active!=0)+
+        (unsigned)(aud_engine.extra_fx.rd_active!=0)+(unsigned)(aud_engine.extra_fx.cf_active!=0);
+    int fx_changed=memcmp(aud_init_types,aud_engine.project.fx_bus_type,sizeof aud_init_types)||
+        memcmp(aud_init_sends,aud_engine.project.fx_send,sizeof aud_init_sends);
     if(ferror(r.wav))failed=1;
     if(fclose(r.wav))failed=1;
     if(failed||sha_file(path,hash))return -1;
@@ -349,7 +390,34 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
         loop_issues?"FAIL_LOOP_SEAM_REVIEW":"UNAPPROVED_CANDIDATE",
         mechanical_ok?"PASS":"FAIL",
         aud_engine.project.analog[0],aud_engine.project.analog[1],aud_engine.project.analog[2]);
+    static const char *const origins[4]={"preset-defaults","diagnostic-zero","diagnostic-zero","stress-fixture"};
+    const char *origin=issong?"song-defaults":isdemo?"preset-defaults":kit>=0?"project":origins[mode];
+    fprintf(report,"\"render_mode\":\"%s\",\"diagnostic\":%s,\"bank_revision\":%u,\"fx_origin\":\"%s\","
+        "\"paired_file\":",aud_mode_names[mode],mode==AUD_DRY||mode==AUD_SOURCE?"true":"false",
+        (unsigned)MC_BANK_REVISION,origin);
+    if(paired)json_string(report,paired);else fputs("null",report);
+    fprintf(report,",\"reference_video_id\":\"F4_2MaZXeOA\",\"reference_audio_auditioned\":false,"
+        "\"performance_frames\":%u,\"tail_seconds\":%u,\"end_active_fx_banks\":%u,"
+        "\"fx_changed_during_render\":%s,\"fx_song_edits\":[",
+        r.perf,AUD_TAIL_SECONDS,end_fx_active,fx_changed?"true":"false");
+    unsigned song_edits=0;
+    if(issong)for(unsigned part=0;part<MC_PARTS;part++)for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+        if(song_default_sends[part][bank]!=aud_init_sends[part][bank])
+            fprintf(report,"%s{\"frame\":0,\"stage\":\"song-load\",\"part\":%u,\"bank\":%u,"
+                "\"from\":%u,\"to\":%u}",song_edits++?",":"",part,bank,
+                song_default_sends[part][bank],aud_init_sends[part][bank]);
+    fputs("],\"fx_changes\":[",report);
+    if(fx_changed) {
+        fputs("{\"detected_at\":\"render_end\",\"fx_types\":[",report);
+        for(unsigned b=0;b<4;b++)fprintf(report,"%s%u",b?",":"",aud_engine.project.fx_bus_type[b]);
+        fputs("]}",report);
+    }
+    fputs("],",report);
     if(issong) {
+        /* Genre direction only: no notes or audio are copied and neither reference was auditioned. */
+        fprintf(report,"\"genre_reference_video_id\":\"%s\",\"genre_reference_audio_auditioned\":false,"
+            "\"arrangement_status\":\"candidate-pending-listening-approval\",",
+            song==MC_DEMO_HIPHOP?"na7lIb09898":"NKTetfkfbao");
         fprintf(report,"\"demo_id\":%d,\"bpm\":%u,\"swing\":%u,\"song_bars\":%u,"
             "\"song_mode\":%s,\"song_loop\":%s,\"song_entries\":[",
             song,aud_engine.project.bpm,aud_engine.project.swing,bars,
@@ -359,7 +427,10 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
             const McSongEntry *entry=&aud_engine.project.song[i];used[entry->pattern]=1;
             fprintf(report,"%s{\"pattern\":%u,\"repeats\":%u}",i?",":"",entry->pattern,entry->repeats);
         }
-        fputs("],\"score\":[",report);
+        unsigned pattern_count=0;
+        for(unsigned p=0;p<MC_PATTERNS;p++)pattern_count+=used[p]!=0;
+        fprintf(report,"],\"pattern_count\":%u,\"automation_count\":%u,\"score\":[",
+                pattern_count,automation_count);
         unsigned count=0;
         for(unsigned p=0;p<MC_PATTERNS;p++)if(used[p])
             for(unsigned part=0;part<MC_PARTS;part++)for(unsigned step=0;step<MC_STEPS;step++) {
@@ -379,12 +450,13 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
             p?",":"",v->profile,v->source_mask,v->pcm_mix,v->fm_mix,v->va_mix,
             v->cutoff,v->resonance,v->attack,v->decay,v->sustain,v->release,v->wave,v->mode,v->glide);
     }
+    /* fx_types/fx_sends are the renderer's initial state captured before the first sample. */
     fputs("],\"fx_types\":[",report);
-    for(unsigned b=0;b<4;b++)fprintf(report,"%s%u",b?",":"",aud_engine.project.fx_bus_type[b]);
+    for(unsigned b=0;b<4;b++)fprintf(report,"%s%u",b?",":"",aud_init_types[b]);
     fputs("],\"fx_sends\":[",report);
     for(unsigned p=0;p<4;p++) {
         fprintf(report,"%s[",p?",":"");
-        for(unsigned b=0;b<4;b++)fprintf(report,"%s%u",b?",":"",aud_engine.project.fx_send[p][b]);
+        for(unsigned b=0;b<4;b++)fprintf(report,"%s%u",b?",":"",aud_init_sends[p][b]);
         fputs("]",report);
     }
     fputs("],\"events\":[",report);
@@ -395,39 +467,49 @@ static int aud_file(FILE *report,const char *dir,const char *name,const char *ki
             e->frame,e->part,e->note,e->velocity,e->flags,e->gate,e->drum?"true":"false");
     }
     fputs("]}",report);
-    return ferror(report)||!mechanical_ok?-1:0;
+    /* A mechanical failure is recorded in the file's metadata; the run continues so every file is reported. */
+    aud_mech_failures+=!mechanical_ok;
+    return ferror(report)?-1:0;
 }
 int auditions(const char *dir,const char *json) {
     if(mkdir(dir,0755)&&errno!=EEXIST) { perror(dir);return 1; }
     FILE *f=fopen(json,"wbx");
     if(!f) { perror(json);return 1; }
-    fputs("{\"schema_version\":2,\"host_only\":true,\"renderer\":\"McEngine shared C\","
-        "\"subjective_listening_approved\":false,\"target_test_performed\":false,"
+    fputs("{\"schema_version\":3,\"reference_video_id\":\"F4_2MaZXeOA\",\"reference_audio_auditioned\":false,"
+        "\"host_only\":true,\"renderer\":\"McEngine shared C\","
+        "\"subjective_listening_approved\":false,\"accepted_baseline\":null,\"target_test_performed\":false,"
         "\"quality_status\":\"UNAPPROVED_CANDIDATE\",\"wasm_test_performed\":false,"
-        "\"device_test_performed\":false,\"comparison_policy\":\"same events and gain; mask only, no loudness matching\","
+        "\"device_test_performed\":false,\"comparison_policy\":\"same events and gain; mask only, no loudness matching; "
+        "full files carry intended FX, -dry/-source files are separate diagnostics\","
         "\"files\":[\n",f);
-    int first=1,failed=0;char name[80];
+    int first=1,failed=0;char name[80],dry[80];
     for(unsigned id=0;id<32&&!failed;id++) {
         snprintf(name,sizeof name,"preset-%02u.wav",id);
-        failed=aud_file(f,dir,name,"preset",(int)id,-1,mc_presets[id].source_mask,-1,&first);
+        snprintf(dry,sizeof dry,"preset-%02u-dry.wav",id);
+        failed=aud_file(f,dir,name,"preset",(int)id,-1,mc_presets[id].source_mask,-1,AUD_FULL,dry,&first);
+        if(!failed)failed=aud_file(f,dir,dry,"preset",(int)id,-1,mc_presets[id].source_mask,-1,AUD_DRY,name,&first);
         unsigned available=hy_profile(id)->available_mask;
         if((available&(available-1u))!=0)for(unsigned bit=1;bit<=4&&!failed;bit*=2)if(available&bit) {
             snprintf(name,sizeof name,"preset-%02u-source-%u.wav",id,bit);
-            failed=aud_file(f,dir,name,"source",(int)id,-1,bit,-1,&first);
+            failed=aud_file(f,dir,name,"source",(int)id,-1,bit,-1,AUD_SOURCE,NULL,&first);
         }
     }
     for(unsigned kit=0;kit<8&&!failed;kit++) {
         snprintf(name,sizeof name,"kit-%02u.wav",kit);
-        failed=aud_file(f,dir,name,"kit",-1,(int)kit,0,-1,&first);
+        failed=aud_file(f,dir,name,"kit",-1,(int)kit,0,-1,AUD_FULL,NULL,&first);
     }
-    if(!failed)failed=aud_file(f,dir,"hiphop-pocket.wav","song",-1,-1,0,MC_DEMO_HIPHOP,&first);
-    if(!failed)failed=aud_file(f,dir,"techno-drive.wav","song",-1,-1,0,MC_DEMO_TECHNO,&first);
-    if(!failed)failed=aud_file(f,dir,"modern-demo.wav","demo",-1,-1,0,-1,&first);
-    if(!failed)failed=aud_file(f,dir,"modern-stress.wav","stress",-1,-1,7,-1,&first);
-    fprintf(f,"\n],\"render_complete\":%s}\n",failed?"false":"true");
+    if(!failed)failed=aud_file(f,dir,"hiphop-pocket.wav","song",-1,-1,0,MC_DEMO_HIPHOP,AUD_FULL,NULL,&first);
+    if(!failed)failed=aud_file(f,dir,"techno-drive.wav","song",-1,-1,0,MC_DEMO_TECHNO,AUD_FULL,NULL,&first);
+    if(!failed)failed=aud_file(f,dir,"modern-demo.wav","demo",-1,-1,0,-1,AUD_FULL,NULL,&first);
+    if(!failed)failed=aud_file(f,dir,"modern-stress.wav","stress",-1,-1,7,-1,AUD_STRESS,NULL,&first);
+    fprintf(f,"\n],\"render_complete\":%s,\"mechanical_failures\":%u}\n",failed?"false":"true",aud_mech_failures);
     if(ferror(f))failed=1;
     if(fclose(f))failed=1;
     if(failed) { fprintf(stderr,"Failed to write auditions: %s\n",json);return 1; }
+    if(aud_mech_failures) {
+        fprintf(stderr,"FAIL: %u audition file(s) failed mechanical checks (see %s)\n",aud_mech_failures,json);
+        return 1;
+    }
     printf("PASS: actual C auditions saved: %s; no listening or hardware approval implied\n",json);
     return 0;
 }

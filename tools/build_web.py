@@ -30,7 +30,7 @@ def source_inputs(root: Path) -> list[Path]:
     """생성기·PCM metadata·사이트·라이선스를 포함한 실제 입력을 정렬한다."""
     paths = {root / name for name in (
         *CORE, ADAPTER, "Makefile", "compile_flags.txt", "VERSION",
-        "package.json", "tools/build_web.py", "tools/gen_pcm.py",
+        "package.json", "tools/build_web.py", "tools/gen_pcm.py", "tools/gen_va.py",
         "LICENSE", "NOTICE.md",
     )}
     paths.update((root / "src").rglob("*.h"))

@@ -10,13 +10,13 @@ static void setup(McEngine *e) {
     mc_init(e);
     for(unsigned part=0;part<MC_PARTS;part++) {
         e->project.level[part]=127;e->project.pan[part]=64;
-        for(unsigned bank=0;bank<MC_FX_BANKS;bank++)e->project.fx_send[part][bank]=0;
         if(part<3) {
             mc_preset(e,part,MC_PRESET_GLASS_PAD);
             McPatch *p=&e->project.patch[part];
             p->pcm_mix=p->fm_mix=p->va_mix=127;p->source_mask=HY_ALL;
             p->attack=0;p->sustain=127;p->release=0;p->level=127;
         }
+        for(unsigned bank=0;bank<MC_FX_BANKS;bank++)e->project.fx_send[part][bank]=0;
     }
     for(unsigned i=0;i<MC_DRUMS;i++)e->project.drum_level[i]=127;
 }

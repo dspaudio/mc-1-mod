@@ -128,6 +128,7 @@ try:
                   if p.is_file() and p.suffix in ('.c','.h','.S','.ld'))
     inputs.append(root/'tools/build_target.py')
     inputs.append(root/'tools/gen_pcm.py')
+    inputs.append(root/'tools/gen_va.py')
     inputs.append(root/'tools/target_abi.c')
     inputs.append(root/'data/pcm-manifest.json')
     source_hash=hashlib.sha256()

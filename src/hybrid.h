@@ -17,6 +17,7 @@ typedef struct {
     uint8_t filter_kind, velocity_index, velocity_cutoff;
     uint16_t fm_decay_ms, fm_duration_ms;
     int16_t filter_depth;
+    uint16_t fm_body_q15, va_colour_start_q15, va_colour_end_q15, va_morph_ms;
 } McHybridProfile;
 
 /* slice 안에서만 사용하는 준비 상태다. 직렬화하거나 worker에 포인터를 전송하지 않는다.
@@ -28,11 +29,13 @@ typedef struct {
     const McPcmZone *zone;
     const McPcmMip *pcm;
     const int16_t *table;
+    const int16_t *table_colour;
     McPcmCache *cache;
     McPitchCache *pitch;
     McAnalogVoice *analog;
     uint32_t ratio, increment, pcm_step;
     uint32_t analog_increment, analog_ratio;
+    uint32_t fm_decay_frames, va_morph_frames;
     int32_t cutoff, sustain, feedback, analog_adjustment;
     uint8_t fixed_pitch, refresh, analog_ready, analog_amount, amount;
 } McVoiceRender;

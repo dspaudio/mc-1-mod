@@ -505,6 +505,8 @@ void mc_preset(McEngine *e,unsigned part,unsigned preset) {
     for(unsigned i=0;i<MC_VOICES;i++) if(e->voice[i].part==part) e->voice[i].stage=2;
     e->project.patch[part]=mc_presets[preset];
     e->project.preset[part]=(uint8_t)preset;
+    for(unsigned bank=0;bank<MC_FX_BANKS;bank++)
+        e->project.fx_send[part][bank]=mc_preset_fx_send[preset][bank];
 }
 void mc_control(McEngine *e,unsigned p,unsigned knob,int delta) {
     if(p>=3||knob>=4) return;
@@ -520,6 +522,8 @@ static void prepare_voice(const McVoice *v,McPcmCache *cache,McPitchCache *pitch
     const McPatch *p=&v->patch;
     *r=(McVoiceRender){0};
     r->profile=hy_profile(p->profile);r->zone=hy_pcm_zone(v->hybrid.pcm_zone);
+    r->fm_decay_frames=(uint32_t)r->profile->fm_decay_ms*MC_RATE/1000u;
+    r->va_morph_frames=(uint32_t)r->profile->va_morph_ms*MC_RATE/1000u;
     r->cache=cache;r->pitch=pitch;r->analog=analog;r->amount=(uint8_t)amount;r->ratio=ratio;
     r->cutoff=r->profile->filter_kind==HY_FILTER_ACID4?
         250+mc_div_pow2(p->cutoff*p->cutoff,1):clamp(250+p->cutoff*p->cutoff*2,250,32700);
@@ -568,11 +572,14 @@ static __attribute__((noinline)) int32_t melodic_sample(McVoice *v,unsigned inde
         pitch->increment=increment;
     }
     pitch->base=v->increment;pitch->ratio=r->ratio;r->increment=increment;
-    r->table=mc_sine;
+    r->table=r->table_colour=0;
     if(p->wave!=MC_WAVE_SINE) {
         unsigned band=0;
-        while(band<6&&increment>=mc_frequency[36u+band*12u])band++;
-        r->table=p->wave==MC_WAVE_SAW?mc_saw[band]:mc_square[band];
+        while(band<7&&increment>mc_va_max_increment[band])band++;
+        if(band<7) {
+            r->table=p->wave==MC_WAVE_SAW?mc_saw[band]:mc_square[band];
+            r->table_colour=p->wave==MC_WAVE_SAW?mc_saw_colour[band]:mc_square_colour[band];
+        }
     }
     if(r->zone&&(v->hybrid.gain[0]||((p->source_mask&HY_PCM)&&p->pcm_mix))) {
         uint32_t step=pitch->pcm_step;

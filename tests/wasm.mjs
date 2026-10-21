@@ -9,10 +9,10 @@ assert.equal(WebAssembly.Module.imports(mod).length,0);
 const boot=(saved)=>{const e=new WebAssembly.Instance(mod,{}).exports;new Uint8Array(e.memory.buffer,e.emu_flash_ptr(),e.emu_flash_size()).fill(255);if(saved)new Uint8Array(e.memory.buffer,e.emu_flash_ptr(),saved.length).set(saved);e.emu_init();return e;};
 const tap=(e,b)=>{e.emu_input(0,1<<b);e.emu_input(0,0);};
 const e=boot();assert.equal(e.emu_state(0),118);e.emu_enc(0,3);assert.equal(e.emu_state(1),3);e.emu_enc(0,-3);
-for (const send of [12,72,24,8]) {
- assert.equal(e.emu_state(10),send,'new projects use the factory ROOM2 send');
- assert.equal(e.emu_state(11),0,'new projects start with dry C/F sends');
- assert.equal(e.emu_state(12),1,'new projects use ROOM2');
+for (const [rd,cf] of [[4,0],[26,22],[24,28],[12,0]]) {
+ assert.equal(e.emu_state(10),rd,'new projects use role-specific R/D sends');
+ assert.equal(e.emu_state(11),cf,'new projects use role-specific C/F sends');
+ assert.equal(e.emu_state(12),3,'new projects use the shared HALL palette');
  e.emu_enc(0,1);
 }
 const presetCount=32;
@@ -34,13 +34,13 @@ for(let part=0;part<3;part++){
 }
 e.emu_enc(0,-3);
 tap(e,7);assert.equal(e.emu_state(2),5);tap(e,7);assert.equal(e.emu_state(2),2);tap(e,7);assert.equal(e.emu_state(2),4);e.emu_enc(5,1);assert.equal(e.emu_state(3),1);assert.equal(e.emu_state(5),48);
-tap(e,8);tap(e,2);assert.equal(e.emu_state(2),3);assert.equal(e.emu_state(10),8);
-e.emu_enc(2,1);assert.equal(e.emu_state(10),9);assert.equal(e.emu_state(5),48,'track FX preserves inactive demo master metadata');
-tap(e,2);e.emu_enc(2,1);assert.equal(e.emu_state(5),48,'FX keeps the selected-track scope');assert.equal(e.emu_state(10),10);
+tap(e,8);tap(e,2);assert.equal(e.emu_state(2),3);assert.equal(e.emu_state(10),6);
+e.emu_enc(2,1);assert.equal(e.emu_state(10),7);assert.equal(e.emu_state(5),48,'track FX preserves inactive demo master metadata');
+tap(e,2);e.emu_enc(2,1);assert.equal(e.emu_state(5),48,'FX keeps the selected-track scope');assert.equal(e.emu_state(10),8);
 tap(e,9);tap(e,9);assert(e.emu_flash_gen()>0);
-const flash=new Uint8Array(e.memory.buffer,e.emu_flash_ptr(),e.emu_flash_size()).slice();const restored=boot(flash);assert.equal(restored.emu_state(3),1);assert.equal(restored.emu_state(5),48);assert.equal(restored.emu_state(10),10);
+const flash=new Uint8Array(e.memory.buffer,e.emu_flash_ptr(),e.emu_flash_size()).slice();const restored=boot(flash);assert.equal(restored.emu_state(3),1);assert.equal(restored.emu_state(5),48);assert.equal(restored.emu_state(10),8);
 // Restore both selected-track edits before exact native comparison.
-e.emu_enc(2,-1);tap(e,2);e.emu_enc(2,-1);assert.equal(e.emu_state(5),48);assert.equal(e.emu_state(10),8);tap(e,12);assert.equal(e.emu_state(4),1);
+e.emu_enc(2,-1);tap(e,2);e.emu_enc(2,-1);assert.equal(e.emu_state(5),48);assert.equal(e.emu_state(10),6);tap(e,12);assert.equal(e.emu_state(4),1);
 let peak=0,energy=0,hash=2166136261;
 for(let b=0;b<Math.ceil(60*44100/128);b++){e.emu_render(128);const a=new Float32Array(e.memory.buffer,e.emu_audio_ptr(),256);for(const v of a){assert(Number.isFinite(v)&&Math.abs(v)<1);peak=Math.max(peak,Math.abs(v));energy+=v*v;const x=Math.round(v*32768)&65535;hash=Math.imul(hash^(x&255),16777619)>>>0;hash=Math.imul(hash^(x>>8),16777619)>>>0;}}
 assert(peak>.01&&energy>10);assert.equal(e.emu_state(4),0);e.emu_frame();assert(new Uint16Array(e.memory.buffer,e.emu_fb_ptr(),240*240).some(v=>v));

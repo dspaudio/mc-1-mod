@@ -29,7 +29,7 @@ enum { MC_DEMO_HIPHOP=2, MC_DEMO_TECHNO=3 };
 #define MC_SONG_ENTRIES 128
 #define MC_PROJECT_MAGIC UINT32_C(0x5948434d)
 #define MC_PATCH_SCHEMA 1
-#define MC_BANK_REVISION 1
+#define MC_BANK_REVISION 2
 #define MC_PROJECT_BYTES 35134
 #define MC_PROJECT_VERSION 9
 #define MC_RECORD_BYTES (MC_PROJECT_BYTES + 20)
@@ -88,6 +88,8 @@ typedef struct {
     int32_t previous_mod;
     uint16_t velocity_cutoff;
     uint8_t gain[3], target[3], ended_mask, pcm_zone, fm_index;
+    uint32_t fm_left, fm_remainder, fm_error, va_colour;
+    int32_t va_colour_step;
 } McHybridState;
 typedef struct {
     uint32_t phase, phase2, increment, target, pcm_pos, gate_left, age, sample_step;
@@ -154,12 +156,14 @@ typedef struct McEngine {
     McAnalogVoice analog_voice[MC_VOICES];
 } McEngine;
 extern const McPatch mc_presets[MC_PRESETS];
+extern const uint8_t mc_preset_fx_send[MC_PRESETS][MC_FX_BANKS];
+extern const uint8_t mc_factory_fx_types[MC_FX_BANKS];
 extern const char *const mc_preset_names[MC_PRESETS];
 extern const char *const mc_preset_categories[MC_PRESETS];
 extern const char *const mc_kit_names[MC_KITS];
 extern const char *const mc_demo_names[MC_DEMOS];
 extern const char *const mc_fx_rd_names[8], *const mc_fx_cf_names[8];
-/* project.c의 불변 MOD1, schema LE16=1, revision LE16=1 식별자다. */
+/* Immutable MOD1 identity: schema LE16=1, bank revision LE16=2. */
 extern const uint8_t mc_pack_id[8];
 #if defined(MC_PERF_PROBE) && MC_PERF_PROBE == 1
 extern uint8_t mc_probe_skip;

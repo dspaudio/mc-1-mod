@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""실제 타깃 산출물과 새 C 오디션을 검증해 Pages 디렉터리를 조립한다."""
+"""Assemble Pages from verified target artifacts and fresh C auditions."""
 import argparse
 import hashlib
 import json
@@ -21,7 +21,7 @@ def digest(path: Path) -> str:
 def target_fingerprint() -> str:
     inputs = [p for folder in ("src", "firmware") for p in (ROOT / folder).rglob("*")
               if p.is_file() and p.suffix in (".c", ".h", ".S", ".ld")]
-    inputs += [ROOT / p for p in ("tools/build_target.py", "tools/gen_pcm.py",
+    inputs += [ROOT / p for p in ("tools/build_target.py", "tools/gen_pcm.py", "tools/gen_va.py",
                                   "tools/target_abi.c", "data/pcm-manifest.json")]
     result = hashlib.sha256()
     for path in sorted(inputs):
@@ -38,10 +38,10 @@ def main() -> None:
     target = json.loads((firmware / "target-report.json").read_text())
     package = json.loads((firmware / "package-report.json").read_text())
     info = json.loads((ROOT / "build/build-info.json").read_text())
-    assert target["source_input_sha256"] == target_fingerprint(), "타깃 소스 입력이 변경됐습니다."
+    assert target["source_input_sha256"] == target_fingerprint(), "Target source inputs have changed."
     assert target["version"] == package["version"] == info["version"] == (ROOT / "VERSION").read_text().strip()
     assert target["experimental"] is True and package["experimental"] is True and info["experimental"] is True
-    assert info["source_input_sha256"] == build_web.source_input_sha256(ROOT), "WASM 입력이 변경됐습니다."
+    assert info["source_input_sha256"] == build_web.source_input_sha256(ROOT), "WASM inputs have changed."
     assert digest(ROOT / "build/mod1.wasm") == info["wasm_sha256"]
     assert target["sha256"] == package["app_sha256"] == digest(firmware / "mc-1.app.bin")
     assert package["sha256"] == digest(firmware / "mc-1-EXPERIMENTAL.fwsc")
@@ -74,7 +74,13 @@ def main() -> None:
                         str(folder / "audio"), str(folder / "auditions.json")], cwd=ROOT, check=True)
         auditions = json.loads((folder / "auditions.json").read_text())
         assert auditions["render_complete"] and not auditions["subjective_listening_approved"]
-        assert sorted(f["preset_id"] for f in auditions["files"] if f["kind"] == "preset") == list(range(32))
+        assert auditions["schema_version"] == 3
+        for mode in ("full", "dry-diagnostic"):
+            presets = [item for item in auditions["files"]
+                       if item["kind"] == "preset" and item["render_mode"] == mode]
+            assert sorted(item["preset_id"] for item in presets) == list(range(32))
+            assert all(item["diagnostic"] == (mode != "full") for item in presets)
+        assert sum(item["kind"] == "preset" for item in auditions["files"]) == 64
         assert sorted(f["drum_kit"] for f in auditions["files"] if f["kind"] == "kit") == list(range(8))
         songs = [item for item in auditions["files"] if item["kind"] == "song"]
         assert [(item["demo_id"], item["bpm"], item["song_bars"]) for item in songs] == [(2, 128, 24), (3, 144, 32)]
@@ -106,7 +112,7 @@ def main() -> None:
         ],
     }
     (site / "FIRMWARE.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
-    print(f"PASS: Pages 조립, 실제 C 오디션 {len(auditions['files'])}개와 해시 검증된 FWSC")
+    print(f"PASS: Pages assembled with {len(auditions['files'])} real C auditions and hash-verified FWSC")
 
 
 if __name__ == "__main__":

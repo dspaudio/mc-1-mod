@@ -5,9 +5,9 @@
   if (!gallery || !status || !error) return;
 
   const groups = [
-    ["song", "Hip-hop & techno dance songs"],
-    ["preset", "32 presets"],
-    ["kit", "8 drum kits"],
+    ["song", "Hip-hop & techno dance songs · Listening approval pending"],
+    ["preset", "full-tone presets"],
+    ["kit", "drum kits"],
     ["demo", "Modern demo"],
     ["stress", "Stress render"]
   ];
@@ -29,10 +29,13 @@
       item.genre_tags && `Genre ${genres(item.genre_tags)}`,
       item.bpm != null && `${item.bpm} BPM`,
       item.song_bars != null && `${item.song_bars}-bar SONG`,
+      item.pattern_count != null && `${item.pattern_count} patterns`,
+      item.automation_count != null && `${item.automation_count} native automations`,
       item.swing != null && `Swing ${item.swing}`,
       item.source_flags != null && `Sources ${sourceLabel(item.source_flags)}`,
       item.available_source_flags != null && `Available sources ${sourceLabel(item.available_source_flags)}`,
       item.seconds != null && `${item.seconds} sec`,
+      item.diagnostic && (item.render_mode === "dry-diagnostic" ? "Dry diagnostic" : "Source-only diagnostic"),
       item.peak_pcm16 != null && `peak ${item.peak_pcm16}`,
       item.rms_pcm16 != null && `RMS ${Number(item.rms_pcm16).toFixed(1)}`,
       item.quality_status && (item.quality_status === "UNAPPROVED_CANDIDATE" ? "Listening not approved" : "Quality review required"),
@@ -69,11 +72,11 @@
     section.className = "gallery-group";
     if (kind === "song") section.id = "beat-songs";
     const heading = document.createElement("h3");
-    heading.textContent = title;
     section.append(heading);
     const list = document.createElement("div");
     list.className = "audio-list";
     const selected = items.filter((item) => item.kind === kind);
+    heading.textContent = kind === "preset" || kind === "kit" ? `${selected.length} ${title}` : title;
     if (sortById) selected.sort((a, b) => Number(kind === "kit" ? a.drum_kit : a.preset_id) - Number(kind === "kit" ? b.drum_kit : b.preset_id));
     if (!selected.length) {
       const note = document.createElement("p");
@@ -91,12 +94,14 @@
     gallery.append(section);
   }
 
-  function addSourceComparisons(items) {
-    const sources = items.filter((item) => item.kind === "source");
+  function addDiagnostics(items) {
+    const sources = items.filter((item) => item.diagnostic);
     if (!sources.length) return;
     const details = document.createElement("details");
     const summary = document.createElement("summary");
-    summary.textContent = `Source comparison audio (${sources.length})`;
+    const dryCount = sources.filter((item) => item.render_mode === "dry-diagnostic").length;
+    const sourceCount = sources.filter((item) => item.render_mode === "source-diagnostic").length;
+    summary.textContent = `Diagnostic audio (${dryCount} dry · ${sourceCount} source-only)`;
     details.append(summary);
     const list = document.createElement("div");
     list.className = "audio-list";
@@ -116,9 +121,16 @@
     })
     .then((manifest) => {
       if (!manifest || !Array.isArray(manifest.files)) throw new Error("The manifest has no files array.");
+      if (manifest.schema_version !== 3) throw new Error("Unsupported audio manifest schema.");
+      const primary = manifest.files.filter((item) => !item.diagnostic);
+      const presets = primary.filter((item) => item.kind === "preset" && item.render_mode === "full");
+      if (presets.length !== 32 || new Set(presets.map((item) => item.preset_id)).size !== 32
+        || presets.some((item) => !Number.isInteger(item.preset_id) || item.preset_id < 0 || item.preset_id >= 32)) {
+        throw new Error("The manifest must contain exactly 32 full-tone presets.");
+      }
       gallery.replaceChildren();
-      for (const [kind, title] of groups) addGroup(manifest.files, kind, title, kind === "preset" || kind === "kit");
-      addSourceComparisons(manifest.files);
+      for (const [kind, title] of groups) addGroup(kind === "preset" ? presets : primary, kind, title, kind === "preset" || kind === "kit");
+      addDiagnostics(manifest.files);
       status.textContent = `Loaded ${manifest.files.length} audio entries from the manifest.`;
     })
     .catch((cause) => {

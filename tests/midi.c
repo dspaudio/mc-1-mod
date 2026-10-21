@@ -10,7 +10,7 @@ static int16_t buffer[4096];
 static int16_t split[4096];
 _Static_assert(offsetof(McEngine,live_keys)==offsetof(McEngine,pcm_cache)+sizeof(((McEngine *)0)->pcm_cache),"Transient state must follow the PCM cache");
 _Static_assert(sizeof(McEngine)-offsetof(McEngine,pcm_cache)<=2400+2*sizeof(McSharedFx)+sizeof(((McEngine *)0)->analog_voice),"Transient state budget exceeded");
-_Static_assert(sizeof(McVoice)==120,"Hybrid voice layout must remain stable");
+_Static_assert(sizeof(McVoice)==140,"Hybrid voice layout includes the revision-2 source motion state");
 static void render(unsigned n) { while(n) { unsigned k=n>2048?2048:n;mc_render(&e,buffer,k);n-=k; } }
 static void input(unsigned s,unsigned status,unsigned x,unsigned y) {
     mc_midi_byte(&e,s,(uint8_t)status);mc_midi_byte(&e,s,(uint8_t)x);
@@ -98,12 +98,14 @@ static void demo_cleanup(void) {
     puts("PASS MIDI demo: owned channels, live/ARP/sustain/reset, pending output, reload, transport and overflow");
 }
 static void factory_default_reverb(void) {
-    static const uint8_t sends[MC_PARTS]={12,72,24,8};
+    static const uint8_t drum_sends[MC_FX_BANKS]={12,0,6,0};
     McProject stored,loaded;uint8_t blob[MC_RECORD_BYTES];uint32_t seq;
     mc_init(&e);
-    assert(e.project.fx_bus_type[0]==1&&!e.project.fx_bus_type[1]);
-    for(unsigned part=0;part<MC_PARTS;part++) assert(e.project.fx_send[part][0]==sends[part]&&!e.project.fx_send[part][1]);
-    /* Stored v7 sends are portable and never replaced by the factory reverb. */
+    assert(!memcmp(e.project.fx_bus_type,mc_factory_fx_types,sizeof e.project.fx_bus_type));
+    for(unsigned part=0;part<3;part++)
+        assert(!memcmp(e.project.fx_send[part],mc_preset_fx_send[e.project.preset[part]],MC_FX_BANKS));
+    assert(!memcmp(e.project.fx_send[3],drum_sends,sizeof drum_sends));
+    /* Stored sends are portable and never replaced by the factory palette. */
     stored=e.project;memset(stored.fx_send,0,sizeof stored.fx_send);stored.fx_bus_type[0]=4;stored.fx_send[2][0]=99;
     assert(mc_encode(&stored,9,blob,sizeof blob)>0&&mc_decode(&loaded,&seq,blob,sizeof blob)==0);
     assert(!memcmp(loaded.fx_send,stored.fx_send,sizeof stored.fx_send)&&loaded.fx_bus_type[0]==4);
@@ -118,7 +120,7 @@ static void factory_default_reverb(void) {
         }
     }
     assert(diff>0&&diff<dry_sum/2);
-    puts("PASS factory reverb: ROOM2 sends 12/72/24/8, no chorus, bounded wet-vs-dry difference, v7 sends preserved");
+    puts("PASS factory FX: shared palette, role sends, bounded wet-vs-dry difference, stored sends preserved");
 }
 static void legacy_pcm_reference(void) {
     puts("PASS hybrid MIDI fixtures: legacy LA PCM audio oracle removed");

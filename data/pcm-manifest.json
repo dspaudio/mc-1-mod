@@ -1,15 +1,31 @@
 {
-  "schema": 1,
+  "schema": 2,
   "kind": "original_mathematical_pcm",
   "license": "GPL-3.0-only",
+  "construction": "Designed partial beds with per-partial onset/bloom/strike/decay trajectories, grid-locked animation above the fundamental, and a normalised transient layer. No recording, sample, external bank or reference-video audio is used.",
   "sample_rate": 16000,
   "families": 7,
+  "peak_target": 26000,
+  "guard_frames": 1280,
+  "measurement": "centroid_hz and bright_fraction use Hann-windowed FFT frames: a 256-sample attack frame at offset 0, then 1024-sample frames at offset 0, length/4 and the tail. bright_fraction is the share of spectral energy at or above the fourth partial. occupied_bands counts quarter-octave bands from the fundamental up to 7 kHz that stay within 30 dB of the strongest band.",
+  "mip_filter": {
+    "taps": 41,
+    "cutoff": 0.19,
+    "kaiser_beta": 7.5,
+    "passband_ripple_db": -0.234,
+    "stopband_db": -75.1
+  },
   "zones": [
     {
       "name": "Finger Body",
       "family": 0,
       "root": 36,
+      "role": "Electro bass body: formant-shaped partial bed, grid-locked growl animation above 900 Hz, designed finger transient.",
       "tuning_hz_q16": 4228129,
+      "fundamental_hz": 64.516129,
+      "tuning_cents_vs_equal": -23.7261,
+      "partials": 109,
+      "loop_cycles": 8,
       "lengths": [
         4000,
         2000,
@@ -37,24 +53,64 @@
         125,
         63
       ],
-      "pcm_sha256": "1ce49509d2646a6c45043ed8b9656ec74c4178c91ac9772cc54d84f83ec52dd4",
+      "pcm_sha256": "d2747f65b52911122255c4c8dc9951007caef447803ca81554b051bc0cb39e01",
       "peak": 26000,
-      "rms": 9492.269324205356,
+      "rms": 7092.3896,
+      "dc_offset": 27.7658,
       "loop_jumps": [
-        37,
-        56,
-        32,
-        345,
-        2594,
-        8747,
-        5786
+        1250,
+        5956,
+        6448,
+        5384,
+        6933,
+        12322,
+        5837
+      ],
+      "loop_second_difference": [
+        385,
+        7084,
+        7342,
+        3498,
+        2097,
+        12666,
+        12265
+      ],
+      "attack_ms": 2.062,
+      "centroid_hz": [
+        1158.94,
+        576.09,
+        484.5,
+        484.38
+      ],
+      "bright_fraction": [
+        0.724,
+        0.3672,
+        0.3318,
+        0.3318
+      ],
+      "fundamental_margin_db": 109.59,
+      "occupied_bands": 26,
+      "available_bands": 27,
+      "mip_level_db": [
+        0.0,
+        -0.09,
+        -0.74,
+        -1.31,
+        -1.51,
+        -2.68,
+        -4.52
       ]
     },
     {
       "name": "Piano Low",
       "family": 1,
       "root": 48,
+      "role": "Digital hybrid keys, low register: FM-indexed blooming core with stretched metal sparkle and a hammer transient.",
       "tuning_hz_q16": 8572947,
+      "fundamental_hz": 130.812783,
+      "tuning_cents_vs_equal": 0.0,
+      "partials": 76,
+      "loop_cycles": 0,
       "lengths": [
         6400,
         3200,
@@ -82,9 +138,10 @@
         0,
         0
       ],
-      "pcm_sha256": "81c9b5f84b465388dda8d5cc64b7601d294fe5b50e88e0060729e8c32e763d89",
-      "peak": 26000,
-      "rms": 7139.802389586405,
+      "pcm_sha256": "b1ec48fd2139bed2b801b699f1cdfd657d9ae54f7d1d6364edd54d181eed2341",
+      "peak": 25908,
+      "rms": 7513.0665,
+      "dc_offset": 0.0003,
       "loop_jumps": [
         0,
         0,
@@ -93,13 +150,52 @@
         0,
         0,
         0
+      ],
+      "loop_second_difference": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "attack_ms": 10.75,
+      "centroid_hz": [
+        1174.94,
+        587.3,
+        436.69,
+        322.73
+      ],
+      "bright_fraction": [
+        0.5498,
+        0.3675,
+        0.3033,
+        0.2043
+      ],
+      "fundamental_margin_db": 24.5,
+      "occupied_bands": 19,
+      "available_bands": 22,
+      "mip_level_db": [
+        0.0,
+        -0.09,
+        -0.34,
+        -0.79,
+        -2.67,
+        -3.92,
+        -38.83
       ]
     },
     {
       "name": "Piano Mid",
       "family": 1,
       "root": 60,
+      "role": "Digital hybrid keys, mid register: shorter index trajectory, brighter resonance bank, tighter strike layer.",
       "tuning_hz_q16": 17145893,
+      "fundamental_hz": 261.625565,
+      "tuning_cents_vs_equal": 0.0,
+      "partials": 43,
+      "loop_cycles": 0,
       "lengths": [
         6400,
         3200,
@@ -127,9 +223,10 @@
         0,
         0
       ],
-      "pcm_sha256": "36bb6df71e703a9fe16c7994b4bfcf39d7e9fcbe15f6bf16c4a37826bee0177e",
-      "peak": 26000,
-      "rms": 6302.219187107328,
+      "pcm_sha256": "f3e9541885a06c678fea25b4a712bfa2542554bcee120b0ebc8eb6501ae8da20",
+      "peak": 25706,
+      "rms": 5636.6696,
+      "dc_offset": 0.002,
       "loop_jumps": [
         0,
         0,
@@ -138,13 +235,52 @@
         0,
         0,
         0
+      ],
+      "loop_second_difference": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "attack_ms": 16.125,
+      "centroid_hz": [
+        1355.12,
+        704.58,
+        551.3,
+        427.83
+      ],
+      "bright_fraction": [
+        0.5008,
+        0.2565,
+        0.1734,
+        0.0856
+      ],
+      "fundamental_margin_db": 29.86,
+      "occupied_bands": 15,
+      "available_bands": 18,
+      "mip_level_db": [
+        0.0,
+        -0.17,
+        -0.49,
+        -1.32,
+        -1.98,
+        -35.38,
+        -35.97
       ]
     },
     {
       "name": "Piano High",
       "family": 1,
       "root": 72,
+      "role": "Digital hybrid keys, high register: fast index decay, strong inharmonic sparkle, dominant tine ring.",
       "tuning_hz_q16": 34291786,
+      "fundamental_hz": 523.251131,
+      "tuning_cents_vs_equal": 0.0,
+      "partials": 27,
+      "loop_cycles": 0,
       "lengths": [
         6400,
         3200,
@@ -172,9 +308,10 @@
         0,
         0
       ],
-      "pcm_sha256": "174af69b11aca8e54590b8e3db6eebff4ada1daf33b935b4fa51ed174edfeedc",
+      "pcm_sha256": "b5c87e1f7c74e7581f58b097a8e147c07b999abc8e87f9fbaee451c92af8af81",
       "peak": 26000,
-      "rms": 5253.267647379105,
+      "rms": 6177.4806,
+      "dc_offset": -0.0003,
       "loop_jumps": [
         0,
         0,
@@ -183,13 +320,52 @@
         0,
         0,
         0
+      ],
+      "loop_second_difference": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "attack_ms": 15.0,
+      "centroid_hz": [
+        1327.98,
+        941.51,
+        819.93,
+        728.75
+      ],
+      "bright_fraction": [
+        0.2536,
+        0.0949,
+        0.0396,
+        0.0192
+      ],
+      "fundamental_margin_db": 35.66,
+      "occupied_bands": 11,
+      "available_bands": 14,
+      "mip_level_db": [
+        0.0,
+        -0.12,
+        -0.68,
+        -2.13,
+        -32.48,
+        -35.21,
+        -40.74
       ]
     },
     {
       "name": "Muted Pick",
       "family": 2,
       "root": 60,
+      "role": "Tight hybrid stab: comb-carved nasal bed under a dominant designed click and a 30 ms air tail.",
       "tuning_hz_q16": 17145893,
+      "fundamental_hz": 261.625565,
+      "tuning_cents_vs_equal": 0.0,
+      "partials": 26,
+      "loop_cycles": 0,
       "lengths": [
         3200,
         1600,
@@ -217,9 +393,10 @@
         0,
         0
       ],
-      "pcm_sha256": "dbb8757df9becfbffbe26cbd1383b83fb1ab091564c2c07e81472d8ddeb06235",
+      "pcm_sha256": "4cc6601f20204364ef0fbd2175538264eda927b6a9ce59e484e9ffd0e60a3e0a",
       "peak": 26000,
-      "rms": 4026.903025744474,
+      "rms": 3118.3314,
+      "dc_offset": 0.0028,
       "loop_jumps": [
         0,
         0,
@@ -228,13 +405,52 @@
         0,
         0,
         0
+      ],
+      "loop_second_difference": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "attack_ms": 0.812,
+      "centroid_hz": [
+        1483.71,
+        1440.29,
+        1089.74,
+        874.7
+      ],
+      "bright_fraction": [
+        0.5352,
+        0.5753,
+        0.4104,
+        0.2699
+      ],
+      "fundamental_margin_db": 21.13,
+      "occupied_bands": 15,
+      "available_bands": 18,
+      "mip_level_db": [
+        0.0,
+        -0.71,
+        -3.04,
+        -5.55,
+        -9.53,
+        -28.76,
+        -40.75
       ]
     },
     {
       "name": "Nylon Pluck",
       "family": 3,
       "root": 60,
+      "role": "Warm hybrid pluck: dual-rate body, blooming low partials and a bright sheen that fades before the body.",
       "tuning_hz_q16": 17145893,
+      "fundamental_hz": 261.625565,
+      "tuning_cents_vs_equal": 0.0,
+      "partials": 26,
+      "loop_cycles": 0,
       "lengths": [
         5600,
         2800,
@@ -262,9 +478,10 @@
         0,
         0
       ],
-      "pcm_sha256": "45c1398768d9222d59dd864157d298a264d367fe2f3091919c7ec58bfecdac10",
+      "pcm_sha256": "5f1694d10d7756ea8440351c77be0c2e6b7b40b51e8a4e52f1e64e1f74bcd06c",
       "peak": 26000,
-      "rms": 7104.585038538242,
+      "rms": 6850.5447,
+      "dc_offset": 0.0029,
       "loop_jumps": [
         0,
         0,
@@ -273,13 +490,52 @@
         0,
         0,
         0
+      ],
+      "loop_second_difference": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "attack_ms": 14.5,
+      "centroid_hz": [
+        1413.38,
+        754.79,
+        519.22,
+        450.72
+      ],
+      "bright_fraction": [
+        0.5556,
+        0.2745,
+        0.1553,
+        0.104
+      ],
+      "fundamental_margin_db": 30.29,
+      "occupied_bands": 13,
+      "available_bands": 18,
+      "mip_level_db": [
+        0.0,
+        -0.1,
+        -0.45,
+        -1.24,
+        -2.8,
+        -30.33,
+        -30.93
       ]
     },
     {
       "name": "Tonal Hit",
       "family": 4,
       "root": 60,
+      "role": "Industrial tonal hit: inharmonic cluster over a strong fundamental, a settling chirp and a wide impact burst.",
       "tuning_hz_q16": 17145893,
+      "fundamental_hz": 261.625565,
+      "tuning_cents_vs_equal": 0.0,
+      "partials": 23,
+      "loop_cycles": 0,
       "lengths": [
         4000,
         2000,
@@ -307,9 +563,10 @@
         0,
         0
       ],
-      "pcm_sha256": "ae67607d8a17b19cf935046c1a54e51889fe3f258b7d20f1bd32c1bf2dd98465",
+      "pcm_sha256": "26e63762863d39b3ee78ebf43db555035c1f83c5338d5c72f9c08f59ac4636fc",
       "peak": 26000,
-      "rms": 3811.4170764297105,
+      "rms": 4262.1068,
+      "dc_offset": -0.0022,
       "loop_jumps": [
         0,
         0,
@@ -318,13 +575,52 @@
         0,
         0,
         0
+      ],
+      "loop_second_difference": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "attack_ms": 5.062,
+      "centroid_hz": [
+        1160.69,
+        678.68,
+        480.23,
+        352.94
+      ],
+      "bright_fraction": [
+        0.3441,
+        0.161,
+        0.0712,
+        0.0164
+      ],
+      "fundamental_margin_db": 26.71,
+      "occupied_bands": 18,
+      "available_bands": 18,
+      "mip_level_db": [
+        0.0,
+        -0.28,
+        -0.73,
+        -1.42,
+        -3.74,
+        -17.93,
+        -19.97
       ]
     },
     {
       "name": "String Texture",
       "family": 5,
       "root": 60,
+      "role": "Evolving ensemble bed: partial-staggered swell, grid-locked shimmer above the third partial and a looped air bed.",
       "tuning_hz_q16": 17039360,
+      "fundamental_hz": 260.0,
+      "tuning_cents_vs_equal": -10.7903,
+      "partials": 91,
+      "loop_cycles": 52,
       "lengths": [
         6400,
         3200,
@@ -352,24 +648,64 @@
         200,
         100
       ],
-      "pcm_sha256": "19b4713d3109ad522862552dcdd8f326d76e56cd412f505a56e374262ad34b1d",
+      "pcm_sha256": "60d180b1d9be6b436fe63b88c241c2beffb5e5847aad683d6b022941f9613610",
       "peak": 26000,
-      "rms": 12585.08039541514,
+      "rms": 11342.1021,
+      "dc_offset": -19.4852,
       "loop_jumps": [
-        23592,
-        27328,
-        22593,
-        17599,
-        10486,
-        162,
+        1771,
+        10848,
+        4221,
+        10434,
+        11086,
+        0,
         0
+      ],
+      "loop_second_difference": [
+        6361,
+        16,
+        11538,
+        5498,
+        1,
+        0,
+        0
+      ],
+      "attack_ms": 102.812,
+      "centroid_hz": [
+        448.1,
+        597.04,
+        764.89,
+        762.22
+      ],
+      "bright_fraction": [
+        0.0858,
+        0.1986,
+        0.2854,
+        0.2361
+      ],
+      "fundamental_margin_db": 118.83,
+      "occupied_bands": 17,
+      "available_bands": 19,
+      "mip_level_db": [
+        0.0,
+        -0.11,
+        -0.57,
+        -1.86,
+        -3.32,
+        -47.15,
+        -48.36
       ]
     },
     {
       "name": "Vowel Air",
       "family": 6,
       "root": 60,
+      "role": "Formant choir texture: four-formant vowel with slope-following sway and a looped breath bed, fundamental unmodulated.",
       "tuning_hz_q16": 17039360,
+      "fundamental_hz": 260.0,
+      "tuning_cents_vs_equal": -10.7903,
+      "partials": 107,
+      "loop_cycles": 52,
       "lengths": [
         6400,
         3200,
@@ -397,21 +733,58 @@
         200,
         100
       ],
-      "pcm_sha256": "7a592185c368e5c25e1af5f5865a151316ad7702ce30903bc71f3e224ca21db1",
+      "pcm_sha256": "2db4531dd1efdad8b2162b0e02ec25af4ae7790a6dd9d3cca952d44f1066e1ef",
       "peak": 26000,
-      "rms": 10731.69762978026,
+      "rms": 8269.3537,
+      "dc_offset": -3.1913,
       "loop_jumps": [
-        15840,
-        24458,
-        25368,
-        13392,
-        2437,
-        37,
+        511,
+        589,
+        4098,
+        2514,
+        4549,
+        0,
         0
+      ],
+      "loop_second_difference": [
+        4249,
+        6143,
+        11662,
+        11212,
+        1,
+        0,
+        0
+      ],
+      "attack_ms": 82.062,
+      "centroid_hz": [
+        1818.98,
+        896.88,
+        1235.26,
+        1183.41
+      ],
+      "bright_fraction": [
+        0.3851,
+        0.24,
+        0.3673,
+        0.3684
+      ],
+      "fundamental_margin_db": 108.89,
+      "occupied_bands": 17,
+      "available_bands": 19,
+      "mip_level_db": [
+        0.0,
+        -0.5,
+        -0.97,
+        -3.02,
+        -8.35,
+        -40.5,
+        -43.97
       ]
     }
   ],
   "pcm_bytes": 193678,
   "budget_bytes": 229376,
+  "reference_audio_auditioned": false,
+  "listening_approved": false,
   "generator_sha256_scope": "The source input hash includes tools/gen_pcm.py and every generated header."
 }
