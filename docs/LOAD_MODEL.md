@@ -10,7 +10,7 @@ python3 tools/load_model.py
 
 The repository path is derived from the script's location. Original inputs are read from the sibling repository
 `../mc-1/mcfm-1`. The script does not invoke devices, the network, git, or a compiler.
-Its only outputs are `build/load/model.json` and `build/load/model.md`.
+Without arguments its only outputs are `build/load/model.json` and `build/load/model.md`.
 If an input/anchor/overlap check fails, it exits 1 without rewriting the reports.
 Any existing outputs left in that case must not be treated as results of the failed run.
 Success is confirmed by exit 0 and the output `PASS raw/manual/drift/overlap`.
@@ -194,7 +194,192 @@ The second equation assumes that the historical peak/mean shape persists in the 
 It is not a future maximum, p99, or statistical confidence interval. A negative margin or reaching the boundary
 means **deadline crossing under that assumption**; a positive margin is also only **margin under that assumption**.
 It does not claim to cover IRQ entry offsets or other unknowns.
-No host M2 ratio, 320/360 MHz, or CPU-cycle conversion is used.
+The default mode uses no host M2 ratio, 320/360 MHz, or CPU-cycle conversion.
+
+## Measured Stage-ratio Mode
+
+To reproduce the complete host measurement and calibration:
+
+```sh
+node tools/measure_load.mjs
+python3 tools/load_model.py --measured build/load64/measurements.json
+```
+
+The runner requires Node.js, a native C compiler, and the clean original repository at
+`../mc-1/mcfm-1`, at commit `10a2240d7f3c63e3ed551774a8e17fb24ed002b8`.
+It compiles both source trees with the same host flags, checks the current target source
+fingerprint, and retains individual raw runs in unique `build/load64/run-*` directories.
+It does not install firmware or access a device. `--smoke` measures only a small subset.
+The complete run measures 64 profiles plus auxiliary-source and Analog controls, in four
+attack/held and middle/high combinations, with three repeats and bracketing original runs.
+
+This mode reads a parent runner's measurements; it never runs that runner, a benchmark, compiler,
+git, network, or device operation. It writes only `build/load64/model.json` and
+`build/load64/model.md`, after validation and deterministic checks succeed.
+An invalid input exits nonzero without replacing either report; an older report is not a result
+of that failed invocation. Default raw validation and all 86 legacy scenarios remain unchanged.
+
+### Input Contract
+
+The UTF-8 JSON object has this shape. The example values illustrate a unit-ratio input, not a
+measurement of the current firmware. Replace `source_input_sha256` with the canonical current
+fingerprint, not the historical source hash or a stale target-report value.
+
+```json
+{
+  "schema": 2,
+  "source_input_sha256": "<canonical current build_target.py fingerprint>",
+  "original_commit": "10a2240d7f3c63e3ed551774a8e17fb24ed002b8",
+  "original_source_proxy": false,
+  "compiler": "<runner compiler identity and flags>",
+  "rows": [{
+    "profile": 0,
+    "name": "<profile name>",
+    "phase": "attack",
+    "analog": 127,
+    "register": "middle",
+    "source_mask": 7,
+    "aux_enabled": false,
+    "ratios": {
+      "cpu0_synth": [1, 1, 1],
+      "worker_combined": [1, 1, 1],
+      "transfer": [1, 1, 1],
+      "route": [1, 1, 1],
+      "output": [1, 1, 1]
+    },
+    "host_ns": {
+      "cpu0_synth": [1000, 1000, 1000],
+      "worker_combined": [1000, 1000, 1000],
+      "transfer": [1000, 1000, 1000],
+      "route": [1000, 1000, 1000],
+      "output": [1000, 1000, 1000]
+    },
+    "baseline_ns": {
+      "cpu0_synth": [1000, 1000, 1000],
+      "worker_combined": [1000, 1000, 1000],
+      "transfer": [1000, 1000, 1000],
+      "route": [1000, 1000, 1000],
+      "output": [1000, 1000, 1000]
+    },
+    "activity": {}
+  }]
+}
+```
+
+- `schema` must be integer 2, `original_commit` must match exactly, and `compiler` must be a
+  nonempty string. `rows` must be nonempty. Partial profile/register/Analog coverage is accepted
+  and is not described as complete all64 coverage.
+- `original_source_proxy` is an optional boolean, defaulting to **true** when omitted.
+  Explicit false records the runner's assertion that it used the historical source directly.
+  The parent verified the original repository's clean HEAD at the historical commit; the model
+  does not run git or independently authenticate the compiled source snapshot.
+- `profile` is integer 0..63, `analog` integer 0..127, `source_mask` integer 0..7,
+  `aux_enabled` boolean, `phase` is `attack` or `held`, and `register` is `middle` or `high`.
+  `name` must be nonempty. `activity` is a JSON object, preserved without interpreting its keys.
+- Each of `ratios`, `host_ns`, and `baseline_ns` contains exactly the five stage keys shown above.
+  Each value is an array of exactly three positive finite numbers. Booleans and nonfinite
+  JSON numbers are rejected. Repeats are paired in array order, with matching units and
+  aggregation in `host_ns` and `baseline_ns`.
+- Each ratio must agree with `host_ns[k]/baseline_ns[k]` within the larger of absolute 1e-9
+  and relative 1e-6, solely to allow numeric serialization rounding. The model uses the
+  **median of the three ratios**, not the ratio of medians.
+- The current source fingerprint is recomputed even without `build/target-report.json`.
+  A stale measurement fingerprint is an error, never silently accepted.
+
+### Required Measurement Semantics
+
+The runner uses the actual `mc_render_ex` and `McRenderContext`, with synchronous notify
+executing `mc_dual_work` and release-publishing completion. This avoids worker-thread scheduling
+noise while exercising the worker kernels. It is not a replay of MCU parallelism, cache ownership,
+XIP contention, IRQ scheduling, or dispatch latency.
+
+`cpu0_synth` includes preparation and CPU0 local synthesis together. `worker_combined` is
+`job_ticks - sum(bank_ticks)` for **synth-enabled jobs only**. It includes their job-wrapper
+residue and is not pure DSP time. The runner excludes FX-only epilogue nonbank overhead from
+this metric and retains it separately in activity/provenance metadata; its target increment
+is not identified by this model. `transfer` removes the **entire synchronous notify span**,
+not merely `job_ticks`. The existing context already removes join wait from transfer.
+FX bank timing must be enabled; host wait and whole-render elapsed are not calibration inputs.
+
+The historical host denominator must use the original engine and fixture, not current PCM-only
+or a numerically remapped preset. Original acid0 uses Analog0, programs77/34/9, `pcm_mix=63`,
+BPM240, kit6, bend8191, and eight notes. Its default fixture has two FX banks; an explicit
+four-bank entry exists. The runner must state which four-bank settings it reproduces.
+Original preset 77 cannot be indexed in the current 64-entry bank. Canonical serial/full-engine
+PCM parity checks correctness, not historical workload identity or MCU timing.
+
+Current rows describe synthetic poly8 at EG sustain127, actual available source masks, fourFX
+and six drums, in middle/high registers and attack/held phases. Analog127 profile coverage and
+Analog0 auxiliary controls must be read from the rows, not assumed from an incomplete file.
+Sustain127 does not prevent PCM/FM lifetime completion or drum decay. An onset retrigger outside
+timed rendering excludes note-on preparation but still includes subsequent PCM/pitch cache fill.
+Changing mask6/7 on an existing voice has gain-ramp transients; configuring it before note-on
+initializes the gains directly. Auxiliary mask6/7 pairs measure slot1 FM2/VA2 deltas, not another
+logical voice or another full pitch/filter/EG path.
+
+### Calibration and Independent Sensitivities
+
+The primary anchor is **acid0 capture2, n=1**. For every input row:
+
+```text
+p_old = p_new = 0.15
+historical_cost = fit(capture2, p_old)
+historical_cost.prep  = historical_CPU0_synth * p_new
+historical_cost.local = historical_CPU0_synth * (1-p_new)
+CPU0 prep and local *= median(cpu0_synth ratios)
+CPU1 melody and drums *= median(worker_combined ratios)
+transfer *= median(transfer ratios)
+output   *= median(output ratios)
+route multiplier = 1
+FX bank multipliers = 1
+```
+
+The preparation redistribution happens after fitting the latent historical worker at `p_old`.
+`Scenario.cpu0_multiplier` scales prep+local; `worker_combined_multiplier` scales worker+drums.
+`route_multiplier` and `output_multiplier` scale their own stages. All four default to 1,
+and legacy `copy_multiplier` continues to scale transfer. These additions change no default
+legacy calculation.
+
+The same parallel max/join simulator recomputes waits. Do not retain old wait independently
+after replacing CPU0 or worker costs. Measured ratios already include source gating, so the row's
+mask is metadata and the legacy equal-source `mask.bit_count()` scaling is disabled.
+There is no global host multiplier on the ISR. Historical render residual and audio-render
+remain fixed assumptions; TIMER5, `non_render`, and bank times are not added again.
+
+The five rows with the largest primary predicted means get concise, separate sensitivity families:
+
+- **Independent prep shares:** all nine `p_old` x `p_new` pairs from 0.05/0.15/0.30.
+  Refit the historical worker at each `p_old`, then redistribute the scaled current CPU0
+  aggregate at `p_new`. Unequal shares need not reproduce the old mean even with unit ratios.
+- **Synthesis delta portability:** `multiplier = 1 + factor*(median_host_ratio-1)`,
+  factors 0.75/1/1.25 on CPU0 and combined worker only. These are assumptions, not learned
+  intervals. Variants producing nonpositive synthesis multipliers are explicitly excluded,
+  never clipped to an invented positive cost.
+- **Copy:** fixed 1 versus the measured transfer ratio; measured is primary.
+- **Route check:** historical 1 versus the measured route ratio; historical 1 is primary.
+- **Output check:** historical 1 versus measured output; measured is primary because limiter
+  branch behavior can differ even when the function is unchanged.
+- **Incremental XIP** and **incremental IRQ:** independently 0/256/1024/4096 ticks, with the
+  other increment fixed at 0. These are illustrative increments, not measured bounds.
+
+Families are one-at-a-time, not a Cartesian stress grid. Fixed FX/route anchors require matching
+types, sends, active/history and slice conditions; unchanged function text alone does not prove
+unchanged target timing. Historical bank costs stay on the worker path, not an extra serial sum.
+The aggregate CPU0 ratio does not identify its prep/local split.
+
+Each row also carries capture5/6/7 predictions separately, labeled **NIGHT ratio-portability
+sensitivity**. Applying acid0-based ratios to NIGHT is a cross-workload assumption; the three
+records are not matched current candidates, pooled regression evidence, or validation of acid0.
+
+Reports distinguish predicted mean ticks/ms/percentage of the integer 69648-tick block budget
+from `historical_max/historical_mean * predicted_mean` shape sensitivity. Budget percentage is
+not CPU utilization. Shape sensitivity is not a future maximum, p99, confidence interval or
+proven upper bound. Real current device timing remains unmeasured.
+
+Internal deterministic checks reproduce each anchor exactly with all stage ratios 1 at equal
+old/new prep shares 0.05/0.15/0.30. The legacy default path also retains all clean-capture exact-fit
+checks. These checks are algebraic, without timing thresholds, and need no measurements to exercise
+using a synthetic unit-ratio input.
 
 ## Target Metadata
 
@@ -204,6 +389,10 @@ It recomputes the source-input convention from `tools/build_target.py` unchanged
 and includes every input actually read in the hash list. If `source_input_matches=false`,
 read it as a stale report, not evidence of the current build.
 If absent, target metadata is null and the timing model can still run.
+The canonical inputs are all `.c/.h/.S/.ld` files below `src/` and `firmware/`, plus
+`tools/build_target.py`, `tools/gen_pcm.py`, `tools/gen_va.py`, `tools/target_abi.c`,
+`data/pcm-manifest.json`, `data/pcm-source/vsco-attacks.json`, and
+`data/pcm-source/generaluser-strings.json`. Both modes use the same fingerprint implementation.
 
 When an ABI is available, only explicit byte counts for 8 `McSynthJob` payloads, 8 `McFxJob` payloads,
 and FX bus returns are calculated. Sparse history prepare/commit, voice state commit, and similar work

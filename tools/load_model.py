@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """과거 장치 집계를 보정점으로 사용하는 비보증 조건부 부하 모델."""
 
+import argparse
 from dataclasses import asdict, dataclass, replace
 from fractions import Fraction as F
 import hashlib
 import json
+import math
 from pathlib import Path
 import sys
-from typing import Final
+from typing import Final, Literal, TypedDict
 
 
 ROOT: Final = Path(__file__).resolve().parents[1]
@@ -99,6 +101,10 @@ class Scenario:
     worker_share: F = F(3, 5)
     # 총 melodic 비용의 55%는 공통, 45%는 세 소스에 균등 분할하는 가정이다.
     source_fraction: F = F(45, 100)
+    cpu0_multiplier: F = F(1)
+    worker_combined_multiplier: F = F(1)
+    route_multiplier: F = F(1)
+    output_multiplier: F = F(1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,11 +162,15 @@ def simulate(cost: Costs, scenario: Scenario) -> Prediction:
     melodic = source_scale * scenario.melodic_multiplier
     # arithmetic의 영향 비중 20% 역시 측정값이 아닌 sensitivity 가정이다.
     arithmetic = 1 + F(1, 5) * (scenario.arithmetic_multiplier - 1)
-    local = cost.local * melodic * arithmetic / 8
-    worker = cost.worker * melodic * arithmetic * scenario.worker_multiplier / 8
-    drums = cost.drums * scenario.drum_multiplier * scenario.worker_multiplier / 8
+    local = cost.local * melodic * arithmetic * scenario.cpu0_multiplier / 8
+    worker = (cost.worker * melodic * arithmetic * scenario.worker_multiplier
+              * scenario.worker_combined_multiplier / 8)
+    drums = (cost.drums * scenario.drum_multiplier * scenario.worker_multiplier
+             * scenario.worker_combined_multiplier / 8)
     fx = sum(cost.banks, F(0)) * scenario.fx_multiplier / 8
-    prep, route, output = cost.prep / 8, cost.route / 8, cost.output / 8
+    prep = cost.prep * scenario.cpu0_multiplier / 8
+    route = cost.route * scenario.route_multiplier / 8
+    output = cost.output * scenario.output_multiplier / 8
     copy = cost.transfer * scenario.copy_multiplier / 18
     clock, total_wait, overlap = F(0), F(0), F(0)
     rounds = []
@@ -232,7 +242,373 @@ def check_timeline(pred: Prediction, serial: bool) -> None:
     require(serial or pred.overlap_ticks > 0, "dual overlap")
 
 
-def main() -> int:
+def source_fingerprint() -> tuple[str, dict[str, str]]:
+    """Use exactly the current build_target.py source-input convention."""
+    paths = [
+        p for folder in ("src", "firmware") for p in (ROOT / folder).rglob("*")
+        if p.is_file() and p.suffix in (".c", ".h", ".S", ".ld")
+    ]
+    paths += [ROOT / p for p in (
+        "tools/build_target.py", "tools/gen_pcm.py", "tools/gen_va.py",
+        "tools/target_abi.c", "data/pcm-manifest.json",
+        "data/pcm-source/vsco-attacks.json", "data/pcm-source/generaluser-strings.json",
+    )]
+    digest = hashlib.sha256()
+    inputs = {}
+    for path in sorted(paths):
+        relative = path.relative_to(ROOT).as_posix()
+        data = path.read_bytes()
+        digest.update(relative.encode() + b"\0" + data + b"\0")
+        inputs["current/" + relative] = hashlib.sha256(data).hexdigest()
+    return digest.hexdigest(), inputs
+
+
+HOST_STAGES: Final = ("cpu0_synth", "worker_combined", "transfer", "route", "output")
+PREP_SHARES: Final = (F(1, 20), F(15, 100), F(3, 10))
+
+
+@dataclass(frozen=True, slots=True)
+class StageSamples:
+    cpu0_synth: tuple[F, ...]
+    worker_combined: tuple[F, ...]
+    transfer: tuple[F, ...]
+    route: tuple[F, ...]
+    output: tuple[F, ...]
+
+    def medians(self) -> dict[str, F]:
+        return {key: sorted(values)[1] for key, values in asdict(self).items()}
+
+
+@dataclass(frozen=True, slots=True)
+class MeasuredRow:
+    profile: int
+    name: str
+    phase: Literal["attack", "held"]
+    analog: int
+    register: Literal["middle", "high"]
+    source_mask: int
+    aux_enabled: bool
+    ratios: StageSamples
+    host_ns: StageSamples
+    baseline_ns: StageSamples
+    activity_json: str
+
+
+@dataclass(frozen=True, slots=True)
+class MeasuredInput:
+    source_input_sha256: str
+    original_commit: str
+    compiler: str
+    original_source_proxy: bool
+    rows: tuple[MeasuredRow, ...]
+
+
+class MeasuredMetrics(TypedDict):
+    predicted_mean_ticks: F
+    predicted_mean_ms: F
+    predicted_mean_budget_percent: F
+    conditional_mean_margin_ticks: F
+    delta_from_anchor_ticks: F
+    max_mean_shaped_sensitivity_ticks: F
+    max_mean_shaped_sensitivity_ms: F
+    max_mean_shaped_budget_percent: F
+    render_ticks: F
+    wait_ticks: F
+    overlap_ticks: F
+
+
+def parse_measured(data: bytes, source_hash: str) -> MeasuredInput:
+    """Parse schema 2 once; reject stale bindings and inconsistent triples."""
+    raw = json.loads(data, parse_constant=lambda token: require(False, f"Nonfinite JSON: {token}"))
+    require(isinstance(raw, dict), "Measured input must be an object")
+    require({"schema", "source_input_sha256", "original_commit", "compiler", "rows"} <= raw.keys(),
+            "Missing measured input fields")
+    require(type(raw["schema"]) is int and raw["schema"] == 2, "Measured schema must be 2")
+    require(raw["source_input_sha256"] == source_hash, "Measured source fingerprint is stale")
+    require(raw["original_commit"] == COMMIT, "Measured original_commit mismatch")
+    require(isinstance(raw["compiler"], str) and bool(raw["compiler"].strip()), "Missing compiler")
+    proxy = raw.get("original_source_proxy", True)
+    require(type(proxy) is bool, "original_source_proxy must be boolean")
+    require(isinstance(raw["rows"], list) and bool(raw["rows"]), "Measured rows must be nonempty")
+    rows = []
+    keys = {"profile", "name", "phase", "analog", "register", "source_mask", "aux_enabled",
+            "ratios", "host_ns", "baseline_ns", "activity"}
+    for index, item in enumerate(raw["rows"]):
+        require(isinstance(item, dict) and keys <= item.keys(), f"Missing row fields at {index}")
+        for key, maximum in (("profile", 63), ("analog", 127), ("source_mask", 7)):
+            require(type(item[key]) is int and 0 <= item[key] <= maximum, f"Invalid {key} at {index}")
+        require(isinstance(item["name"], str) and bool(item["name"].strip()), f"Missing name at {index}")
+        require(item["phase"] in ("attack", "held"), f"Invalid phase at {index}")
+        require(item["register"] in ("middle", "high"), f"Invalid register at {index}")
+        require(type(item["aux_enabled"]) is bool, f"Invalid aux_enabled at {index}")
+        require(isinstance(item["activity"], dict), f"Invalid activity at {index}")
+        stages = {}
+        for group in ("ratios", "host_ns", "baseline_ns"):
+            values = item[group]
+            require(isinstance(values, dict) and set(values) == set(HOST_STAGES),
+                    f"Invalid {group} stage keys at {index}")
+            parsed = {}
+            for key in HOST_STAGES:
+                triple = values[key]
+                require(isinstance(triple, list) and len(triple) == 3,
+                        f"{group}.{key} needs three repeats at {index}")
+                require(all(type(n) in (int, float) and math.isfinite(n) and n > 0 for n in triple),
+                        f"{group}.{key} must be positive finite numbers at {index}")
+                parsed[key] = tuple(F(str(n)) for n in triple)
+            stages[group] = StageSamples(**parsed)
+        for key in HOST_STAGES:
+            for ratio, host, baseline in zip(item["ratios"][key], item["host_ns"][key],
+                                             item["baseline_ns"][key]):
+                expected = F(str(host)) / F(str(baseline))
+                require(abs(F(str(ratio)) - expected) <= max(F(1, 10**9), expected / 10**6),
+                        f"Inconsistent {key} ratio/ns at {index}")
+        rows.append(MeasuredRow(
+            item["profile"], item["name"], item["phase"], item["analog"], item["register"],
+            item["source_mask"], item["aux_enabled"], stages["ratios"], stages["host_ns"],
+            stages["baseline_ns"], json.dumps(item["activity"], sort_keys=True),
+        ))
+    return MeasuredInput(source_hash, COMMIT, raw["compiler"], proxy, tuple(rows))
+
+
+def measured_scenario(row: MeasuredRow, portability: F = F(1),
+                      p_old: F = F(15, 100)) -> Scenario:
+    ratios = row.ratios.medians()
+    # Ratios already include source gating; do not apply legacy mask scaling again.
+    return Scenario(
+        "measured-stage-ratios", prep_fraction=p_old, source_fraction=F(0),
+        cpu0_multiplier=1 + portability * (ratios["cpu0_synth"] - 1),
+        worker_combined_multiplier=1 + portability * (ratios["worker_combined"] - 1),
+        copy_multiplier=ratios["transfer"], output_multiplier=ratios["output"],
+    )
+
+
+def measured_metrics(capture: Capture, scenario: Scenario,
+                     p_new: F = F(15, 100)) -> MeasuredMetrics:
+    # Fit the historical worker using p_old, then split the scaled CPU0 aggregate using p_new.
+    cost = fit(capture, scenario)
+    cost = replace(cost, prep=capture.stage(0) * p_new, local=capture.stage(0) * (1 - p_new))
+    prediction = simulate(cost, scenario)
+    check_timeline(prediction, False)
+    mean = prediction.audio_ticks
+    shaped = mean * capture.words[10] / capture.mean(8)
+    return {
+        "predicted_mean_ticks": mean, "predicted_mean_ms": mean / 24000,
+        "predicted_mean_budget_percent": 100 * mean / DEADLINE,
+        "conditional_mean_margin_ticks": DEADLINE - mean,
+        "delta_from_anchor_ticks": mean - capture.mean(8),
+        "max_mean_shaped_sensitivity_ticks": shaped,
+        "max_mean_shaped_sensitivity_ms": shaped / 24000,
+        "max_mean_shaped_budget_percent": 100 * shaped / DEADLINE,
+        "render_ticks": prediction.render_ticks, "wait_ticks": prediction.wait_ticks,
+        "overlap_ticks": prediction.overlap_ticks,
+    }
+
+
+def measured_report(measured: MeasuredInput, captures: list[Capture],
+                    inputs: dict[str, str]) -> tuple[str, str]:
+    """Return a compact report; no IO, measurements, or global ISR scaling."""
+    ones = StageSamples(*((F(1),) * 3 for _ in HOST_STAGES))
+    for index in (2, 5, 6, 7):
+        for share in PREP_SHARES:
+            unit = measured_scenario(replace(measured.rows[0], ratios=ones), p_old=share)
+            result = measured_metrics(captures[index], unit, share)
+            require(result["predicted_mean_ticks"] == captures[index].mean(8)
+                    and result["render_ticks"] == captures[index].mean(5)
+                    and result["wait_ticks"] == captures[index].stage(4),
+                    f"Unit-ratio exact reproduction at capture {index}, prep {share}")
+
+    rows = []
+    for index, row in enumerate(measured.rows):
+        scenario = measured_scenario(row)
+        record = asdict(row)
+        record["activity"] = json.loads(record.pop("activity_json"))
+        rows.append({
+            "row_index": index, "measurement": record, "ratios_median": row.ratios.medians(),
+            "primary": measured_metrics(captures[2], scenario),
+            "night_ratio_portability_sensitivity": [
+                {"capture_index": i, **measured_metrics(captures[i], scenario)} for i in (5, 6, 7)
+            ],
+        })
+    top = sorted(range(len(rows)),
+                 key=lambda i: (-rows[i]["primary"]["predicted_mean_ticks"], i))[:5]
+    envelopes = []
+    for index in top:
+        row = measured.rows[index]
+        primary = measured_scenario(row)
+        families = {
+            "independent_prep_shares": [
+                ({"p_old": old, "p_new": new}, replace(primary, prep_fraction=old), new)
+                for old in PREP_SHARES for new in PREP_SHARES
+            ],
+            "synthesis_delta_portability": [
+                ({"factor": factor}, measured_scenario(row, factor), F(15, 100))
+                for factor in (F(3, 4), F(1), F(5, 4))
+            ],
+            "copy_fixed_vs_measured": [
+                ({"copy_multiplier": factor}, replace(primary, copy_multiplier=factor), F(15, 100))
+                for factor in (F(1), primary.copy_multiplier)
+            ],
+            "route_anchor_vs_measured_check": [
+                ({"route_multiplier": factor}, replace(primary, route_multiplier=factor), F(15, 100))
+                for factor in (F(1), row.ratios.medians()["route"])
+            ],
+            "output_anchor_vs_measured_check": [
+                ({"output_multiplier": factor}, replace(primary, output_multiplier=factor), F(15, 100))
+                for factor in (F(1), primary.output_multiplier)
+            ],
+            "incremental_xip": [
+                ({"xip_ticks": ticks}, replace(primary, xip_ticks=ticks), F(15, 100))
+                for ticks in (F(0), F(256), F(1024), F(4096))
+            ],
+            "incremental_irq": [
+                ({"irq_ticks": ticks}, replace(primary, irq_ticks=ticks), F(15, 100))
+                for ticks in (F(0), F(256), F(1024), F(4096))
+            ],
+        }
+        for name, variants in families.items():
+            results, excluded = [], []
+            for parameters, scenario, p_new in variants:
+                if scenario.cpu0_multiplier <= 0 or scenario.worker_combined_multiplier <= 0:
+                    excluded.append(parameters)
+                    continue
+                results.append(measured_metrics(captures[2], scenario, p_new))
+            envelopes.append({
+                "row_index": index, "family": name,
+                "parameters": [parameters for parameters, _, _ in variants],
+                "excluded_nonpositive_synthesis": excluded,
+                "envelope": {
+                    key: {"min": min(result[key] for result in results),
+                          "max": max(result[key] for result in results)}
+                    for key in (
+                        "predicted_mean_ticks", "predicted_mean_ms", "predicted_mean_budget_percent",
+                        "max_mean_shaped_sensitivity_ticks", "max_mean_shaped_sensitivity_ms",
+                        "max_mean_shaped_budget_percent", "wait_ticks",
+                    )
+                },
+            })
+    assumptions = {
+        "primary": "acid0 index2 single point; p_old=p_new=0.15; medians of three paired host "
+                   "ratios scale CPU0 prep+local, latent worker combined, transfer, and output. "
+                   "Route and each FX bank retain historical costs.",
+        "worker_combined": "Synth-enabled jobs only: job_ticks minus bank ticks, including "
+                           "job wrapper residue; not pure DSP. FX-only epilogue coordination "
+                           "is excluded by the runner and remains unmeasured target overhead.",
+        "parallelism": "Uniform 8x16 frames, nine submit/join rounds. CPU1 previous FX then "
+                       "current synth; waits are recomputed by max/join, never held fixed.",
+        "prep": "p_old fits the historical latent worker; independently p_new redistributes "
+                "the current CPU0 aggregate. Nine share pairs are sensitivity assumptions.",
+        "portability": "1+factor*(host_ratio-1), factors 0.75/1/1.25, on CPU0 and combined "
+                       "worker only. Assumptions, not learned intervals. Nonpositive variants "
+                       "are excluded explicitly, not clipped.",
+        "common_work": "Output uses its measured ratio because limiter branches can differ. "
+                       "Route=1 and FX=1 assume matching sends/types/slices/state. Measured "
+                       "route checks and output-anchor checks are separate top-row sensitivities.",
+        "copy": "Measured transfer ratio is primary, fixed1 is sensitivity. Runner subtracts "
+                "the complete synchronous notify span; copy/coordination are not identified.",
+        "sources": "Input masks, auxiliary state, and activity are metadata, not extra "
+                   "multipliers. Measured ratios already include source gating and lifetime.",
+        "host": "Synchronous notify measures real worker kernels without host worker-thread "
+                "scheduling. It does not reproduce MCU cache/XIP contention or overlap.",
+        "residuals": "Historical render residual and perf audio-render remain fixed assumptions. "
+                     "TIMER5, non_render, and bank time are not added again.",
+        "shaped": "Historical max/mean times predicted mean is a separate shape-persistence "
+                  "sensitivity, not a future maximum, p99, or confidence interval.",
+        "budget": "Percent of the integer 69648-tick block boundary, not CPU utilization. "
+                  "TIMER4 nominal 24MHz; CPU Hz unknown; LRCLK not measured.",
+        "night": "Captures 5/6/7 are separate cross-workload ratio-portability sensitivities, "
+                 "not matched candidates, pooled regression evidence, or validation of acid0.",
+        "envelopes": "Only the five largest primary row means get one-family-at-a-time "
+                     "envelopes; no Cartesian stress sweep. XIP and IRQ increments are "
+                     "independent examples 0/256/1024/4096 ticks, not bounds.",
+        "provenance": "original_source_proxy=false is the runner's historical-source assertion, "
+                      "not a git or binary verification by this model. Omission means proxy.",
+    }
+    report = {
+        "schema": 2, "mode": "measured-stage-ratios", "new_firmware_device_evidence": False,
+        "binding": {
+            "source_input_sha256": measured.source_input_sha256, "original_commit": measured.original_commit,
+            "original_source_proxy": measured.original_source_proxy, "compiler": measured.compiler,
+            "historical_app_sha256": APP, "historical_source_input_sha256": SOURCE,
+            "input_sha256": inputs,
+        },
+        "timer": {"nominal_timer4_hz": 24000000, "cpu_hz": None,
+                  "deadline_ticks_integer": DEADLINE, "deadline_ticks_physical": PHYSICAL},
+        "references": {
+            "primary_capture_index": 2, "primary_inference": "Single-point acid0 calibration",
+            "night_capture_indices": [5, 6, 7], "excluded_drift_indices": [1, 9, 10],
+            "raw_captures": len(captures), "raw_blocks": sum(c.words[2] for c in captures),
+            "anchors": [
+                {"capture_index": i, "audio_mean_ticks": captures[i].mean(8),
+                 "audio_max_ticks": captures[i].words[10],
+                 "stage_mean_ticks": {name: captures[i].stage(k) for k, name in enumerate(STAGES)}}
+                for i in (2, 5, 6, 7)
+            ],
+        },
+        "assumptions": assumptions, "rows": rows, "top_row_indices": top, "envelopes": envelopes,
+        "checks": {"raw_manual_drift_overlap": "PASS", "unit_ratio_exact_reproduction": True},
+    }
+    text = json.dumps(report, ensure_ascii=False, indent=2,
+                      default=lambda value: float(value) if isinstance(value, F) else asdict(value),
+                      allow_nan=False) + "\n"
+    lines = [
+        "# Measured Stage-Ratio Conditional Load Model", "",
+        "Historical device anchors plus host stage ratios; NOT current device measurements.", "",
+        f"- Current source-input: `{measured.source_input_sha256}`.",
+        f"- Original commit: `{measured.original_commit}`; source proxy: "
+        f"`{str(measured.original_source_proxy).lower()}` (runner assertion).",
+        f"- Compiler: {measured.compiler}. Rows: {len(rows)}.",
+        "- Primary: acid0 capture2, a single point. NIGHT5/6/7 remain separate sensitivities.",
+        "- Budget percentages use 69648 TIMER4 ticks; they are not CPU utilization.",
+        "- Shape sensitivity is NOT a future maximum, p99, or guaranteed upper bound.", "",
+        "## Per-row Primary Predictions", "",
+        "| row | profile | name | phase | Analog | register | mask | aux | mean ticks | ms | budget % | shaped ticks | shaped budget % | wait ticks | route ratio check |",
+        "|---:|---:|---|---|---:|---|---:|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for record, row in zip(rows, measured.rows):
+        metrics = record["primary"]
+        name = row.name.replace("|", "\\|").replace("\n", " ").replace("\r", " ")
+        lines.append(
+            f"| {record['row_index']} | {row.profile} | {name} | {row.phase} | {row.analog} | "
+            f"{row.register} | {row.source_mask} | {str(row.aux_enabled).lower()} | "
+            f"{float(metrics['predicted_mean_ticks']):.3f} | {float(metrics['predicted_mean_ms']):.6f} | "
+            f"{float(metrics['predicted_mean_budget_percent']):.3f} | "
+            f"{float(metrics['max_mean_shaped_sensitivity_ticks']):.3f} | "
+            f"{float(metrics['max_mean_shaped_budget_percent']):.3f} | "
+            f"{float(metrics['wait_ticks']):.3f} | {float(row.ratios.medians()['route']):.6f} |"
+        )
+    lines += ["", "## Top-row One-family Sensitivity Envelopes", "",
+              "Conditional ranges, not measured intervals. Other primary assumptions stay fixed.", "",
+              "| row | family | mean ticks | shaped ticks | excluded nonpositive variants |",
+              "|---:|---|---:|---:|---:|"]
+    for envelope in envelopes:
+        mean = envelope["envelope"]["predicted_mean_ticks"]
+        shaped = envelope["envelope"]["max_mean_shaped_sensitivity_ticks"]
+        lines.append(
+            f"| {envelope['row_index']} | {envelope['family']} | "
+            f"{float(mean['min']):.3f}..{float(mean['max']):.3f} | "
+            f"{float(shaped['min']):.3f}..{float(shaped['max']):.3f} | "
+            f"{len(envelope['excluded_nonpositive_synthesis'])} |"
+        )
+    lines += ["", "## NIGHT Ratio-portability Sensitivity", "",
+              "Different workload, not a matched comparison or regression fit.", "",
+              "| row | separate capture5/6/7 mean ticks |", "|---:|---|"]
+    for record in rows:
+        values = record["night_ratio_portability_sensitivity"]
+        means = " / ".join(f"{float(item['predicted_mean_ticks']):.3f}" for item in values)
+        lines.append(f"| {record['row_index']} | {means} |")
+    lines += ["", "## Assumptions and Limits", ""]
+    lines += [f"- **{key}**: {value}" for key, value in assumptions.items()]
+    lines += ["", "## Deterministic Checks", "",
+              "Raw/manual/drift/overlap PASS; unit stage ratios exactly reproduce each historical "
+              "anchor at equal old/new prep shares 0.05/0.15/0.30. "
+              "Exact reproduction is algebraic, not held-out device validation.", ""]
+    return text, "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Conditional historical load calibration.")
+    parser.add_argument("--measured", type=Path, help="Schema-2 measured host stage ratios.")
+    args = parser.parse_args(argv)
     # 입력 manifest는 파일 내용 해시다. mtime·호스트 실행 시간은 보고서에 넣지 않는다.
     inputs = {}
 
@@ -319,21 +695,16 @@ def main() -> int:
 
     target = None
     copy_bytes = None
+    measured = None
+    if args.measured or (ROOT / "build/target-report.json").is_file():
+        actual_source_hash, source_inputs = source_fingerprint()
+        inputs.update(source_inputs)
+    if args.measured:
+        measured_bytes = args.measured.read_bytes()
+        inputs["measured_input"] = hashlib.sha256(measured_bytes).hexdigest()
+        measured = parse_measured(measured_bytes, actual_source_hash)
     if (ROOT / "build/target-report.json").is_file():
         target = json.loads(read_input(ROOT, "build/target-report.json"))
-        source_paths = sorted(
-            p for folder in ("src", "firmware") for p in (ROOT / folder).rglob("*")
-            if p.is_file() and p.suffix in (".c", ".h", ".S", ".ld")
-        )
-        source_paths += [ROOT / p for p in (
-            "tools/build_target.py", "tools/gen_pcm.py", "tools/target_abi.c",
-            "data/pcm-manifest.json",
-        )]
-        digest = hashlib.sha256()
-        for p in sorted(source_paths):
-            relative = p.relative_to(ROOT).as_posix()
-            digest.update(relative.encode() + b"\0" + read_input(ROOT, relative) + b"\0")
-        actual_source_hash = digest.hexdigest()
         abi = target.get("target_abi_bytes", {})
         if all(k in abi for k in ("McSynthJob", "McFxJob")):
             copy_bytes = {
@@ -346,7 +717,7 @@ def main() -> int:
         target = {
             "report": target, "actual_source_input_sha256": actual_source_hash,
             "source_input_matches": actual_source_hash == target["source_input_sha256"],
-            "source_file_count": len(source_paths), "device_evidence": False,
+            "source_file_count": len(source_inputs), "device_evidence": False,
             "note": "기존 타깃 보고서; 이번에 빌드/바이너리 재해시하지 않음. 불일치 시 stale 표시.",
         }
 
@@ -367,6 +738,15 @@ def main() -> int:
             "residual_after_fit_ticks": prediction.audio_ticks - c.mean(8),
             "note": "관측 평균의 대수적 재현; 독립 정확도 검증 아님",
         })
+    if measured is not None:
+        text, markdown = measured_report(measured, captures, inputs)
+        output = ROOT / "build/load64"
+        output.mkdir(parents=True, exist_ok=True)
+        (output / "model.json").write_text(text, encoding="utf-8")
+        (output / "model.md").write_text(markdown, encoding="utf-8")
+        print(f"PASS raw/manual/drift/overlap; measured rows={len(measured.rows)}; "
+              "unit-ratio exact reproduction; firmware verdict=NONE")
+        return 0
     scenarios = [Scenario("all-source-8voice-6drum-4FX")]
     for mask in range(8):
         scenarios.append(Scenario(f"source-gating-mask-{mask}", mask=mask))

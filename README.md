@@ -1,5 +1,7 @@
 # mc-1-mod
 
+**Experiment failed — recorded October 21, 2026.** The current sample-based hybrid approach did not establish an acceptable sound-quality / processing-cost trade-off for the intended FM-1 workload. Adding FM/VA layers and auxiliary oscillators to compensate for sample limitations accumulates DSP cost. The project is retained as an experimental reference, not a successful or hardware-validated sound pack. See [failure evidence](#experiment-outcome-and-evidence).
+
 A separate sound pack for FM-1. Built on MC-1's sequencer, drums, mixer, four shared FX, MIDI, and panel, it replaces the legacy LA sound generation path with hybrid PCM/FM/VA voices. The firmware and web emulator use the same C DSP, UI, and storage code in this repository.
 
 The 64 integrated sounds retain the original 32 profiles and append 32 PCM-free synth profiles for techno, hiphop, pop, and eurosynth. All four piano/EP defaults (IDs 8–11) use real 1.2-second CC0 upright-piano segments without a default saw body. Stage Piano adds a short FM onset; Soft Piano is PCM-only. Strings (ID 25) uses licensed SoundFont PCM with a fast default attack, which the user can lengthen with ATTACK. The three melody parts retain a combined 8 voices, with 6 simultaneous drum voices, 8 kits, and 4 FX banks.
@@ -7,6 +9,18 @@ The 64 integrated sounds retain the original 32 profiles and append 32 PCM-free 
 IDs 32–43 are 80S SYNTH (12), 44–53 are 90S SYNTH (10), and 54–63 are 00S SYNTH (10). The expansion has 16 parallel FM + VA profiles (mask 6) and 16 triples (mask 7): eight FM + VA + FM2 and eight VA + FM + VA2. The auxiliary has independent phase and recipe tuning; the sum passes through one shared filter and amplitude envelope. This is not three full engines, a seven-saw synth, hard sync, or a PWM clone.
 
 ## Current status
+
+### Experiment outcome and evidence
+
+The failure conclusion concerns this implementation and its intended workload, not the feasibility of all sample-based synthesis. Sample playback alone was not the full design: additional synthesis layers were used to supply missing body, harmonics and movement. Sharing a filter and envelope does not remove the cost of those sources. The PCM-free expansion also exceeded the modeled budget, so removing samples alone is not a demonstrated solution.
+
+- **Sound quality:** the current 64 sounds have not received listening approval; numerical checks and successful renders do not establish that the desired sound quality was achieved.
+- **Time budget:** under synthetic 8-melody-voice / 6-drum / 4-FX load, Analog127 and maximum available source gains, historical MC-1 stage timings calibrated with paired host measurements predict **3.356–5.114 ms per block**, against a **2.902 ms** deadline. That is **116–176% of the time budget**, not CPU utilization. All 256 full-source profile/phase/register conditions cross the deadline under the primary model assumptions.
+- **Cost of additional sources:** auxiliary-on/off controls for 16 profiles gave **0.177–0.646 ms** of additional conditional processing time. Host CPU0 synthesis cost increased **5.4–26.9%**. These controls isolate the auxiliary-source increment, not the complete cost of every layer used to supplement PCM. The PCM-free new 32 profiles still predict **3.702–4.996 ms**.
+- **Evidence:** **1,152 host executions**, including 1,008 candidate runs and 144 bracketing original runs, anchored to 11 historical MC-1 captures (90,112 blocks). Source/app fingerprints, workload, stage calculations, sensitivity and reproduction commands are in [the 64-profile load report](docs/LOAD_RESULTS_64.md) and [model methodology](docs/LOAD_MODEL.md).
+- **Limits:** these are conditional estimates, not measurements of the current firmware on FM-1. No current-device underrun test or safe-polyphony limit was established. Ordinary factory playback and lower-load configurations were not characterized by this stress experiment.
+
+Host render parity, sanitizers and model regression checks passed. They validate the implementation and calculation paths, not the sound-quality goal or real-time feasibility. Audio previews, emulator and firmware artifacts remain available as records of the failed experiment.
 
 **0.0.1 experimental: audio quality has not received listening approval, and FM-1 hardware remains unverified.** Target compilation and offline OTA/RAM loader checks are complete, but installation on a device, boot, audio, and real-time deadlines have not been verified. Host/WASM agreement and a sensitivity model based on historical MC-1 measurements do not prove that the new firmware works on hardware.
 

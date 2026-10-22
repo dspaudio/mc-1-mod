@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101110">
-  <title>MC-1 MOD 0.0.1 experimental — Sound pack</title>
+  <title>MC-1 MOD — Failed experiment and evidence</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./gallery.js" defer></script>
 </head>
@@ -23,6 +23,9 @@
     </header>
 
     <main id="main">
+      <div class="release-note">
+        <p><strong>Experiment failed — October 21, 2026.</strong> The current sample-based hybrid approach did not establish an acceptable sound-quality / processing-cost trade-off for the intended FM-1 workload. This page preserves the experimental results, not a successful or hardware-validated sound pack. <a href="#experiment-outcome">Read the failure evidence.</a></p>
+      </div>
       <section class="hero section" aria-labelledby="hero-title">
         <div>
           <p class="eyebrow">A separate sound pack for MC-1 · 0.0.1 experimental</p>
@@ -48,6 +51,23 @@
         <div><dt>Sources</dt><dd>PCM / FM / VA / AUX</dd></div>
       </dl>
 
+      <section class="section" id="experiment-outcome" aria-labelledby="experiment-title">
+        <div class="section-heading">
+          <p class="eyebrow">EXPERIMENT OUTCOME · OCTOBER 21, 2026</p>
+          <h2 id="experiment-title">Failed: sound quality versus DSP cost</h2>
+        </div>
+        <p class="measure">The sample-based design needed additional FM/VA layers and auxiliary oscillators to supply body, harmonics and movement. Their processing cost accumulates even with a shared filter and envelope. The current 64 sounds remain unapproved by listening, while the stress-load estimate exceeds the real-time budget. This is the failure of this implementation and its intended workload, not a claim that all sample-based synthesis is infeasible.</p>
+        <div class="release-note">
+          <p><strong>Time budget:</strong> Synthetic 8-melody-voice / 6-drum / 4-FX load, Analog127 and maximum available source gains gives a conditional mean of <strong>3.356–5.114 ms per block</strong> against a <strong>2.902 ms</strong> deadline: <strong>116–176% of the time budget</strong>, not CPU utilization. All 256 full-source profile/phase/register conditions cross the deadline under the primary model assumptions.</p>
+          <p><strong>Added-source cost:</strong> Auxiliary-on/off controls for 16 profiles add <strong>0.177–0.646 ms</strong> conditionally, with <strong>5.4–26.9%</strong> more host CPU0 synthesis time. This isolates the auxiliary-source increment, not the complete cost of every layer used to supplement PCM. The PCM-free new 32 profiles still predict <strong>3.702–4.996 ms</strong>; removing samples alone is not a demonstrated solution.</p>
+          <p><strong>Evidence:</strong> 1,152 host executions: 1,008 candidate runs plus 144 bracketing original runs, calibrated to 11 historical MC-1 captures containing 90,112 measured blocks. Render parity, sanitizers and model regression checks passed, but those checks do not establish approved sound quality or real-time feasibility.</p>
+          <p><strong>Limits:</strong> These are historical-device-calibrated host estimates, not current-firmware measurements on FM-1. No current-device underrun test or safe-polyphony limit was established. Ordinary factory playback and lower-load configurations were not characterized by this stress experiment.</p>
+        </div>
+        <p class="measure"><a class="text-link" href="https://github.com/dspaudio/mc-1-mod/blob/main/docs/LOAD_RESULTS_64.md">Full load report, source fingerprints, sensitivity and reproduction commands →</a></p>
+        <p class="measure"><a class="text-link" href="https://github.com/dspaudio/mc-1-mod/blob/main/docs/LOAD_MODEL.md">Stage-by-stage model methodology and assumptions →</a></p>
+        <p class="small">The previews, emulator and firmware artifacts below remain available as records of the failed experiment.</p>
+      </section>
+
       <section class="section" aria-labelledby="about-title">
         <div class="section-heading">
           <p class="eyebrow">SOUND PACK</p>
@@ -65,7 +85,7 @@
           <p class="lead">Start with the original MC-1 demos: NIGHT CIRCUIT (an 8-bar pattern excerpt) and NEON SPIRAL (32 bars), with new voices in matching roles. Then hear all 64 presets, 8 drum kits, two additional dance songs, and the stress render as MP3 previews. Lossless C renders are retained as local engineering evidence.</p>
         </div>
         <div class="release-note">
-          <p><strong>Timbre revision in progress:</strong> The current bank has not met the listening standard for richness. These files are reference candidates, not approved sounds. Revised presets will be evaluated as complete source, filter, envelope, and built-in FX combinations.</p>
+          <p><strong>Failed experiment reference:</strong> The current bank has not met the listening standard for richness, and the modeled stress load exceeds the time budget. These files preserve the experiment; they are not approved sounds or evidence of hardware feasibility.</p>
           <p><strong>Comparison conditions:</strong> Fixed render gain, with no loudness matching or normalization. Differences in playback level are not a sound-quality score.</p>
           <p>Every example comes from the same host C renderer. Device output and real-time performance have not been tested, and listening approval is pending. Measurements and downloadable files do not constitute sound-quality approval.</p>
         </div>
